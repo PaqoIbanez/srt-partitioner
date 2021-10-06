@@ -1,0 +1,4725 @@
+1
+00:00:06,650 --> 00:00:13,040
+Welcome to the second to last lecture of the
+second iteration of the Plutus Pioneer Program.
+
+2
+00:00:14,120 --> 00:00:19,640
+This lecture is not about Plutus, but about
+Marlowe, which is a domain specific language
+
+3
+00:00:19,670 --> 00:00:22,700
+for financial contracts built on top of Plutus.
+
+4
+00:00:23,450 --> 00:00:29,690
+And even though Marlowe has also changed
+a little bit since the recording of
+
+5
+00:00:29,690 --> 00:00:31,490
+this lecture for the first iteration.
+
+6
+00:00:32,090 --> 00:00:37,250
+The changes are much smaller than
+those that happen Plutus all the time.
+
+7
+00:00:37,700 --> 00:00:45,500
+So I decided to not update or edit this lecture
+because I think it's still mostly accurate.
+
+8
+00:00:44,115 --> 00:00:56,545
+In the previous lectures we have learned about
+all the important ingredients for writing
+
+9
+00:00:45,860 --> 00:00:49,190
+And in particular, the demo
+at the end still works.
+
+10
+00:00:56,545 --> 00:01:02,095
+a Plutus application, we have first looked
+at the extended UTXO model, the accounting
+
+11
+00:01:02,095 --> 00:01:09,445
+model that Cardano uses, and the addition
+that Plutus brings to it, then we have talked
+
+12
+00:01:09,445 --> 00:01:14,695
+about on-chain validation about minting
+policies, about writing off-chain code.
+
+13
+00:01:15,385 --> 00:01:19,765
+We have seen how to deploy smart
+contracts and also how to test them.
+
+14
+00:01:20,865 --> 00:01:25,039
+And Plutus is a very powerful language,
+so powerful in fact that you can
+
+15
+00:01:25,280 --> 00:01:27,619
+implement other languages on top of it.
+
+16
+00:01:27,649 --> 00:01:31,310
+So you can write an interpreter
+in Plutus for other languages.
+
+17
+00:01:32,090 --> 00:01:37,850
+And one such language is Marlowe, which
+is a so-called DSL (domain specific
+
+18
+00:01:37,850 --> 00:01:40,310
+language) for financial contracts.
+
+19
+00:01:41,030 --> 00:01:46,580
+And because this is the second to
+last lecture of this course, I thought
+
+20
+00:01:46,670 --> 00:01:48,110
+you should do something special.
+
+21
+00:01:48,139 --> 00:01:53,639
+So I invited professor Simon Thompson who
+is a very prominent figure in the Haskell
+
+22
+00:01:53,660 --> 00:01:56,150
+community and who leads the Marlowe team.
+
+23
+00:01:56,900 --> 00:02:02,389
+And one of his colleagues, Alex Nemish
+to give guest lectures and tell us
+
+24
+00:02:02,389 --> 00:02:04,760
+a bit about Marlowe in this lecture.
+
+25
+00:02:05,600 --> 00:02:12,050
+And afterwards I will do a small demo of
+the Marlowe playground and demonstrate
+
+26
+00:02:12,109 --> 00:02:14,449
+playing with a simple Marlowe contract.
+
+27
+00:02:15,365 --> 00:02:18,094
+Hi, I'm Simon Thompson from the Marlowe team.
+
+28
+00:02:18,425 --> 00:02:21,254
+And we are here this afternoon to
+give you an introduction to Marlowe.
+
+29
+00:02:22,615 --> 00:02:23,544
+Let's get started.
+
+30
+00:02:25,675 --> 00:02:30,954
+So Marlowe is a special purpose language
+for writing financial contracts on Cardano.
+
+31
+00:02:31,945 --> 00:02:34,345
+Now, why do we build special purpose languages?
+
+32
+00:02:34,345 --> 00:02:37,255
+Or sometimes we call them
+domain specific languages?
+
+33
+00:02:38,035 --> 00:02:43,285
+One reason is that we want to build languages
+that are closer to the language of the user
+
+34
+00:02:43,525 --> 00:02:46,165
+and not so much a language of the system.
+
+35
+00:02:46,674 --> 00:02:52,415
+So they're designed to be in a
+specific domain of the application.
+
+36
+00:02:52,794 --> 00:02:55,225
+So a financial language
+you're talking about payment.
+
+37
+00:02:55,285 --> 00:03:02,785
+For example, when we write a special
+purpose language, we get some advantages.
+
+38
+00:03:02,785 --> 00:03:07,675
+You, we can write down things in that
+domain, but we can't perhaps write as much
+
+39
+00:03:07,675 --> 00:03:09,684
+as we could in a general purpose language.
+
+40
+00:03:10,165 --> 00:03:11,304
+And if we do.
+
+41
+00:03:11,735 --> 00:03:16,745
+Work in this more specialized context, we have
+the advantage of being able to give people better
+
+42
+00:03:16,745 --> 00:03:22,775
+feedback, better error messages, but also we
+can give more guarantees on program behavior.
+
+43
+00:03:23,105 --> 00:03:25,595
+And that's one of the things I'm
+going to stress in this lecture.
+
+44
+00:03:27,365 --> 00:03:27,875
+Okay.
+
+45
+00:03:28,655 --> 00:03:31,295
+What sorts of assurance can we give?
+
+46
+00:03:31,915 --> 00:03:34,415
+We can give two kinds of assurance really.
+
+47
+00:03:34,655 --> 00:03:38,915
+We can say, we can make sure that contracts
+do what they're supposed to do, great?
+
+48
+00:03:39,125 --> 00:03:41,795
+But we can also make sure they
+don't do what they shouldn't.
+
+49
+00:03:42,135 --> 00:03:49,325
+And we'll see both aspects of that as we go along,
+we've designed the language to be as simple as
+
+50
+00:03:49,325 --> 00:03:52,265
+it can be and the implementation reflects that.
+
+51
+00:03:52,295 --> 00:03:57,815
+And I'll talk a bit about that in some more
+detail later on, contracts are nice and
+
+52
+00:03:57,815 --> 00:04:00,665
+readable and also we can easily simulate them.
+
+53
+00:04:00,955 --> 00:04:06,365
+And so we can present to users a
+very clear picture about how their
+
+54
+00:04:06,725 --> 00:04:09,035
+contracts in Marlowe will behave.
+
+55
+00:04:10,010 --> 00:04:14,570
+And in fact, if we can do more than that,
+because they're particularly restricted, we
+
+56
+00:04:14,570 --> 00:04:21,230
+can, before a contract is executed, actually
+explore every possible behavior path it can take.
+
+57
+00:04:21,410 --> 00:04:26,300
+So we can give complete guarantees
+about how contracts will behave, not
+
+58
+00:04:26,300 --> 00:04:32,510
+just on one or two tests, but on the
+every possible execution sequence.
+
+59
+00:04:33,320 --> 00:04:36,290
+And also it's more straightforward
+to actually write mathematical
+
+60
+00:04:36,290 --> 00:04:38,660
+proofs of various kinds of safety.
+
+61
+00:04:39,320 --> 00:04:46,130
+So that's, if you like the strongest criteria
+that we can hit in this kind of world, that we
+
+62
+00:04:46,130 --> 00:04:51,290
+have a mathematical proof that the system will
+do certain things won't do wouldn't do others.
+
+63
+00:04:52,610 --> 00:04:53,090
+Okay.
+
+64
+00:04:54,890 --> 00:05:00,209
+But let's start by asking the question,
+what does a financial contract do?
+
+65
+00:05:00,999 --> 00:05:08,060
+And let's think, let's step
+back from what we see in the...
+
+66
+00:05:14,530 --> 00:05:16,315
+So what can a contract do?
+
+67
+00:05:17,095 --> 00:05:22,015
+Well, let's take a look at what various
+things a contract can engage it.
+
+68
+00:05:22,525 --> 00:05:30,325
+It can accept payments from participants in
+the contract, and according to things, choices
+
+69
+00:05:30,355 --> 00:05:35,185
+perhaps made by one of the participants,
+it can evolve in different directions.
+
+70
+00:05:35,215 --> 00:05:44,305
+Do I sell or do I stick with the contract
+for example, or it can make decisions
+
+71
+00:05:44,485 --> 00:05:50,575
+based on external information, such as the
+information coming from an exchange, a stock
+
+72
+00:05:50,575 --> 00:05:53,305
+exchange or a currency exchange, for example.
+
+73
+00:05:53,485 --> 00:05:59,605
+So information coming from an Oracle can
+determine the future behavior of a contract.
+
+74
+00:06:01,040 --> 00:06:03,800
+And finally the contract
+can also make payments out.
+
+75
+00:06:04,820 --> 00:06:10,550
+If money has been deposited in the contract, it
+could also make payments out to, to participants.
+
+76
+00:06:11,180 --> 00:06:17,390
+So we have payments, flows of money, we
+have choices according to external factors.
+
+77
+00:06:18,110 --> 00:06:27,320
+And one final thing we have, the roles in a
+contract are themselves things that can be owned.
+
+78
+00:06:28,100 --> 00:06:37,040
+So we represent that in Cardano, in Marlowe,
+by minting tokens that represent those roles.
+
+79
+00:06:37,670 --> 00:06:45,500
+Now that means that we can use those
+tokens as evidence that somebody
+
+80
+00:06:45,620 --> 00:06:46,910
+is meant to be playing a role.
+
+81
+00:06:46,910 --> 00:06:54,540
+So we can, there are a form of security,
+a validation that the person submitting
+
+82
+00:06:54,560 --> 00:06:59,855
+a particular transaction is meant to be
+able to submit that transaction it's fits
+
+83
+00:06:59,855 --> 00:07:05,644
+with their role, but also it means that
+these roles can become themselves tradable.
+
+84
+00:07:06,115 --> 00:07:12,204
+So we can trade roles in a running contract.
+
+85
+00:07:12,324 --> 00:07:19,024
+I could transfer a role in a contract that I
+have to you, perhaps for some money or indeed,
+
+86
+00:07:19,584 --> 00:07:27,954
+that role could be that token, could be traded
+by another Marlowe contract or a Plutus contract.
+
+87
+00:07:28,795 --> 00:07:33,894
+So we use the native tokens to
+represent roles in contract.
+
+88
+00:07:34,045 --> 00:07:38,935
+So we have roles, we have payments,
+we have external choices, external
+
+89
+00:07:39,324 --> 00:07:43,724
+information coming in through Oracles,
+so those are the general ingredients.
+
+90
+00:07:46,524 --> 00:07:50,394
+Now let's think about how to design a
+language based on those ingredients.
+
+91
+00:07:51,475 --> 00:07:55,100
+And remember when we design
+a language of contract.
+
+92
+00:07:55,310 --> 00:07:58,370
+What we're really doing is
+designing a programming language.
+
+93
+00:07:58,879 --> 00:08:04,550
+A contract is just a smart contract is
+just a program running on a blockchain.
+
+94
+00:08:05,360 --> 00:08:14,579
+So a contract in principle could run forever
+and also more subtly, it could for example,
+
+95
+00:08:14,870 --> 00:08:17,690
+just get stuck waiting for an input forever.
+
+96
+00:08:18,079 --> 00:08:23,900
+If it's waiting for me to make a choice,
+it could potentially wait forever.
+
+97
+00:08:25,100 --> 00:08:30,590
+It could also, as a program holding assets,
+it could terminate holding onto those assets,
+
+98
+00:08:30,620 --> 00:08:32,990
+so we could lock up those assets forever.
+
+99
+00:08:34,520 --> 00:08:41,569
+And potentially, it could double spend I guess,
+in principle, a program could try and do that.
+
+100
+00:08:42,620 --> 00:08:50,525
+So there's a whole lot of security issues that
+a program might have, a contract might have.
+
+101
+00:08:50,935 --> 00:08:54,265
+So what we chose to do was design for safety.
+
+102
+00:08:54,625 --> 00:09:00,715
+So we designed first of all, for contracts
+to be finite, their life will be finite,
+
+103
+00:09:00,715 --> 00:09:03,135
+there is no recursion or loops in Marlowe.
+
+104
+00:09:03,955 --> 00:09:07,255
+We'll come back to that a bit later
+on when we talk about Marlowe being
+
+105
+00:09:07,255 --> 00:09:12,195
+embedded in other languages, but
+Marlowe contracts themselves are finite.
+
+106
+00:09:14,585 --> 00:09:18,025
+More over, we can be sure
+that contracts will terminate.
+
+107
+00:09:18,115 --> 00:09:25,105
+And we do that by putting timeouts on
+every external action, every choice or
+
+108
+00:09:25,135 --> 00:09:30,955
+deposit of money into the contract comes
+with a deadline, comes with a timeout.
+
+109
+00:09:31,855 --> 00:09:39,415
+And so Marlowe contracts cannot wait forever for
+somebody to make a choice for an action to happen.
+
+110
+00:09:40,225 --> 00:09:44,825
+If you hit the timeout, then
+an alternative course is taken.
+
+111
+00:09:47,015 --> 00:09:51,875
+And reading from a contract, because
+we have these timeouts in the contract.
+
+112
+00:09:52,945 --> 00:09:57,745
+Each role contract will have a defined lifetime,
+we can read that off from the timeouts.
+
+113
+00:09:59,455 --> 00:10:06,805
+So we have a very clear constraints on what
+we can do, but that gives us safety built in.
+
+114
+00:10:08,185 --> 00:10:16,315
+And finally, we've designed the semantics of
+the language so that when a contract reaches its
+
+115
+00:10:16,315 --> 00:10:23,785
+close at the end of its lifetime, any money left
+in the contract will be refunded to participants.
+
+116
+00:10:23,875 --> 00:10:29,185
+So we built into the semantics into
+the way the language is defined that no
+
+117
+00:10:29,185 --> 00:10:32,365
+money is retained when things terminate.
+
+118
+00:10:33,625 --> 00:10:35,875
+So we got those safety properties.
+
+119
+00:10:35,995 --> 00:10:41,119
+Your money is always going only going to be
+committed for finite length of time, it will
+
+120
+00:10:41,119 --> 00:10:48,670
+always, if money is not spent by the contract,
+it will be returned to its it's rightful owner.
+
+121
+00:10:51,400 --> 00:10:56,649
+Now conservation of value is something that we get
+really for free from the underlying blockchain.
+
+122
+00:10:56,820 --> 00:11:00,700
+We can't, the underlying
+blockchain guarantees double spend.
+
+123
+00:11:00,700 --> 00:11:07,330
+And because we're using the transaction mechanisms
+of the underlying blockchain, we can be sure
+
+124
+00:11:07,330 --> 00:11:09,800
+that we are getting conservation of value.
+
+125
+00:11:12,020 --> 00:11:19,090
+Okay, so that's giving us a whole
+lot of guarantees just after the box.
+
+126
+00:11:19,359 --> 00:11:22,690
+And these are not guarantees that there
+are for Plutus contracts in general, in
+
+127
+00:11:22,690 --> 00:11:24,790
+general this is contract could go on forever.
+
+128
+00:11:24,820 --> 00:11:26,499
+It didn't need not terminate.
+
+129
+00:11:27,349 --> 00:11:33,609
+And it could terminate with having
+control of a whole collection of assets,
+
+130
+00:11:33,609 --> 00:11:36,639
+which are, then become unreachable.
+
+131
+00:11:39,019 --> 00:11:39,499
+Okay.
+
+132
+00:11:39,830 --> 00:11:46,220
+So those just distress these, these properties
+I'm highlighting here, are safety properties are
+
+133
+00:11:46,220 --> 00:11:49,040
+assurances that we can give to Marlowe users.
+
+134
+00:11:50,960 --> 00:11:52,759
+Now, what does the language look like?
+
+135
+00:11:52,999 --> 00:11:54,170
+Let's cut to the chase.
+
+136
+00:11:54,530 --> 00:12:03,050
+So Marlowe is at heart it's a represented
+as a Haskell datatype and you can think
+
+137
+00:12:03,050 --> 00:12:08,119
+of, I'm sure you're familiar with datatypes
+in Haskell, data types in Haskell, we can
+
+138
+00:12:08,119 --> 00:12:11,090
+think of a syntax of, of simple languages.
+
+139
+00:12:12,859 --> 00:12:17,450
+And let me just talk you through the
+constructs that we have in the language.
+
+140
+00:12:19,879 --> 00:12:26,780
+We have a pay construct, and in that a party,
+one of the parties in the contract makes
+
+141
+00:12:26,780 --> 00:12:29,629
+a payment to a pay of a particular value.
+
+142
+00:12:30,349 --> 00:12:32,280
+And then the contract continues.
+
+143
+00:12:33,680 --> 00:12:35,749
+We've  got what we call the continuation contract.
+
+144
+00:12:39,050 --> 00:12:44,950
+We can go in two separate directions, we
+can observe whether or not a particular
+
+145
+00:12:45,140 --> 00:12:50,420
+observation is true or not, if the observation
+is true, we follow the first contract, if the
+
+146
+00:12:50,420 --> 00:12:53,000
+observation is false, we follow the second.
+
+147
+00:12:55,040 --> 00:13:01,070
+So simple payment and then a simple
+conditional the most complex construct
+
+148
+00:13:01,070 --> 00:13:02,960
+in Marlowe is the when construct.
+
+149
+00:13:03,140 --> 00:13:06,950
+And you can see it takes three arguments.
+
+150
+00:13:06,950 --> 00:13:13,249
+And the first of those is a list of action
+contract pairs, a the list of cases.
+
+151
+00:13:14,630 --> 00:13:16,760
+And let's look at what that list represents.
+
+152
+00:13:16,790 --> 00:13:21,140
+Let's think what it represents,
+what the when construct does, is
+
+153
+00:13:21,140 --> 00:13:24,560
+wait for one of a number of actions.
+
+154
+00:13:25,370 --> 00:13:31,520
+And when one of those actions happens,
+it performs the corresponding contract.
+
+155
+00:13:31,849 --> 00:13:38,450
+So it could be waiting for a deposit, which,
+if I have a case where the first part of
+
+156
+00:13:38,450 --> 00:13:44,950
+the case pair isn't deposit, then we will
+execute the corresponding second part.
+
+157
+00:13:47,290 --> 00:13:49,060
+Similarly, with making a choice.
+
+158
+00:13:50,350 --> 00:13:52,870
+Similarly with getting a value from an Oracle.
+
+159
+00:13:54,040 --> 00:13:58,510
+So we, here we're waiting for external actions.
+
+160
+00:13:58,510 --> 00:14:01,540
+And of course the contract
+can't make those actions happen.
+
+161
+00:14:02,080 --> 00:14:07,270
+A contract can't force somebody to make a choice,
+it can't force somebody to make a deposit, but
+
+162
+00:14:07,270 --> 00:14:16,300
+what we can do is say, well, if none of these
+actions takes place, no action taken place, no
+
+163
+00:14:16,300 --> 00:14:20,110
+corresponding contract, we will hit the timeout.
+
+164
+00:14:20,260 --> 00:14:24,490
+And when we hit the timeout, what
+we'll do is perform this contract.
+
+165
+00:14:24,790 --> 00:14:33,160
+So we can guarantee that something will happen in
+this construct, either because one of the actions
+
+166
+00:14:33,190 --> 00:14:41,629
+triggering a success of contract, or we simply
+hit the timeout and go to that continuation.
+
+167
+00:14:42,859 --> 00:14:47,210
+So we know by the time we hit the
+timeout, something will have happened.
+
+168
+00:14:47,840 --> 00:14:50,210
+We can't sit there waiting forever.
+
+169
+00:14:51,020 --> 00:14:57,020
+And then finally we have the close,
+which has the semantics defined so
+
+170
+00:14:57,020 --> 00:14:59,389
+that nothing is retained when we close.
+
+171
+00:15:00,739 --> 00:15:05,629
+So there is the Marlowe language, a very
+simple set of constructs, but we'll see
+
+172
+00:15:05,629 --> 00:15:12,999
+that we can use those in a variety different
+ways that we can construct a Marlowe
+
+173
+00:15:13,070 --> 00:15:15,440
+contract in a variety of different ways.
+
+174
+00:15:18,070 --> 00:15:18,400
+Okay.
+
+175
+00:15:18,910 --> 00:15:22,660
+So there's the language, what
+is the Marlowe product itself?
+
+176
+00:15:22,900 --> 00:15:25,599
+Well, what we have, is a suite of things.
+
+177
+00:15:25,990 --> 00:15:33,025
+And what I'm describing here is
+the, the overall vision for Marlowe.
+
+178
+00:15:33,455 --> 00:15:37,325
+And I'm going to describe that and then
+tell you where we are with fulfilling that.
+
+179
+00:15:38,345 --> 00:15:45,655
+So at the moment, what we have is you might have
+seen, and I'm going to show you a demo shortly.
+
+180
+00:15:47,535 --> 00:15:55,685
+We have a prototype for Marlowe run, and that is
+the system through which an end user will interact
+
+181
+00:15:55,685 --> 00:15:58,775
+with contracts running on the Cardano blockchain.
+
+182
+00:15:58,955 --> 00:16:02,405
+So if you like Marlowe run is the Marlowe Dapp.
+
+183
+00:16:02,855 --> 00:16:08,585
+It's the thing that allows
+Marlowe contracts to be executed.
+
+184
+00:16:10,655 --> 00:16:17,655
+We're also building a market where
+contracts can be uploaded, downloaded...
+
+185
+00:16:17,655 --> 00:16:23,085
+where we can provide various kinds
+of assurance about those contracts.
+
+186
+00:16:25,175 --> 00:16:31,565
+We allow contracts to be simulated, interactively,
+and then we call Marlowe play and we allow
+
+187
+00:16:31,595 --> 00:16:34,025
+contracts to be built in various different ways.
+
+188
+00:16:34,025 --> 00:16:35,255
+And we call that Marlowe build.
+
+189
+00:16:35,435 --> 00:16:40,325
+Now, in fact, what we've done at the moment
+is bundle those two, Marlowe play and build
+
+190
+00:16:40,355 --> 00:16:42,155
+into what we call the Marlowe playground.
+
+191
+00:16:42,395 --> 00:16:49,445
+So as this, as things stand at the moment
+,you can, it's been available for awhile.
+
+192
+00:16:51,275 --> 00:16:56,285
+Use the Marlowe playground to simulate
+and construct Marlowe contracts.
+
+193
+00:16:56,555 --> 00:17:00,765
+We're in the process of redesigning the
+user interface of that, the user experience.
+
+194
+00:17:01,525 --> 00:17:05,045
+On the basis of what we'd done with Marlowe run.
+
+195
+00:17:06,395 --> 00:17:12,965
+So we're able to build and
+simulate Marlowe contracts.
+
+196
+00:17:14,855 --> 00:17:20,330
+What we're releasing very shortly
+is the prototype of Marlowe run.
+
+197
+00:17:20,390 --> 00:17:25,080
+And this is the prototype of how
+end users will interact with Marlowe
+
+198
+00:17:25,100 --> 00:17:28,330
+fine, with Marlowe on the blockchain.
+
+199
+00:17:28,970 --> 00:17:34,150
+And our intention is that we'll
+have all these products available.
+
+200
+00:17:34,600 --> 00:17:41,190
+When running on the Cardano blockchain,
+when we have the full support for this
+
+201
+00:17:41,220 --> 00:17:47,260
+on Cardano, which will involve having the
+Plutus application backend and a wallet
+
+202
+00:17:47,260 --> 00:17:49,970
+backend and so on working as it should.
+
+203
+00:17:52,450 --> 00:17:53,170
+Okay.
+
+204
+00:17:55,630 --> 00:18:01,030
+Now what I'm going to do now, is just take a
+short break and show you a demo of what we have
+
+205
+00:18:01,030 --> 00:18:09,260
+in Marlowe run to give you a sense of what we
+can do with, at the moment, with giving users,
+
+206
+00:18:09,410 --> 00:18:14,080
+the experience that they will have when Marlowe
+is running on blockchain, this will be the
+
+207
+00:18:14,080 --> 00:18:17,630
+app that is going to provide that experience.
+
+208
+00:18:17,930 --> 00:18:19,550
+At the moment it's running locally.
+
+209
+00:18:19,880 --> 00:18:26,060
+We will, in a few weeks time be releasing a
+version that runs in a distributed version on a
+
+210
+00:18:26,070 --> 00:18:36,320
+simulated blockchain and then as we go into the
+end of the end of the year, we expect to have this
+
+211
+00:18:36,320 --> 00:18:40,340
+running for real on the Cardano blockchain itself.
+
+212
+00:18:41,390 --> 00:18:43,160
+So let's go to the demo now.
+
+213
+00:18:47,540 --> 00:18:54,610
+Marlowe run runs in the browser, and what it
+does is provide the end user interaction with
+
+214
+00:18:54,610 --> 00:19:00,550
+contracts running on the blockchain, for the
+moment we're simulating a blockchain inside the
+
+215
+00:19:00,550 --> 00:19:07,220
+browser, but eventually this will be the tool
+you'll use to run contracts for real on Cardano.
+
+216
+00:19:08,030 --> 00:19:12,825
+Now to interact with the contract, your
+wallet needs to be involved to control
+
+217
+00:19:12,955 --> 00:19:16,445
+your signature and to control your assets.
+
+218
+00:19:16,655 --> 00:19:22,715
+So we link up Marlowe run with a wallet,
+let's link it up with Shruti's wallet.
+
+219
+00:19:23,435 --> 00:19:29,885
+So in this window we see the world from
+Shruti perspective and let's open up another
+
+220
+00:19:29,885 --> 00:19:37,835
+window and link in that window, the world
+with Charles's perspective and at the moment,
+
+221
+00:19:37,865 --> 00:19:39,785
+neither of them has any contracts running.
+
+222
+00:19:39,815 --> 00:19:45,505
+They have a blank space there, but
+let's take, let's start a contract up.
+
+223
+00:19:45,595 --> 00:19:49,195
+Let's setup a zero coupon bond,
+which is a fancy name for a loan.
+
+224
+00:19:49,585 --> 00:19:52,585
+And let's suppose Shruti is
+making a loan to Charles.
+
+225
+00:19:52,615 --> 00:19:55,615
+She's an investor, he's the issuer of the bond.
+
+226
+00:19:56,275 --> 00:20:03,445
+And Charles wants to borrow one ADA from
+Shruti and he's promised to pay back 1.1 ADA.
+
+227
+00:20:05,240 --> 00:20:09,710
+So we set it up, we've said who
+the issuer and investor are.
+
+228
+00:20:09,710 --> 00:20:13,310
+We said what the price and
+the eventual value will be.
+
+229
+00:20:13,940 --> 00:20:17,000
+And we're now going to create the contract.
+
+230
+00:20:17,040 --> 00:20:22,100
+In order to do that, we have to make a payment
+of 30 lovelace to get the contract started.
+
+231
+00:20:22,280 --> 00:20:27,380
+So let's pay and we've asked to approve
+that and the payment goes through.
+
+232
+00:20:27,380 --> 00:20:33,610
+And you can see now in Shruti's Marlowe
+run, we've got the zero coupon bond running,
+
+233
+00:20:33,770 --> 00:20:38,060
+but also if you look at Charles his view of
+the world, it's running there too for him.
+
+234
+00:20:38,510 --> 00:20:40,040
+Let's see what it looks like for him.
+
+235
+00:20:41,300 --> 00:20:44,210
+We're at the first step and it's
+saying it's waiting for something
+
+236
+00:20:44,210 --> 00:20:46,040
+from the investor who is Shruti.
+
+237
+00:20:46,070 --> 00:20:48,380
+So let's see what's happening in her view.
+
+238
+00:20:48,770 --> 00:20:54,530
+Yes, she's asked to make a deposit, so let's click
+on that to make the deposit and click to confirm
+
+239
+00:20:54,560 --> 00:20:58,910
+with her fee of 10 lovelace and make that deposit.
+
+240
+00:20:59,000 --> 00:21:01,760
+And then you can see her view has changed.
+
+241
+00:21:01,790 --> 00:21:05,075
+Now she's waiting for the issuer to pay her back.
+
+242
+00:21:06,005 --> 00:21:06,855
+And Hey oh!
+
+243
+00:21:06,875 --> 00:21:11,955
+We look in Charles's view, he's incidentally
+in the mobile view of Marlowe run.
+
+244
+00:21:12,365 --> 00:21:15,455
+He's asked to pay his 1.1 ADA.
+
+245
+00:21:15,815 --> 00:21:17,275
+Let's make him do that now.
+
+246
+00:21:18,214 --> 00:21:23,905
+And he'll also have to pay a 10 lovelace
+transaction fee and let's make that deposit.
+
+247
+00:21:24,025 --> 00:21:28,285
+And you see now from both their
+perspectives, that loan is completed.
+
+248
+00:21:28,745 --> 00:21:30,595
+You can see the history of what's gone on.
+
+249
+00:21:31,105 --> 00:21:35,135
+You can see at particular points,
+the balances that the contract holds.
+
+250
+00:21:35,605 --> 00:21:37,705
+And in fact, we can, we close that.
+
+251
+00:21:37,855 --> 00:21:43,075
+We can see the history of all the
+contracts that Shruti has taken part in.
+
+252
+00:21:43,105 --> 00:21:48,485
+And so I think that pretty much covers the
+basics of what you get from Marlowe run.
+
+253
+00:21:48,745 --> 00:21:53,515
+It's a intuitive interface to a
+contract running on the blockchain.
+
+254
+00:21:53,785 --> 00:22:00,770
+And you see that each participant in the
+contract gets their view of the contract in real
+
+255
+00:22:00,770 --> 00:22:06,620
+time, updated from what's in this case, in the
+browser, but eventually what's on the blockchain.
+
+256
+00:22:08,030 --> 00:22:08,539
+Okay.
+
+257
+00:22:08,569 --> 00:22:14,000
+So that's giving you an idea about what
+Marlowe run looks like and let's now take
+
+258
+00:22:14,000 --> 00:22:18,920
+a look under the hood and see how it is
+that Marlowe would be executed on Cardano.
+
+259
+00:22:21,950 --> 00:22:25,780
+Well, here's the diagram, just to give
+you the context, I'm sure you understand
+
+260
+00:22:26,020 --> 00:22:27,920
+most parts of this diagram already.
+
+261
+00:22:27,920 --> 00:22:32,130
+We have a Cardano run node on which
+Plutus is running and as you know, Plutus
+
+262
+00:22:32,160 --> 00:22:35,360
+is a dialect of Haskell more or less.
+
+263
+00:22:35,870 --> 00:22:44,620
+Now Marlowe is embedded in
+Haskell and Marlowe compiles...
+
+264
+00:22:45,569 --> 00:22:47,980
+is executed using Plutus.
+
+265
+00:22:49,059 --> 00:22:56,220
+So Marlowe sits on top of Plutus, but it's
+also linked to, in this Marlowe run and
+
+266
+00:22:56,630 --> 00:23:01,940
+attachment to a wallet, you'll be able
+to, we'll be able to interact with as an
+
+267
+00:23:01,940 --> 00:23:04,130
+end user with a running Marlowe contract.
+
+268
+00:23:04,460 --> 00:23:10,839
+And also it gets linked to Oracles and so
+on, sitting out there in the real world.
+
+269
+00:23:13,000 --> 00:23:17,319
+Now, what does it mean to
+execute a Marlowe contract?
+
+270
+00:23:17,890 --> 00:23:21,440
+Again, I think this will be familiar to
+you from your work with Plutus, but let's
+
+271
+00:23:21,440 --> 00:23:23,829
+just talk through precisely how it works.
+
+272
+00:23:26,860 --> 00:23:32,440
+Executing them on a contract will produce
+a series of transactions on the blockchain.
+
+273
+00:23:33,819 --> 00:23:42,549
+And obviously what Plutus running on
+cardano checks the validity of transactions.
+
+274
+00:23:42,610 --> 00:23:48,760
+We have a validation function and what's the
+validation function for these Marlowe transactions
+
+275
+00:23:48,760 --> 00:23:57,980
+is essentially is a Marlowe interpreter, it checks
+that the transactions indeed conform to what...
+
+276
+00:23:59,600 --> 00:24:04,250
+conform to the steps of
+executing the Marlowe contract.
+
+277
+00:24:05,059 --> 00:24:08,140
+And that's done using the UTXO model.
+
+278
+00:24:08,410 --> 00:24:15,319
+So, we pass the current state of the contract
+and some other information through as datum.
+
+279
+00:24:15,770 --> 00:24:26,870
+So the Marlowe interpreter uses that to ensure
+that the transactions that are submitted, meet
+
+280
+00:24:26,930 --> 00:24:31,940
+the criteria for the particular Marlowe contract.
+
+281
+00:24:32,510 --> 00:24:34,190
+So that's the on-chain part.
+
+282
+00:24:34,890 --> 00:24:36,200
+Now will see off-chain.
+
+283
+00:24:37,370 --> 00:24:42,140
+There's a component as well,
+so we have to have Marlowe run.
+
+284
+00:24:43,549 --> 00:24:51,650
+We'll have to build the transactions
+that meet the validation step on-chain.
+
+285
+00:24:52,840 --> 00:25:02,320
+And if then when the contract requires crypto
+assets, it will have to, we will have off-chain
+
+286
+00:25:02,320 --> 00:25:08,110
+to ensure that transactions are appropriately
+signed so that we will have authorization
+
+287
+00:25:08,320 --> 00:25:11,620
+for spending crypto assets effectively.
+
+288
+00:25:12,400 --> 00:25:22,150
+So, using Marlowe run and a associated wallet,
+we construct the transactions and we get a flow
+
+289
+00:25:22,150 --> 00:25:29,440
+of information in both directions, Marlowe run
+will submit transactions to the blockchain that
+
+290
+00:25:29,440 --> 00:25:35,289
+then can be checked, validated by the Marlowe
+interpreter, which is itself a Plutus contract.
+
+291
+00:25:35,289 --> 00:25:39,730
+It's the, it's one of the largest
+Plutus contracts that exists.
+
+292
+00:25:41,840 --> 00:25:44,270
+But there's also information flow another way.
+
+293
+00:25:44,300 --> 00:25:50,030
+Cause suppose that the transaction I've submitted
+is a deposit of money into a running contract.
+
+294
+00:25:50,480 --> 00:25:55,160
+And suppose the contract also
+involves Charles Hoskinson.
+
+295
+00:25:56,530 --> 00:26:03,610
+So my instance of Marlowe run has submitted
+that transaction, but Charles has also to
+
+296
+00:26:03,610 --> 00:26:10,990
+be notified about that and the information
+flows in the other direction using the
+
+297
+00:26:11,440 --> 00:26:17,350
+companion contract to ensure that every
+instance of this client, the Marlowe run,
+
+298
+00:26:17,620 --> 00:26:22,000
+gets informed about activity in that contract.
+
+299
+00:26:25,300 --> 00:26:30,060
+Alex, will talk some more about the details of
+the implementation, but here you're seeing the...
+
+300
+00:26:30,360 --> 00:26:33,190
+here you're seeing an outline
+of how it all, how it all works.
+
+301
+00:26:33,580 --> 00:26:37,570
+Transactions are validated on online through
+the interpreter, but they have to be built
+
+302
+00:26:37,570 --> 00:26:42,559
+offline and in some cases have to be authorized.
+
+303
+00:26:43,340 --> 00:26:49,069
+And we use essentially the blockchain
+is the central synchronization
+
+304
+00:26:49,069 --> 00:26:51,200
+point for the distributed system.
+
+305
+00:26:51,230 --> 00:26:58,490
+That is the collection of instances of
+Marlowe run that are interacting to make
+
+306
+00:26:58,520 --> 00:27:01,340
+the contract, to execute the contract.
+
+307
+00:27:02,420 --> 00:27:07,069
+And you saw in the demo just before
+that we could see in those two separate
+
+308
+00:27:07,069 --> 00:27:09,700
+windows, we were sharing information.
+
+309
+00:27:10,069 --> 00:27:16,010
+Now that was simulating it locally, but
+in production, this will be information
+
+310
+00:27:16,010 --> 00:27:17,539
+that's stored on the blockchain.
+
+311
+00:27:22,059 --> 00:27:22,630
+Okay.
+
+312
+00:27:24,750 --> 00:27:31,510
+Now let's talk a little bit about how the
+system is designed in a high-level way.
+
+313
+00:27:32,879 --> 00:27:37,510
+Here is a piece of the semantic of Marlowe.
+
+314
+00:27:37,660 --> 00:27:40,145
+And as you can see, It's a Haskell function.
+
+315
+00:27:41,485 --> 00:27:47,675
+We take an environment, current environment,
+the current state take a contract we executed.
+
+316
+00:27:47,885 --> 00:27:55,505
+And based on what contract that is, is it a close,
+is it a pay we can reduce, we can take some steps
+
+317
+00:27:55,535 --> 00:27:58,265
+of computing that the results of that contract.
+
+318
+00:27:58,895 --> 00:28:08,885
+And we do that in a way that uses Haskell in a
+quite straightforward way to advance the contract.
+
+319
+00:28:11,225 --> 00:28:19,895
+And what we have is that this
+specification in Haskell is an executable
+
+320
+00:28:19,895 --> 00:28:23,445
+specification of the semantics.
+
+321
+00:28:25,010 --> 00:28:25,400
+And this is..
+
+322
+00:28:25,400 --> 00:28:28,910
+This gives us some very nice consequences.
+
+323
+00:28:29,270 --> 00:28:33,319
+We've got, if you like, we've got the denotation
+or we've got a high level description of what
+
+324
+00:28:33,319 --> 00:28:37,970
+the semantics is, and we're doing that through
+something that is effectively an interpreter.
+
+325
+00:28:38,000 --> 00:28:43,099
+So we're defining at a high level,
+this interpreter which an interpreter
+
+326
+00:28:43,099 --> 00:28:44,809
+in Haskell for Marlowe contracts.
+
+327
+00:28:46,369 --> 00:28:51,500
+Now, one really nice thing about writing
+it in this sort of way is that we can be
+
+328
+00:28:51,500 --> 00:28:59,030
+sure we, we cover all cases because it's
+a it will be obvious if we're missing
+
+329
+00:28:59,030 --> 00:29:04,419
+some cases, writing it as something that's
+an interpreter ensures that we will hit.
+
+330
+00:29:04,510 --> 00:29:08,960
+We'll hit all cases we need to
+in describing the semantics.
+
+331
+00:29:10,640 --> 00:29:14,409
+And also it really helps us
+to understand the semantics.
+
+332
+00:29:14,409 --> 00:29:15,059
+So this a...
+
+333
+00:29:15,089 --> 00:29:15,699
+it's a really...
+
+334
+00:29:15,989 --> 00:29:19,430
+when you're designing a language, Okay.
+
+335
+00:29:19,430 --> 00:29:22,760
+You have an, you have an abstract idea
+about how you're going to, what it's
+
+336
+00:29:22,760 --> 00:29:28,160
+going to mean, but there's nothing
+like having an implementation of it.
+
+337
+00:29:28,280 --> 00:29:30,320
+So you can actually run the semantics.
+
+338
+00:29:30,440 --> 00:29:34,130
+You say, well, what would it mean
+if we were to add this construct?
+
+339
+00:29:34,340 --> 00:29:37,760
+What would it mean if we were to
+modify the semantics in this way?
+
+340
+00:29:38,660 --> 00:29:46,080
+Now, if you'd written it in a purely, purely
+logical format, it's difficult to unscramble
+
+341
+00:29:46,670 --> 00:29:50,690
+just from the rules as they're laid out,
+what precisely a change in rule might mean.
+
+342
+00:29:51,110 --> 00:29:54,380
+Here, it's straightforward
+we can run the semantics.
+
+343
+00:29:55,650 --> 00:30:01,700
+So we got this specification in Haskell,
+and what's even nicer is that we can reuse
+
+344
+00:30:01,720 --> 00:30:03,820
+this semantics in a number different ways.
+
+345
+00:30:04,300 --> 00:30:10,810
+So in the theorem prover Isabelle, we can
+use the semantics for reasoning and proof.
+
+346
+00:30:10,870 --> 00:30:14,590
+And we use pretty much the
+same semantics, Isabelle uses a
+
+347
+00:30:14,590 --> 00:30:17,210
+functional language as it's subject.
+
+348
+00:30:18,750 --> 00:30:23,770
+We can run the semantics in Plutus.
+
+349
+00:30:23,800 --> 00:30:29,350
+It was written in Haskell initially, but
+Plutus is more or less Haskell, perhaps
+
+350
+00:30:29,350 --> 00:30:34,600
+not with all the libraries but, we can in
+principle, at least build our implementation
+
+351
+00:30:34,600 --> 00:30:36,520
+on blockchain from our semantics.
+
+352
+00:30:37,110 --> 00:30:44,540
+And also we can translate the semantics into
+pure script for simulation in the browser.
+
+353
+00:30:45,160 --> 00:30:48,940
+Now pure script is not the same,
+exactly the same as Haskell.
+
+354
+00:30:49,540 --> 00:30:52,510
+Isabelle's language is not
+exactly the same as Haskell.
+
+355
+00:30:53,140 --> 00:30:55,990
+How can we be sure that all
+these versions are the same?
+
+356
+00:30:57,070 --> 00:31:04,060
+Well, one way of doing it, is to extract
+Haskell code from Isabelle and test the
+
+357
+00:31:04,060 --> 00:31:08,800
+original against this extracted code.
+
+358
+00:31:08,830 --> 00:31:13,540
+And we do that on random contracts and
+that's, it gives us a pretty high level
+
+359
+00:31:13,540 --> 00:31:16,360
+of assurance that the two are the same.
+
+360
+00:31:18,380 --> 00:31:26,095
+And down the line in our in our roadmap,
+we certainly expect to be using a Haskell
+
+361
+00:31:26,095 --> 00:31:31,075
+in JavaScript implementation at some point
+to replace pure script in the frontend.
+
+362
+00:31:31,075 --> 00:31:34,525
+So we don't have to write a pure script
+version of the semantics when we're doing
+
+363
+00:31:34,525 --> 00:31:41,125
+the off-chain interpretation, building the
+transactions to be submitted, we can use the
+
+364
+00:31:41,185 --> 00:31:49,265
+actual real Haskell implementation by coding
+it, compiling it into JavaScript and running
+
+365
+00:31:49,265 --> 00:31:53,845
+that in Marlowe run, in the client code.
+
+366
+00:31:55,225 --> 00:32:00,845
+So building a language in Haskell has
+given us these consequences that we use
+
+367
+00:32:00,865 --> 00:32:02,725
+various different versions of the semantics.
+
+368
+00:32:02,875 --> 00:32:03,535
+We can be...
+
+369
+00:32:03,865 --> 00:32:09,175
+we can get a high level of assurance that
+these are all the same, and indeed we can
+
+370
+00:32:09,635 --> 00:32:16,745
+in some situations replace things like the
+JavaScript by the pure script by JavaScript.
+
+371
+00:32:18,065 --> 00:32:18,605
+Okay.
+
+372
+00:32:18,635 --> 00:32:23,285
+So that gives us a picture about
+how the system is put together.
+
+373
+00:32:25,375 --> 00:32:31,265
+Let's go to another aspect of Marlowe, which I
+talked about it being a special purpose language
+
+374
+00:32:31,265 --> 00:32:35,975
+about it being a DSL and that promoted usability.
+
+375
+00:32:36,065 --> 00:32:38,475
+Let me say a bit more about that.
+
+376
+00:32:38,475 --> 00:32:46,055
+One way we promote usability is that we
+provide different ways of writing contracts,
+
+377
+00:32:46,055 --> 00:32:48,105
+different ways of authoring contracts.
+
+378
+00:32:49,235 --> 00:32:53,975
+And another way we promote usability
+is to be allowed people to explore
+
+379
+00:32:54,065 --> 00:32:59,105
+interactively how contracts behave before
+they're actually run in a simulation.
+
+380
+00:33:01,415 --> 00:33:03,625
+So let's talk about those now.
+
+381
+00:33:04,355 --> 00:33:08,825
+Again, emphasizing these are another
+facet of assurance for the language.
+
+382
+00:33:12,155 --> 00:33:14,605
+We want to write a Marlowe
+contract, how can we do it?
+
+383
+00:33:14,694 --> 00:33:18,555
+Well, we can write Haskell...
+
+384
+00:33:19,085 --> 00:33:22,865
+Marlowe, the Haskell Marlowe datatype as checks.
+
+385
+00:33:23,125 --> 00:33:27,714
+That's one way we can do it and that's fine
+and we have an editor for that inside the
+
+386
+00:33:27,714 --> 00:33:35,565
+playground that gives that has completion that
+has holes, which will, will support completions,
+
+387
+00:33:36,015 --> 00:33:38,365
+will make suggestions and so on.
+
+388
+00:33:38,515 --> 00:33:44,275
+So we can build a Marlowe contract as pure
+Marlowe, but there are other routes as well.
+
+389
+00:33:45,895 --> 00:33:52,734
+We have a visual editor for Marlowe, so that
+you can produce Marlowe contracts visually with
+
+390
+00:33:52,825 --> 00:34:01,164
+putting together blocks in a way that doesn't
+require you to be a confident programmer.
+
+391
+00:34:02,765 --> 00:34:07,295
+You can start off by using the visual
+version as a way of learning Marlowe
+
+392
+00:34:07,445 --> 00:34:10,655
+as a way of, of engaging with it.
+
+393
+00:34:12,755 --> 00:34:17,975
+If you are a coder perhaps in Haskell,
+perhaps in JavaScript, Marlowe is
+
+394
+00:34:17,975 --> 00:34:20,465
+embedded in Haskell and in JavaScript.
+
+395
+00:34:20,645 --> 00:34:29,195
+So we can use facilities in Haskell like recursion
+or JavaScript to describe Marlowe contracts.
+
+396
+00:34:29,255 --> 00:34:32,415
+So we can say in Haskell let's...
+
+397
+00:34:32,455 --> 00:34:38,685
+we want to do this particular pattern of behavior
+and times, and we can write that in Haskell.
+
+398
+00:34:39,185 --> 00:34:45,015
+And then for a particular contract,
+we convert the Haskell into Marlowe.
+
+399
+00:34:45,305 --> 00:34:51,945
+We, as it were compile this Haskell description
+of a Marlowe contract into pure Marlowe.
+
+400
+00:34:52,595 --> 00:34:55,085
+And we can also do that for JavaScript.
+
+401
+00:34:55,444 --> 00:34:57,694
+So we have that, that facility.
+
+402
+00:34:58,444 --> 00:35:02,674
+And then finally something I'm not going to
+talk about any more in this talk is that we
+
+403
+00:35:02,674 --> 00:35:06,734
+can generate contracts from initial conditions.
+
+404
+00:35:07,354 --> 00:35:12,435
+And we've been looking at that for the
+actor standard of financial contracts.
+
+405
+00:35:12,924 --> 00:35:20,035
+So we generate on the basis of simply
+contract terms we generate code in Marlowe.
+
+406
+00:35:20,704 --> 00:35:25,714
+So we write functions whose
+output is Marlowe code.
+
+407
+00:35:26,224 --> 00:35:32,104
+So we provide users with as well as simply writing
+pure Marlowe, we provide them with a variety
+
+408
+00:35:32,104 --> 00:35:41,055
+of different approaches, leveraging knowledge
+of JavaScript, for example, or leveraging a non
+
+409
+00:35:41,374 --> 00:35:44,584
+code based approach for describing the contracts.
+
+410
+00:35:48,265 --> 00:35:48,655
+And.
+
+411
+00:35:49,295 --> 00:35:54,035
+Also, we allow people to simulate
+the behavior of contracts.
+
+412
+00:35:54,065 --> 00:35:58,475
+Now, this is something that you can see in
+the current version of the Marlowe playground.
+
+413
+00:35:58,475 --> 00:35:59,975
+I've taken a screenshot of that.
+
+414
+00:36:00,305 --> 00:36:02,425
+That's something you can play with yourselves.
+
+415
+00:36:04,365 --> 00:36:08,585
+What I would say is that I, we
+are looking at different ways of
+
+416
+00:36:08,585 --> 00:36:11,195
+describing the results of a simulation.
+
+417
+00:36:11,435 --> 00:36:16,145
+So at the moment we have a transaction log,
+we are allowed to choose an action, the next
+
+418
+00:36:16,145 --> 00:36:18,545
+action to perform, you can perform that.
+
+419
+00:36:18,545 --> 00:36:23,745
+You can undo the last step to take
+you back and then try another path.
+
+420
+00:36:23,745 --> 00:36:27,965
+So you can step interactively backwards
+and forwards through the source code,
+
+421
+00:36:28,715 --> 00:36:31,295
+through the application of the contract.
+
+422
+00:36:33,155 --> 00:36:38,385
+What we're looking at is changing the user
+interface, changing the UX for the Marlowe
+
+423
+00:36:38,435 --> 00:36:40,685
+playground, Marlowe run and Marlowe play.
+
+424
+00:36:41,015 --> 00:36:46,295
+So that we'll use something
+rather more like the Marlowe run.
+
+425
+00:36:47,015 --> 00:36:53,675
+Description of a running contract, so that
+you'll see the steps as a series of cards
+
+426
+00:36:53,675 --> 00:36:56,825
+like this, but that's work in progress.
+
+427
+00:37:00,465 --> 00:37:01,044
+Okay.
+
+428
+00:37:01,834 --> 00:37:06,385
+So we talked about usability.
+
+429
+00:37:06,564 --> 00:37:12,025
+What about the sort of assurance
+that Marlowe can give users?
+
+430
+00:37:17,334 --> 00:37:22,765
+There are two gen apart from the things
+we've seen already, we've seen that
+
+431
+00:37:22,915 --> 00:37:27,715
+making the system transparent, making
+code readable is itself an advantage.
+
+432
+00:37:27,745 --> 00:37:35,544
+We've seen that there's simulation to
+give people the ability to understand, to
+
+433
+00:37:35,544 --> 00:37:40,584
+validate their intuition about a contract,
+but rather more formally, we can use the
+
+434
+00:37:40,584 --> 00:37:43,525
+power of logic to do two things for us.
+
+435
+00:37:44,525 --> 00:37:46,505
+We can do what's called static analysis.
+
+436
+00:37:46,505 --> 00:37:50,825
+So we can automatically verify
+properties of individual contracts.
+
+437
+00:37:50,855 --> 00:37:55,415
+So that means we can guarantee this
+contract will behave as it should
+
+438
+00:37:56,945 --> 00:37:58,805
+checking every route through the contract.
+
+439
+00:37:59,945 --> 00:38:02,435
+And also we can do machine supported proof.
+
+440
+00:38:02,435 --> 00:38:08,465
+So not automatic any longer written
+by written by a user, but we can prove
+
+441
+00:38:08,985 --> 00:38:11,015
+properties of the overall system.
+
+442
+00:38:12,015 --> 00:38:13,355
+Let's talk about those two now.
+
+443
+00:38:13,475 --> 00:38:15,065
+What about static analysis?
+
+444
+00:38:16,415 --> 00:38:20,645
+Well, what static analysis allows us to
+do is check all execution paths through a
+
+445
+00:38:20,645 --> 00:38:28,235
+Marlowe contract, all choices, all choices
+of slots for a submission of a transaction.
+
+446
+00:38:28,235 --> 00:38:34,715
+So every possible way in which the
+contract might be executed, we examine.
+
+447
+00:38:35,885 --> 00:38:42,935
+And the canonical example here is the example
+of whether a pay construct might fail.
+
+448
+00:38:43,729 --> 00:38:46,459
+Is it possible a pay construct could fail.
+
+449
+00:38:48,229 --> 00:38:53,400
+And the answer is that we will, we have,
+we use what's called an SMT solver.
+
+450
+00:38:53,400 --> 00:39:01,370
+It's an automatic logic tool that you
+have powerful logic tool called Z3 is
+
+451
+00:39:01,430 --> 00:39:03,050
+the one we use, others are available.
+
+452
+00:39:03,600 --> 00:39:09,380
+That effectively checks all execution paths.
+
+453
+00:39:09,700 --> 00:39:20,479
+And what it does is, if the property is
+satisfied, that's fine, we get the results.
+
+454
+00:39:20,510 --> 00:39:21,709
+Yes, it's satisfied.
+
+455
+00:39:22,100 --> 00:39:29,030
+If it's not satisfied, we get a counterexample,
+we get told here's a way, here's a path through
+
+456
+00:39:29,030 --> 00:39:38,045
+this contract that leads to a failed payment,
+a failed payment that can't be fulfilled.
+
+457
+00:39:38,225 --> 00:39:40,295
+So here's an example of how it can go wrong.
+
+458
+00:39:40,475 --> 00:39:45,395
+And that's really helpful because it means that
+you can debug if you don't, if, if you really want
+
+459
+00:39:45,395 --> 00:39:51,125
+to make sure that failed payment can't happen,
+then this gives you a mechanism to understand,
+
+460
+00:39:51,125 --> 00:39:56,525
+and to debug how that eventuality happens.
+
+461
+00:39:56,585 --> 00:39:59,555
+And so gives you a chance to
+think about how to avoid it.
+
+462
+00:40:00,725 --> 00:40:03,875
+So very powerful and entirely push of a  button.
+
+463
+00:40:03,905 --> 00:40:11,555
+You push a button and you get the results
+and here you can see just again, to
+
+464
+00:40:11,735 --> 00:40:15,185
+emphasize these here's the assurance.
+
+465
+00:40:15,185 --> 00:40:18,685
+We can do this high-level check
+through all execution paths.
+
+466
+00:40:20,165 --> 00:40:26,390
+So here you see a fragment of a Marlowe
+contract, a escrow contract, where the
+
+467
+00:40:26,390 --> 00:40:29,840
+contract starts with a deposit of 450 Lovelace.
+
+468
+00:40:31,160 --> 00:40:39,560
+And checking the analysis in the playground,
+we got the results, static analysis could not
+
+469
+00:40:39,560 --> 00:40:42,860
+find any execution that results in any warning.
+
+470
+00:40:42,920 --> 00:40:47,480
+So that's saying you're okay, it's not going
+to give you a warning, whatever you do.
+
+471
+00:40:48,470 --> 00:40:55,460
+But if we change that deposit of 450 lovelace
+to a deposit of 40 and analyze, we then get
+
+472
+00:40:55,850 --> 00:41:04,460
+this warning, we get a transaction partial
+payment, and we're told we get to a payment where
+
+473
+00:41:04,460 --> 00:41:08,509
+we're meant to pay 450 units of ADA Lovelace.
+
+474
+00:41:09,289 --> 00:41:15,320
+But there are only 40 available and we get
+given a list of transactions that take us there.
+
+475
+00:41:16,055 --> 00:41:19,565
+So we're able to see from
+that, how we got to that.
+
+476
+00:41:19,985 --> 00:41:24,365
+And the problem is that we didn't put
+enough money in, and then we reached a place
+
+477
+00:41:24,365 --> 00:41:26,675
+where we needed to make a payment for 150.
+
+478
+00:41:27,815 --> 00:41:33,815
+So it's easy for us to see that we need to
+either make a payment smaller or the initial
+
+479
+00:41:33,815 --> 00:41:37,635
+deposit bigger, but it's entirely pushed buttons.
+
+480
+00:41:37,795 --> 00:41:41,585
+So, we do get that sort of
+assurance for free as it were.
+
+481
+00:41:47,125 --> 00:41:54,415
+But thinking about verification, we can do
+rather more than that, we can do proof things,
+
+482
+00:41:54,445 --> 00:41:57,025
+prove properties of the system once and for all.
+
+483
+00:41:57,535 --> 00:42:03,275
+So for example, just looking on the left-hand
+side here, we can prove accounts, local accounts
+
+484
+00:42:03,305 --> 00:42:07,145
+inside a Marlowe contract, as it execute.
+
+485
+00:42:07,605 --> 00:42:12,415
+We can prove from the semantics that
+these accounts never go negative.
+
+486
+00:42:13,310 --> 00:42:20,600
+You can't ever overdraw an account in a
+Marlowe contract, and we can also prove
+
+487
+00:42:20,600 --> 00:42:22,160
+this theorem of money preservation.
+
+488
+00:42:22,160 --> 00:42:28,700
+We can prove that if we look at all the money
+that's gone into the contract so far, that's
+
+489
+00:42:29,000 --> 00:42:37,010
+equal to the sum of two things, the amount of
+money that's in accounts held inside the contract,
+
+490
+00:42:37,310 --> 00:42:40,400
+plus the amount of money that has been paid out.
+
+491
+00:42:40,939 --> 00:42:45,560
+And that's, that gives a clear
+picture of money preservation.
+
+492
+00:42:45,800 --> 00:42:53,810
+So we're able to we're able to write proofs of
+these very general properties of the system.
+
+493
+00:42:55,669 --> 00:42:59,660
+Now we're also able to prove other
+more technical things about the system.
+
+494
+00:42:59,689 --> 00:43:06,020
+So for example, that a close construct
+will never produce any warnings.
+
+495
+00:43:06,230 --> 00:43:11,945
+So if we're analyzing for warnings, we
+don't need to worry about close constructs.
+
+496
+00:43:11,975 --> 00:43:18,485
+So that allows us to optimize the static analysis.
+
+497
+00:43:20,195 --> 00:43:25,055
+And we're also able to prove that the
+static analysis, the way it works, which
+
+498
+00:43:25,055 --> 00:43:31,145
+is makes a number of simplifications to
+speed things up is sound and complete.
+
+499
+00:43:31,175 --> 00:43:38,045
+That means the static analysis will give us an
+error warning when the real contract can generate
+
+500
+00:43:38,045 --> 00:43:42,515
+an error warning, and it won't give us an error
+warning if the real contract can't do that.
+
+501
+00:43:44,045 --> 00:43:47,105
+And one thing that we haven't done, but
+we'll, you know, is again on our roadmap.
+
+502
+00:43:47,175 --> 00:43:50,675
+Is what we can do these sorts of proofs
+for individual contracts or individual
+
+503
+00:43:50,675 --> 00:43:55,535
+contract templates to, things that we can't
+necessarily prove with static analysis,
+
+504
+00:43:55,805 --> 00:43:58,325
+we can prove by proving that by hand.
+
+505
+00:44:02,905 --> 00:44:03,325
+So.
+
+506
+00:44:03,860 --> 00:44:09,290
+High-level assurance we get, you know, if
+you're prepared to write proofs, the system
+
+507
+00:44:09,290 --> 00:44:13,430
+is amenable to being, having these proofs
+written about it, and they give us the
+
+508
+00:44:13,430 --> 00:44:15,830
+highest level of assurance about how it works.
+
+509
+00:44:20,070 --> 00:44:27,160
+So, I think I've said enough for the moment
+about Marlowe, where can you go to find out more?
+
+510
+00:44:28,240 --> 00:44:33,269
+Well, there's a Marlowe GitHub repository that
+has the semantics and the basics about Marlowe.
+
+511
+00:44:34,179 --> 00:44:41,499
+Quite a lot of the implementation of the
+tools for Marlowe are in the Plutus repository
+
+512
+00:44:41,709 --> 00:44:46,660
+because it has that repository as a dependency,
+so we include it in that repository.
+
+513
+00:44:48,490 --> 00:44:51,880
+So that's where you can find
+out, find the code itself.
+
+514
+00:44:52,570 --> 00:44:56,229
+If you look in the IOHK online research
+library and search for Marlowe, you'll
+
+515
+00:44:56,229 --> 00:44:58,300
+find a number of research papers.
+
+516
+00:44:58,300 --> 00:45:00,669
+We've written about how the system works.
+
+517
+00:45:01,685 --> 00:45:06,575
+You'll also find an online
+tutorial in the Marlowe playground.
+
+518
+00:45:07,055 --> 00:45:11,645
+And finally, Alex is going to give some more
+information in his presentation coming up next.
+
+519
+00:45:13,475 --> 00:45:17,885
+So just to summarize what we have in Marlowe,
+is it a DSL, a special purpose language for
+
+520
+00:45:17,885 --> 00:45:24,635
+financial contracts running on top of Plutus
+because it's a DSL, it gives us assurance.
+
+521
+00:45:24,665 --> 00:45:29,225
+It allows us to give the assurance that it's
+harder to give for a general purpose language.
+
+522
+00:45:30,035 --> 00:45:36,465
+And also it allows us to orient its
+designed around users as well as developers.
+
+523
+00:45:38,115 --> 00:45:45,860
+And also we get assurance of contracts behave
+as they should and don't do what they shouldn't,
+
+524
+00:45:46,760 --> 00:45:51,480
+that's some of that is built into the way
+that the language is designed, the language
+
+525
+00:45:51,500 --> 00:45:53,720
+is simple and therefore we get readability,
+
+526
+00:45:53,780 --> 00:45:58,910
+we also get simulator ability and
+we get these stronger assurances of
+
+527
+00:45:58,910 --> 00:46:01,400
+static analysis and verification.
+
+528
+00:46:02,210 --> 00:46:03,050
+So, okay.
+
+529
+00:46:03,080 --> 00:46:04,790
+Thanks very much for listening.
+
+530
+00:46:05,010 --> 00:46:11,900
+And here's the link to go and see the Marlowe
+playground in action, thanks very much.
+
+531
+00:46:12,700 --> 00:46:17,680
+Hello, my name is Alex Nemish,
+I'm one of the Marlowe developers.
+
+532
+00:46:17,950 --> 00:46:25,060
+And today I'm going to show you a bit
+of Marlowe semantics and a part of
+
+533
+00:46:25,120 --> 00:46:28,510
+PAB contracts, Marlowe PAB contracts.
+
+534
+00:46:29,229 --> 00:46:38,770
+That'd be I'm going to use, I'll start with
+a brief description of Marlowe semantics.
+
+535
+00:46:39,275 --> 00:46:43,805
+That's implemented in this semantics dot HS file.
+
+536
+00:46:44,645 --> 00:46:47,135
+And then I'll show you the PAB contracts.
+
+537
+00:46:48,605 --> 00:46:56,625
+I assume you're familiar with Haskell, you're
+familiar with Marlowe semantics in a high level.
+
+538
+00:46:57,485 --> 00:47:04,745
+And I expect you to see the Lars presentations.
+
+539
+00:47:06,035 --> 00:47:16,855
+So I expect you to know how PAB works and in a
+nutshell, and how state machine library works
+
+540
+00:47:16,945 --> 00:47:20,185
+and state machine library based contracts.
+
+541
+00:47:21,045 --> 00:47:21,865
+Well, get started.
+
+542
+00:47:23,064 --> 00:47:26,545
+Here are the main datatypes for Marlowe.
+
+543
+00:47:27,535 --> 00:47:33,085
+It's a contract, essentially those
+are six constructors that you
+
+544
+00:47:33,085 --> 00:47:34,525
+construct Marlowe contract with.
+
+545
+00:47:35,825 --> 00:47:42,539
+And here is the state that is going
+to be ah stored on a blockchain.
+
+546
+00:47:43,340 --> 00:47:49,540
+So we have a state of
+balances of accounts by party.
+
+547
+00:47:50,600 --> 00:47:52,580
+Here we start the choices.
+
+548
+00:47:54,350 --> 00:48:01,580
+Part is made here we start bound variables
+that are essentially let bindings.
+
+549
+00:48:02,330 --> 00:48:10,519
+And here his main slot is essentially
+a first slot that the contract sees and
+
+550
+00:48:10,519 --> 00:48:12,800
+this just to prevent to go back in time.
+
+551
+00:48:15,850 --> 00:48:24,370
+The input datatype contains essentially actions
+for a Marlowe contract, it's either deposit or
+
+552
+00:48:24,400 --> 00:48:27,880
+choice or any notification of a slot change.
+
+553
+00:48:29,499 --> 00:48:31,600
+And here is the.
+
+554
+00:48:35,959 --> 00:48:39,619
+Here is the transaction input data type.
+
+555
+00:48:39,699 --> 00:48:43,729
+That's what we give as an input.
+
+556
+00:48:43,849 --> 00:48:49,130
+So we have a slot interval, so everything's
+action must be, must have a defined
+
+557
+00:48:49,130 --> 00:48:53,820
+slot interval and the list of inputs.
+
+558
+00:48:54,050 --> 00:49:00,919
+So you can combine multiple inputs within a
+single transactions, you can make multiple
+
+559
+00:49:00,919 --> 00:49:09,889
+deposits or choices and notifications and
+we get the transaction output which contains
+
+560
+00:49:09,919 --> 00:49:12,499
+the payments that we expect to happen.
+
+561
+00:49:13,010 --> 00:49:17,840
+The output state and the output contract
+result in a state and result in a contract.
+
+562
+00:49:19,729 --> 00:49:21,769
+Here's the Marlowe data.
+
+563
+00:49:21,800 --> 00:49:24,470
+That's essentially, what's going
+to be stored on a blockchain.
+
+564
+00:49:24,499 --> 00:49:30,309
+So it's a current state of a
+contract and the external contract.
+
+565
+00:49:32,240 --> 00:49:40,370
+So the main function, the main entrance to
+the semantics is compute transaction function.
+
+566
+00:49:40,430 --> 00:49:44,590
+That's, that gets transactional inputs...
+
+567
+00:49:45,150 --> 00:49:48,550
+current state, current contract,
+and gives the transaction output.
+
+568
+00:49:49,890 --> 00:49:57,400
+First of all we fix the interval, we
+check the slot interval for errors.
+
+569
+00:49:59,080 --> 00:50:10,910
+For example, we disallow slot interval
+to contain any timeouts inside.
+
+570
+00:50:11,420 --> 00:50:17,990
+So for example, if you have a contract
+with a when construct with a slot 10, for
+
+571
+00:50:17,990 --> 00:50:25,130
+example, you cannot produce a transaction
+that has a slot interval from 5 to 15, because
+
+572
+00:50:25,130 --> 00:50:31,690
+it's going to contain a timeout inside of
+it, is going to be invalid slot interval.
+
+573
+00:50:33,604 --> 00:50:37,025
+So here we check this, then we apply all inputs.
+
+574
+00:50:38,434 --> 00:50:45,635
+If it's successful, we return the
+transaction output with warnings.
+
+575
+00:50:45,664 --> 00:50:52,204
+We found the payments we expect,
+new state and say continuation.
+
+576
+00:50:54,215 --> 00:50:56,044
+So what happens in apply all inputs?
+
+577
+00:51:02,515 --> 00:51:08,885
+Essentially, it's a loop that first of all
+reduces current contract until is quiescent.
+
+578
+00:51:11,515 --> 00:51:20,604
+And then when we get this quiescent
+state, we take first input and try
+
+579
+00:51:20,604 --> 00:51:26,595
+to apply it until we get applied.
+
+580
+00:51:27,144 --> 00:51:32,745
+And, essentially continue with this loop.
+
+581
+00:51:33,954 --> 00:51:42,655
+If it's applied successfully, until
+we get an empty input list, then we
+
+582
+00:51:42,655 --> 00:51:44,584
+return current state and continuation.
+
+583
+00:51:47,965 --> 00:51:56,365
+Reduce contract until quiescent is essentially
+function that again goes through a loop and
+
+584
+00:51:56,365 --> 00:52:07,345
+tries to apply reduce contract step function
+which essentially evaluates a contract.
+
+585
+00:52:07,765 --> 00:52:12,144
+So if we get a close, then we
+are in the quiescent state.
+
+586
+00:52:13,015 --> 00:52:25,064
+If we get a payment, we have eval value that
+balances and return that the contract was reduced.
+
+587
+00:52:27,354 --> 00:52:40,030
+Do the same with if, let and assert but
+for when we only evaluate it if it's timed
+
+588
+00:52:40,030 --> 00:52:44,230
+out, otherwise we say it's not reduced.
+
+589
+00:52:46,090 --> 00:52:51,970
+So when we get this not reduced, then
+we say that the contract is quiescent.
+
+590
+00:52:56,290 --> 00:53:03,250
+So, in a nutshell Marlowe contract
+evaluation consists of two steps.
+
+591
+00:53:03,520 --> 00:53:08,510
+We reduce current contract until it's
+quiescent, so essentially it's either closed
+
+592
+00:53:08,590 --> 00:53:13,550
+or we get to a when that's not timed out yet.
+
+593
+00:53:15,490 --> 00:53:22,210
+And second part, we try to apply inputs
+and evaluate the contract further.
+
+594
+00:53:23,620 --> 00:53:23,920
+Okay.
+
+595
+00:53:27,800 --> 00:53:37,980
+Let's see how it works from the client side, as
+you might have noticed, the Marlowe semantics
+
+596
+00:53:38,000 --> 00:53:45,100
+code is quite abstract and it does not
+depend on the Cardano transactions and stuff.
+
+597
+00:53:46,250 --> 00:53:52,620
+So let's take a look at the actual Marlowe
+validator and that's been executed on-chain.
+
+598
+00:53:53,720 --> 00:53:59,360
+So here's the script instance, essentially
+it just calls this make Marlowe validator
+
+599
+00:53:59,470 --> 00:54:07,459
+code, that uses the state machine library
+makes that machine call and provides two
+
+600
+00:54:08,360 --> 00:54:14,750
+functions state transition function, and
+finally to check for a state machine.
+
+601
+00:54:14,990 --> 00:54:17,030
+So finally to check is very simple.
+
+602
+00:54:17,060 --> 00:54:24,800
+We just check the current contract is
+close, then the state machine is done
+
+603
+00:54:25,730 --> 00:54:34,010
+and the state machine transition function
+is the actual meat of the validator.
+
+604
+00:54:34,130 --> 00:54:40,150
+So it receives some Marlowe params data type,
+we're going to talk a bit later, current
+
+605
+00:54:40,150 --> 00:54:43,010
+state of the state machine, Marlowe data.
+
+606
+00:54:43,979 --> 00:54:50,389
+Marlowe input, this is essentially a
+transaction input expressed in Cardano types.
+
+607
+00:54:50,990 --> 00:54:59,480
+And it's going to return either nothing in
+case of an error or a set of transaction
+
+608
+00:54:59,480 --> 00:55:10,200
+constraints that must apply to validate the
+transaction and in you state a new Marlowe
+
+609
+00:55:10,280 --> 00:55:14,210
+data, continuation contract and completed state.
+
+610
+00:55:15,425 --> 00:55:22,195
+So here we check that valid
+as the balances are valid.
+
+611
+00:55:22,675 --> 00:55:31,405
+So we require balances in a state
+to be positive, here we produce an
+
+612
+00:55:31,465 --> 00:55:34,675
+input constraints given these inputs.
+
+613
+00:55:35,125 --> 00:55:45,224
+So in case of deposits, we expect money go
+into a contract and case of choices we expect
+
+614
+00:55:45,594 --> 00:55:51,475
+signatures or witnesses of respective parties.
+
+615
+00:55:52,555 --> 00:55:59,294
+We calculate the total balance that the
+contract claims that contains and we check
+
+616
+00:55:59,294 --> 00:56:03,805
+that it actually contains these values.
+
+617
+00:56:05,225 --> 00:56:11,525
+We construct in turn section input, given this
+slot interval and list of inputs, and we call
+
+618
+00:56:11,525 --> 00:56:21,555
+the computer transaction functions that we
+saw in semantics that we choose and we given a
+
+619
+00:56:21,625 --> 00:56:30,215
+computed result, we can start in Marlowe data
+with a new contract continuation and our data
+
+620
+00:56:30,215 --> 00:56:40,745
+state and produce an output constraints that
+contain payouts to the respective parties.
+
+621
+00:56:42,215 --> 00:56:47,955
+And we calculate new balance, a new total balance.
+
+622
+00:56:47,955 --> 00:56:57,425
+Given the income and outcome
+of a transaction and inputs.
+
+623
+00:56:57,965 --> 00:57:03,655
+And we combine all those
+constraints with a range validation.
+
+624
+00:57:10,835 --> 00:57:22,590
+When validating inputs, we check that there
+are signatures from parties presented by public
+
+625
+00:57:22,590 --> 00:57:33,910
+key hashes, and there is a spending of role
+tokens for parties that represent it by arrow.
+
+626
+00:57:39,280 --> 00:57:48,850
+Payments to parties go either by checking the
+result transaction output goes to a public
+
+627
+00:57:48,850 --> 00:57:57,520
+key for all, for all the four parties that
+presented by public hashes or the payment goes
+
+628
+00:57:57,520 --> 00:58:07,340
+to role payout validator hash that is a custom
+validator that you can provide on your own
+
+629
+00:58:08,209 --> 00:58:11,369
+within Marlowe params, or we have a default one.
+
+630
+00:58:15,320 --> 00:58:21,910
+This is the role payout validator that
+is used by default, it simply checks
+
+631
+00:58:21,970 --> 00:58:31,889
+that a transaction contains a spending
+of a role token given a currency.
+
+632
+00:58:33,580 --> 00:58:41,630
+For off-chain execution we provide three Marlowe
+PAB contracts, Marlowe follower contract, Marlowe
+
+633
+00:58:41,680 --> 00:58:45,130
+control contract, and Marlowe companion contract.
+
+634
+00:58:46,120 --> 00:58:48,100
+Let's go through all of those.
+
+635
+00:58:48,249 --> 00:58:50,830
+Let's start with Marlowe follower contract.
+
+636
+00:58:51,249 --> 00:58:59,989
+It's a very simple one it contains the
+only one endpoint called follow and it
+
+637
+00:59:00,780 --> 00:59:10,189
+basically subscribes to a validator address,
+a Marlowe contract address, essentially.
+
+638
+00:59:10,880 --> 00:59:13,910
+And it subscribes to all changes to this address.
+
+639
+00:59:13,910 --> 00:59:25,530
+So we get all the transactions that span, span
+transaction output with this Marlowe contract.
+
+640
+00:59:26,270 --> 00:59:36,980
+So we can store all the inputs, all the
+inputs that are applied to a Marlowe contract.
+
+641
+00:59:38,180 --> 00:59:43,119
+So here you can see that we call
+the update history from transaction
+
+642
+00:59:43,579 --> 00:59:50,930
+that in a nutshell finds an input.
+
+643
+00:59:51,489 --> 00:59:59,569
+Marlowe inputs in the transaction and if
+it finds it, it constructs a transaction
+
+644
+00:59:59,959 --> 01:00:10,419
+input datatype and update the PAB
+contract state with this transition.
+
+645
+01:00:10,869 --> 01:00:19,089
+So if you're connected to a web socket of this
+contract, you will be notified about state
+
+646
+01:00:19,089 --> 01:00:28,889
+transition changes and this state of this
+contract called contract history, it essentially
+
+647
+01:00:30,819 --> 01:00:37,919
+stores an initial Marlowe params, initial
+Marlowe data, and the list of all transaction
+
+648
+01:00:37,939 --> 01:00:42,849
+inputs that were applied to this contract.
+
+649
+01:00:43,239 --> 01:00:49,504
+And you can always restore the
+latest state by applying list of
+
+650
+01:00:49,504 --> 01:00:51,714
+transaction inputs to an initial state.
+
+651
+01:00:55,604 --> 01:01:04,494
+This contract is used by Marlowe run to
+show a Marlowe contract execution history.
+
+652
+01:01:04,884 --> 01:01:11,674
+And you can use it for same purposes on your own.
+
+653
+01:01:14,310 --> 01:01:22,100
+This Marlowe Plutus contract is essentially
+a control contract, it allows you to create
+
+654
+01:01:22,529 --> 01:01:30,880
+a Marlowe contract, an instance of Marlowe
+contract apply inputs to the instance.
+
+655
+01:01:31,190 --> 01:01:33,630
+Auto execute the contract if it's possible.
+
+656
+01:01:34,440 --> 01:01:43,420
+Redeem tokens from payments to roles,
+to your role, by spending transaction
+
+657
+01:01:43,420 --> 01:01:49,380
+output protected by role pay out validator
+script, or just close this contract.
+
+658
+01:01:50,540 --> 01:01:54,050
+Let's go through Marlowe contract creation.
+
+659
+01:01:56,190 --> 01:02:04,690
+So when you're calling the create
+endpoint, you provide an actual Marlowe
+
+660
+01:02:04,740 --> 01:02:17,220
+contract to be created and a map of roles
+to public keys of role token owners.
+
+661
+01:02:18,540 --> 01:02:25,360
+So what happens here is we
+need to setup Marlowe params.
+
+662
+01:02:25,620 --> 01:02:27,270
+Let's take a look at this data type.
+
+663
+01:02:28,320 --> 01:02:34,410
+So Marlowe params is a way to parameterize
+a Marlowe contract, and the following
+
+664
+01:02:34,410 --> 01:02:41,240
+way you can specify your own role
+payout validator by providing its hash.
+
+665
+01:02:41,490 --> 01:02:46,920
+So you can write anything you want, we have
+a default one that checks that the role token
+
+666
+01:02:46,950 --> 01:02:51,390
+is spent within transaction, but you can
+do whatever you like, and you can do this
+
+667
+01:02:51,390 --> 01:02:54,600
+by specifying this hash in Marlowe params.
+
+668
+01:02:55,080 --> 01:03:07,350
+Also when your contract uses roles we need
+to know a currency symbol of a role currency.
+
+669
+01:03:07,590 --> 01:03:09,780
+So you specify it here.
+
+670
+01:03:10,500 --> 01:03:18,060
+So when we create a new contract that uses
+roles as parties, we need to create new currency
+
+671
+01:03:18,570 --> 01:03:22,680
+and distribute role tokens to their owners.
+
+672
+01:03:22,920 --> 01:03:30,060
+That's why we need this map of role
+tokens to their, to their owners.
+
+673
+01:03:30,210 --> 01:03:35,210
+So let's take a little bit a look at
+the setup Marlowe params function.
+
+674
+01:03:36,990 --> 01:03:38,240
+So what happens here?
+
+675
+01:03:38,240 --> 01:03:43,125
+We get roles that are used within this contract.
+
+676
+01:03:45,975 --> 01:03:54,705
+And if we have roles and we have
+owners or provided for these roles,
+
+677
+01:03:55,305 --> 01:04:00,955
+we create tokens with role names.
+
+678
+01:04:02,025 --> 01:04:04,655
+By default, we create a one token per role.
+
+679
+01:04:06,465 --> 01:04:10,715
+Then we use these forge contract function.
+
+680
+01:04:10,745 --> 01:04:16,073
+That's essentially we reusing other PAB contracts.
+
+681
+01:04:16,923 --> 01:04:25,595
+This one is from currency contract
+that trades in you new currency, and
+
+682
+01:04:25,915 --> 01:04:31,025
+all these tokens go to the creator.
+
+683
+01:04:31,355 --> 01:04:38,925
+So whoever creates a Marlowe contract
+gets, initially gets all the roles for this
+
+684
+01:04:38,940 --> 01:04:44,610
+contract, but we get roles symbol from that.
+
+685
+01:04:45,330 --> 01:04:54,360
+And we immediately within the same transaction,
+send transactions that creates Marlowe contract
+
+686
+01:04:54,390 --> 01:04:59,490
+with distribute role tokens to their owners.
+
+687
+01:04:59,550 --> 01:05:06,420
+So I give them to respective parties and
+we create Marlowe params that contains
+
+688
+01:05:06,450 --> 01:05:14,100
+the role symbol, a currency symbol of
+currency we just created for role tokens.
+
+689
+01:05:15,370 --> 01:05:27,770
+Currently we use the default role payout
+validator hash, so this is how, this is a
+
+690
+01:05:28,420 --> 01:05:34,970
+setup constraints that create a new currency
+and distribute all tokens and create
+
+691
+01:05:34,970 --> 01:05:38,220
+transaction output with the Marlowe data.
+
+692
+01:05:40,460 --> 01:05:55,920
+So we use state machine library to create state
+machine client, and we construct a transaction
+
+693
+01:05:55,950 --> 01:06:04,740
+that distribute tokens and create a transaction
+output with the Marlowe data and pay value.
+
+694
+01:06:04,740 --> 01:06:11,280
+And this is a deposit value currently zero,
+but at later point is going to be a some value.
+
+695
+01:06:11,370 --> 01:06:13,070
+I believe it's going to be one ADA.
+
+696
+01:06:14,030 --> 01:06:20,380
+All transaction outputs must contain some ADA.
+
+697
+01:06:21,070 --> 01:06:22,640
+And it's just to...
+
+698
+01:06:26,770 --> 01:06:34,740
+essentially it's preventing the DDoS attacks
+and we submit this transaction, that's the
+
+699
+01:06:34,740 --> 01:06:39,015
+way we create a Marlowe contract on-chain.
+
+700
+01:06:41,925 --> 01:06:47,825
+Apply endpoint it's very simple, apply
+inputs endpoint, just calls this apply
+
+701
+01:06:47,845 --> 01:06:51,345
+inputs, which is very very straightforward.
+
+702
+01:06:51,375 --> 01:06:57,255
+We construct this slot range and we use
+state machine library or run step to
+
+703
+01:06:57,285 --> 01:07:02,245
+run a state machine transition function.
+
+704
+01:07:02,415 --> 01:07:10,485
+When we provide Marlowe input, which
+is a pair of slot range and list of
+
+705
+01:07:10,525 --> 01:07:12,795
+Marlowe inputs, a list of inputs.
+
+706
+01:07:18,075 --> 01:07:25,985
+Redeem endpoint allows you to get money from
+the that has been paid to a role payout script.
+
+707
+01:07:28,115 --> 01:07:48,720
+So we get this address, given a roles currency
+and spend all this outputs to a token owner.
+
+708
+01:07:54,620 --> 01:07:59,750
+Auto is quite interesting
+little complicated thing.
+
+709
+01:08:00,020 --> 01:08:04,280
+There is a set of contracts that
+can be executed automatically.
+
+710
+01:08:04,760 --> 01:08:10,180
+Imagine any contract that contains
+only deposits and payouts.
+
+711
+01:08:11,320 --> 01:08:20,200
+So if this contract is eligible,
+so no participant needs to provide
+
+712
+01:08:20,320 --> 01:08:24,830
+choices or any like interactive stuff.
+
+713
+01:08:24,830 --> 01:08:27,770
+So only scheduled payments.
+
+714
+01:08:27,830 --> 01:08:34,610
+These contracts can be executed automatically,
+this is, this endpoint allows exactly that.
+
+715
+01:08:35,895 --> 01:08:43,325
+So if the contract can be executed automatically
+for a party, we call auto execute contract.
+
+716
+01:08:45,835 --> 01:08:52,665
+This is essentially a state machine
+that pays deposit or wait for
+
+717
+01:08:52,665 --> 01:08:57,265
+other parties to do their part.
+
+718
+01:09:01,325 --> 01:09:05,585
+The last interesting contract
+is Marlowe companion contract.
+
+719
+01:09:06,485 --> 01:09:17,165
+This is a contract that monitors a
+participant wallet and notifies when
+
+720
+01:09:17,255 --> 01:09:20,955
+a role token goes to your own address.
+
+721
+01:09:21,605 --> 01:09:34,860
+So with trans, it listens to transactions that
+go to your own address and if there is a token
+
+722
+01:09:34,890 --> 01:09:45,450
+and this token is generated by Marlowe contract
+creation, it tries to find the Marlowe contract.
+
+723
+01:09:46,770 --> 01:09:53,430
+And if it succeeds, it notifies this
+contract need updates its state.
+
+724
+01:09:53,850 --> 01:09:58,140
+And again, if you're subscribed to
+this contract web socket, you'll get a
+
+725
+01:09:58,140 --> 01:10:06,810
+notification about a role token and you'll
+get Marlowe params and Marlowe data.
+
+726
+01:10:08,610 --> 01:10:17,660
+So if you check this Marlowe companion,
+the state, this essentially a map
+
+727
+01:10:17,660 --> 01:10:19,730
+of Marlowe params to Marlowe data.
+
+728
+01:10:20,090 --> 01:10:28,010
+So it can always get notified
+about receiving their role token.
+
+729
+01:10:33,210 --> 01:10:35,160
+Hope this helps.
+
+730
+01:10:35,220 --> 01:10:36,750
+Thank very for much for listening.
+
+731
+01:10:38,450 --> 01:10:43,310
+Thank you very much Simon and Alex for these
+very nice introductions and explanations to
+
+732
+01:10:43,350 --> 01:10:48,830
+Marlowe, they thought it would be nice if we
+play a bit with Marlowe in the playground.
+
+733
+01:10:49,700 --> 01:10:54,860
+And when you go to the playground, by the
+way, I went to a different version than
+
+734
+01:10:54,860 --> 01:11:00,980
+the one Simon showed in his lecture on his
+slides, because there was a problem with
+
+735
+01:11:01,040 --> 01:11:03,230
+that one right now, but this one works.
+
+736
+01:11:03,410 --> 01:11:07,620
+So it's alpha dot Marlowe dot IOHK dev dot IO.
+
+737
+01:11:08,840 --> 01:11:15,620
+And when you go there, you first get presented
+with three options in which language you
+
+738
+01:11:15,620 --> 01:11:17,330
+want to write your Marlowe contracts.
+
+739
+01:11:17,420 --> 01:11:18,760
+So you can do it in Haskell.
+
+740
+01:11:19,550 --> 01:11:26,370
+You can do it in JavaScript, or you can
+do it in Blockly or directly in Marlowe.
+
+741
+01:11:27,270 --> 01:11:31,610
+So let's first look at this option because
+this is very nice and you don't need
+
+742
+01:11:31,610 --> 01:11:34,190
+any programming experience to do this.
+
+743
+01:11:34,880 --> 01:11:42,470
+So I start a new project and pick blocky,
+this is a graphical editor, so we can just
+
+744
+01:11:42,470 --> 01:11:45,800
+click and drop a Marlowe contract together.
+
+745
+01:11:46,730 --> 01:11:51,500
+And as an example, I want to write a
+contract where there are three parties,
+
+746
+01:11:51,900 --> 01:11:57,830
+Alice, Bob and Charlie, and the idea is
+that Alice and Bob deposit an amount of
+
+747
+01:11:57,860 --> 01:12:00,110
+ADA into the contract, let's say 10 ADA.
+
+748
+01:12:00,740 --> 01:12:06,680
+And then Charlie decides whether
+Alice or Bob gets the total amount.
+
+749
+01:12:07,640 --> 01:12:11,560
+And depending on Charlie's decision,
+either Alice gets 20 or Bob gets 20.
+
+750
+01:12:12,320 --> 01:12:17,270
+I know, of course there's always the possibility
+that one of the three doesn't play along.
+
+751
+01:12:18,030 --> 01:12:21,720
+And Alice doesn't make her deposit
+Bob doesn't make his deposit, or
+
+752
+01:12:21,750 --> 01:12:23,220
+Charlie doesn't make his choice.
+
+753
+01:12:23,520 --> 01:12:29,580
+In which case everybody should just get
+reimbursed what they have paid up to that point.
+
+754
+01:12:30,660 --> 01:12:36,060
+So when we start with Blockly, there is a
+contract and it's just a close contract which
+
+755
+01:12:36,720 --> 01:12:42,420
+in this case doesn't do anything, if there
+was money in internal accounts, it would pay
+
+756
+01:12:42,420 --> 01:12:44,670
+back the money to the owners of the accounts.
+
+757
+01:12:45,920 --> 01:12:48,390
+But you want to do something else.
+
+758
+01:12:48,780 --> 01:12:55,650
+So let's first wait for a deposit by Alice
+and because that's a external action, that's
+
+759
+01:12:55,650 --> 01:13:01,725
+triggered by one of the parties in this case
+Alice, we need this when construct that Simon
+
+760
+01:13:01,725 --> 01:13:10,365
+mentioned, and we can slide that into here and we
+see all the slots where other things need to go.
+
+761
+01:13:10,425 --> 01:13:16,865
+And we see some fields that we have to set,
+so let's start here, so we can set a timeout.
+
+762
+01:13:17,235 --> 01:13:21,945
+So let's say this deposit by
+Alice has to happen until slot 10.
+
+763
+01:13:22,575 --> 01:13:25,365
+And if it doesn't happen, we can
+say what should happen afterwards.
+
+764
+01:13:25,755 --> 01:13:30,405
+And there's not really a good choice to
+do anything except close in that case.
+
+765
+01:13:30,435 --> 01:13:32,025
+So in that case, nothing will happen.
+
+766
+01:13:33,465 --> 01:13:35,145
+So we can slide that in there.
+
+767
+01:13:36,045 --> 01:13:39,465
+So now here we say what
+external actions we wait for.
+
+768
+01:13:39,585 --> 01:13:44,025
+Let's say we only wait for one action,
+namely that Alice makes her deposit
+
+769
+01:13:44,325 --> 01:13:49,845
+so we can check for actions and pick
+the deposit one and slide it in here.
+
+770
+01:13:49,845 --> 01:13:52,105
+And we see a couple of slots we have to fill.
+
+771
+01:13:52,935 --> 01:13:55,155
+First of all, who has to make the deposit?
+
+772
+01:13:55,605 --> 01:14:00,240
+That's a party and there are
+two choices, public key or role.
+
+773
+01:14:00,420 --> 01:14:08,280
+Let's take role, because then I can just say Alice
+normally this would be the name of the role token.
+
+774
+01:14:09,810 --> 01:14:13,650
+So whoever owns the token
+can incorporate that role.
+
+775
+01:14:14,430 --> 01:14:14,640
+Okay.
+
+776
+01:14:14,640 --> 01:14:16,080
+So Alice makes a deposit.
+
+777
+01:14:16,470 --> 01:14:23,250
+Now the amount that's a value, and let's say
+we just pick a constant amount of 10 ADA.
+
+778
+01:14:24,600 --> 01:14:29,830
+So the amount is 10 and that it is ADA we
+must specify here in the currency slot.
+
+779
+01:14:30,750 --> 01:14:35,340
+There's also the option to use other
+tokens than ADA, but let's stick with ADA.
+
+780
+01:14:37,410 --> 01:14:37,800
+Okay.
+
+781
+01:14:37,830 --> 01:14:42,690
+Now there are these internal accounts
+that also belong to one of the parties.
+
+782
+01:14:42,780 --> 01:14:47,460
+So let's say Alice pays it
+into her own internal account.
+
+783
+01:14:49,050 --> 01:14:53,250
+I just copy pasted this, and now
+we must save what happens next.
+
+784
+01:14:53,280 --> 01:14:55,410
+If Alice makes this deposit.
+
+785
+01:14:55,950 --> 01:14:58,470
+So afterwards we want Bob to make a deposit.
+
+786
+01:14:59,220 --> 01:15:08,990
+So I can just copy this whole when block
+here and slide it in here and now change.
+
+787
+01:15:09,320 --> 01:15:11,810
+So, first of all, I changed the timeout to 20.
+
+788
+01:15:12,710 --> 01:15:18,990
+So to give Bob also 10 slots to do something,
+and then wherever I said, Alice, I now say Bob.
+
+789
+01:15:21,860 --> 01:15:28,100
+So at this point, if both these actions
+happen, Alice has deposited 10 into
+
+790
+01:15:28,100 --> 01:15:32,870
+her internal account and Bob has
+deposited 10 into his internal account.
+
+791
+01:15:33,710 --> 01:15:36,300
+So now we want Charlie to make a choice.
+
+792
+01:15:36,300 --> 01:15:36,860
+So we need...
+
+793
+01:15:36,860 --> 01:15:39,080
+and this is again an external action.
+
+794
+01:15:39,260 --> 01:15:41,410
+So again, we need a when.
+
+795
+01:15:43,020 --> 01:15:47,760
+And I put the thing here, but
+this time it's not a deposit.
+
+796
+01:15:47,760 --> 01:15:53,490
+So let me delete the deposit, but
+let's change the timeout to 30 to give
+
+797
+01:15:53,490 --> 01:15:56,490
+Charlie 10 slots to make his choice.
+
+798
+01:15:56,940 --> 01:16:00,150
+And now I need a different
+action where earlier had deposit.
+
+799
+01:16:00,660 --> 01:16:02,820
+Now I pick the choice action.
+
+800
+01:16:03,870 --> 01:16:10,020
+I can give it a name, let's say
+winner,  I must say who makes the choice.
+
+801
+01:16:10,020 --> 01:16:11,910
+So that's supposed to be Charlie.
+
+802
+01:16:18,680 --> 01:16:21,410
+And now I must specify what
+values this choice can have.
+
+803
+01:16:21,830 --> 01:16:24,430
+And that's numeric.
+
+804
+01:16:24,560 --> 01:16:29,990
+So somehow, because Charlie is supposed to choose
+between Alice and Bob so that's two choices.
+
+805
+01:16:30,410 --> 01:16:35,990
+So I can pick arbitrary values like one
+and two, one for Alice, two for Bob.
+
+806
+01:16:36,800 --> 01:16:40,190
+So that's already the default, so that's fine.
+
+807
+01:16:40,790 --> 01:16:43,340
+So this allows Charlie to only choose one or two.
+
+808
+01:16:44,295 --> 01:16:49,005
+And then after he has made the choice,
+if he has made the choice, we continue.
+
+809
+01:16:49,395 --> 01:16:52,965
+And now it depends, of course,
+on what choice Charlie has made.
+
+810
+01:16:53,415 --> 01:16:56,895
+If he chose Alice, then Alice must
+get all the money if she chose Bob,
+
+811
+01:16:56,955 --> 01:16:58,275
+then Bob must get all the money.
+
+812
+01:16:58,785 --> 01:17:07,195
+So here in this continue contract, we now
+can use if simple conditional slided in here.
+
+813
+01:17:07,705 --> 01:17:09,405
+So first we need the observation.
+
+814
+01:17:09,645 --> 01:17:14,275
+So we must somehow check whether the
+choice was, let's say one for Alice.
+
+815
+01:17:14,895 --> 01:17:21,735
+So this is an observation and there is
+value, equality is one of the options.
+
+816
+01:17:22,845 --> 01:17:29,445
+So we want to compare the choice that Charlie made
+with one or two doesn't matter, but let's say one.
+
+817
+01:17:30,155 --> 01:17:32,135
+So value.
+
+818
+01:17:32,665 --> 01:17:41,705
+There is this one, which gives
+us the value of a choice.
+
+819
+01:17:41,885 --> 01:17:43,265
+So here we need the name.
+
+820
+01:17:44,145 --> 01:17:48,565
+Again, so winner was her name for that
+choice because there can be several choices.
+
+821
+01:17:48,565 --> 01:17:51,045
+So we must be able to distinguish between them.
+
+822
+01:17:51,495 --> 01:17:53,895
+And we again need who made that choice.
+
+823
+01:17:55,005 --> 01:17:59,715
+So this is now either one or two, and
+we can compare to, for example, one,
+
+824
+01:18:00,165 --> 01:18:03,075
+so we can use the constant value one.
+
+825
+01:18:08,645 --> 01:18:09,095
+Okay.
+
+826
+01:18:09,125 --> 01:18:13,105
+And in this case, so if this is
+true, then Charlie chose Alice.
+
+827
+01:18:13,225 --> 01:18:15,695
+So we want Alice to get all the money.
+
+828
+01:18:15,755 --> 01:18:25,385
+So in the then branch, we can now take a pay
+contract, the payee is who gets the money.
+
+829
+01:18:25,415 --> 01:18:30,245
+And now we have two choices that can be an
+internal account, or it can be an external party.
+
+830
+01:18:30,875 --> 01:18:35,775
+And in this case, it doesn't matter because
+in the end, when we close all the parties get
+
+831
+01:18:35,775 --> 01:18:37,875
+the money from the internal accounts as well.
+
+832
+01:18:37,875 --> 01:18:43,815
+So I, it doesn't matter, I can just pick the
+internal account, Alice's internal account.
+
+833
+01:18:44,895 --> 01:18:48,245
+So let's do that pick Alice.
+
+834
+01:18:51,695 --> 01:18:56,285
+So this now means that the payee
+is Alice's internal account.
+
+835
+01:18:56,885 --> 01:19:12,865
+Now how much, is this constant 10, the amount
+that Bob paid in currencies ADA and now who pays.
+
+836
+01:19:13,325 --> 01:19:18,215
+And that must be an internal account because
+this is something that this pay contract is
+
+837
+01:19:18,215 --> 01:19:20,315
+something that contract has control over.
+
+838
+01:19:20,315 --> 01:19:21,875
+So that's not an external action.
+
+839
+01:19:22,355 --> 01:19:27,545
+So payments are triggered from internal accounts
+that are under the control of the contract.
+
+840
+01:19:28,205 --> 01:19:31,595
+And that in this case is Bob's account.
+
+841
+01:19:33,450 --> 01:19:41,130
+So this now says if Charlie picked one, which
+stands for Alice, then pay from Bob's internal
+
+842
+01:19:41,130 --> 01:19:43,920
+account 10 ADA to Alice's internal account.
+
+843
+01:19:44,510 --> 01:19:50,660
+And afterwards we can just close and
+when we close all the internal accounts
+
+844
+01:19:50,660 --> 01:19:53,960
+will be paid to the external owners.
+
+845
+01:19:54,560 --> 01:19:57,960
+So at this point Alice's internal
+account will have 20 ADA.
+
+846
+01:19:57,980 --> 01:20:01,850
+And when we close, she will
+get the 20 ADA paid out.
+
+847
+01:20:02,540 --> 01:20:02,810
+Okay.
+
+848
+01:20:02,810 --> 01:20:07,160
+And else, this is now if Charlie didn't
+choose Alice, if he chose Bob where then we
+
+849
+01:20:07,160 --> 01:20:09,640
+must do the same, but with reverse roles.
+
+850
+01:20:09,640 --> 01:20:16,570
+So let me copy paste this whole pay
+thing and just exchange Bob and Alice.
+
+851
+01:20:18,260 --> 01:20:19,280
+And this should do it.
+
+852
+01:20:20,240 --> 01:20:24,730
+Now we can, for example, look at the pure Marlowe.
+
+853
+01:20:24,890 --> 01:20:33,810
+So this is now the value, what I did graphically
+as a Marlowe value, a value of the Haskell data
+
+854
+01:20:33,810 --> 01:20:36,600
+type called Marlowe or called contract, actually.
+
+855
+01:20:38,250 --> 01:20:43,680
+And I can send it to the simulator
+and I can start the simulation.
+
+856
+01:20:45,330 --> 01:20:50,670
+And now whenever there is a when, so
+when they are available actions, I
+
+857
+01:20:50,700 --> 01:20:52,800
+get prompted, which of those to take.
+
+858
+01:20:52,860 --> 01:20:56,820
+In our case, we always only had one
+available action at every point.
+
+859
+01:20:57,870 --> 01:21:02,940
+So in the first when, there are only two
+possibilities, either Alice makes her deposit
+
+860
+01:21:03,150 --> 01:21:05,370
+or she doesn't until the timeout is reached.
+
+861
+01:21:05,580 --> 01:21:11,640
+So in this case, if we wait for the timeout,
+it's very boring, the contract is over,
+
+862
+01:21:11,700 --> 01:21:14,700
+it's reduced to close and nothing happened.
+
+863
+01:21:15,870 --> 01:21:21,720
+So if she makes the deposit,
+then this contract simplifies.
+
+864
+01:21:21,840 --> 01:21:28,740
+So it's now reduced to what happens after she
+made the deposit and we see now when in the second
+
+865
+01:21:28,740 --> 01:21:31,740
+when, where we're waiting for Bob's deposit.
+
+866
+01:21:32,340 --> 01:21:35,130
+And again, he can choose not to deposit.
+
+867
+01:21:35,160 --> 01:21:42,660
+So if he does that, then we see here the
+actions, Alice deposits a 10 and then
+
+868
+01:21:42,960 --> 01:21:48,690
+after the timeout, because Bob din't do
+anything, the contract paid 10 back to Alice.
+
+869
+01:21:49,890 --> 01:21:50,100
+Okay.
+
+870
+01:21:50,100 --> 01:21:53,040
+Of course it's more interesting
+if Bob also makes his deposit.
+
+871
+01:21:53,190 --> 01:21:55,110
+So we see that logged here as well.
+
+872
+01:21:56,190 --> 01:21:59,190
+And now we are, the contract has simplified again.
+
+873
+01:21:59,280 --> 01:22:05,100
+So now we are in the when where the only
+available action is that Charlie chooses.
+
+874
+01:22:05,520 --> 01:22:09,990
+So Charlie can not choose one or two,
+if he chooses or don't do anything.
+
+875
+01:22:10,470 --> 01:22:15,900
+If he doesn't do anything, Bob and Alice,
+both get her money, the money back.
+
+876
+01:22:16,890 --> 01:22:18,160
+If he picks Alice.
+
+877
+01:22:18,360 --> 01:22:26,370
+So choice one, then we see that the
+contract pays 20 units of ADA to Alice.
+
+878
+01:22:26,490 --> 01:22:27,870
+So she gets all the money.
+
+879
+01:22:29,250 --> 01:22:36,880
+And if instead we pick two, then
+the contract pays 20 units to Bob.
+
+880
+01:22:37,890 --> 01:22:39,060
+So it seems to work.
+
+881
+01:22:40,500 --> 01:22:51,390
+Let me reset this now and let me copy this
+Marlowe contract and do a new project and go to
+
+882
+01:22:51,390 --> 01:22:54,360
+the Haskell edit once that, and let's not save.
+
+883
+01:22:56,610 --> 01:23:00,180
+And here in this Haskell
+editor, there's a template.
+
+884
+01:23:00,420 --> 01:23:06,940
+Basically all this Haskell program does, is it
+takes a contract, this is a Marlowe contract.
+
+885
+01:23:08,460 --> 01:23:14,590
+And then it's a simple executable, a Haskell
+executable that just pretty prints the contract.
+
+886
+01:23:14,860 --> 01:23:21,055
+So all it does is it basically produces
+a nicely printed value of type contract.
+
+887
+01:23:21,595 --> 01:23:24,985
+And this is then used to, for
+example, running the simulator.
+
+888
+01:23:25,765 --> 01:23:31,865
+So we should be able to simply instead of
+close pastes, this expression here that we got
+
+889
+01:23:33,145 --> 01:23:38,785
+from our Blockly, probably I should indent.
+
+890
+01:23:41,190 --> 01:23:41,520
+Okay.
+
+891
+01:23:41,520 --> 01:23:50,100
+And that should compile so I can compile
+this and I can send it through the simulator
+
+892
+01:23:50,610 --> 01:23:52,590
+and it should behave exactly as before.
+
+893
+01:23:52,710 --> 01:23:56,310
+So Alice makes a deposit, Bob makes his deposit.
+
+894
+01:23:56,880 --> 01:24:01,480
+Let's say Charlie picks
+Bob and Bob gets the money.
+
+895
+01:24:02,650 --> 01:24:07,050
+So, there we don't really see
+a benefit of do it in Haskell.
+
+896
+01:24:07,340 --> 01:24:08,750
+We could just do it in Blockly.
+
+897
+01:24:08,820 --> 01:24:15,660
+Although I find that Blockly is really
+only useful for learning and for writing
+
+898
+01:24:15,750 --> 01:24:21,780
+extremely simple contracts, because this
+is arguably a simple contract and already
+
+899
+01:24:21,780 --> 01:24:25,260
+it was quite unwieldy in the blocky editor.
+
+900
+01:24:25,860 --> 01:24:32,990
+And if you do something slightly more complicated,
+it gets really very confusing in the editor.
+
+901
+01:24:33,920 --> 01:24:38,180
+But the point is we can do other
+things in this Haskell program as well.
+
+902
+01:24:38,210 --> 01:24:41,540
+We don't have to literally define a contract.
+
+903
+01:24:41,540 --> 01:24:45,500
+We can use the whole power of Haskell
+to help us write this contract.
+
+904
+01:24:46,280 --> 01:24:50,030
+So for example, if we see there's lots
+of repetition, because we always have
+
+905
+01:24:50,030 --> 01:24:51,770
+these roles, Alice, Bob and Charlie.
+
+906
+01:24:52,460 --> 01:24:59,870
+So for example, we can define them separately,
+let's just say Alice, Bob, Charlie.
+
+907
+01:25:01,650 --> 01:25:14,670
+The type is party and the role constructor we
+can just use this overloaded string here to skip
+
+908
+01:25:14,670 --> 01:25:17,310
+the role constructor and just write it like this.
+
+909
+01:25:19,110 --> 01:25:29,160
+So party implements is string and the from
+string method uses the role constructor Charlie.
+
+910
+01:25:31,500 --> 01:25:32,040
+Okay.
+
+911
+01:25:33,450 --> 01:25:39,240
+And now I can replace this everywhere with those.
+
+912
+01:25:42,860 --> 01:25:43,130
+Yes.
+
+913
+01:25:46,310 --> 01:25:46,580
+Yes.
+
+914
+01:25:46,580 --> 01:25:50,680
+Well, and I can do the same for Bob and Charlie.
+
+915
+01:25:53,780 --> 01:25:56,210
+Okay, I think I have all the places.
+
+916
+01:25:57,040 --> 01:26:00,915
+Now I can do the same, this
+constant tennis all over the place.
+
+917
+01:26:01,965 --> 01:26:07,395
+So let's give that a name as well, let's
+call it deposit and that's of type value.
+
+918
+01:26:15,785 --> 01:26:24,095
+Okay, this token empty empty is
+the ADA abbreviation for that.
+
+919
+01:26:29,705 --> 01:26:33,215
+Okay, and there's slightly more computation...
+
+920
+01:26:33,485 --> 01:26:42,305
+duplication this choice ID, so let's also
+give that a name choice ID type choice ID.
+
+921
+01:26:46,325 --> 01:26:51,745
+And that takes two parameters, the name, which was
+winner in our case and the role which is Charlie.
+
+922
+01:26:58,485 --> 01:27:02,735
+Okay, now it's already cleaned up quite a bit.
+
+923
+01:27:04,595 --> 01:27:09,155
+And now it's also easy to do more
+sophisticated things, for example, our
+
+924
+01:27:09,155 --> 01:27:14,075
+contract is slightly asymmetric, even
+though it sounds like a symmetric situation.
+
+925
+01:27:14,555 --> 01:27:19,865
+I mean, Alice and Bob are completely symmetric,
+but in our contract, Alice has to deposit first.
+
+926
+01:27:20,525 --> 01:27:25,535
+And what we could do instead is
+allow Bob to deposit first as well.
+
+927
+01:27:25,565 --> 01:27:32,675
+So in the outermost when we have two cases, one
+where Alice deposits and one where Bob deposits,
+
+928
+01:27:34,385 --> 01:27:44,385
+so we can of course just now copy this case
+here and paste it below and change Alice and
+
+929
+01:27:44,385 --> 01:27:53,025
+Bob where appropriate, which is not everywhere
+because in this choice thing here, Alice keeps
+
+930
+01:27:53,040 --> 01:27:58,380
+being choice one and Bob keeps being choice
+two, so would have to concentrate on that.
+
+931
+01:27:58,620 --> 01:28:02,130
+But of course it's much nicer to
+extract that into a helper function.
+
+932
+01:28:02,760 --> 01:28:04,560
+So this is of type case.
+
+933
+01:28:04,560 --> 01:28:15,330
+So let me just copy paste or copy this
+until there and now make a local definition.
+
+934
+01:28:16,740 --> 01:28:18,270
+And I don't know what to call it.
+
+935
+01:28:18,360 --> 01:28:23,160
+Let's just call it F and it takes two
+parties, the party that deposits first
+
+936
+01:28:23,670 --> 01:28:26,340
+and the party that deposits afterwards.
+
+937
+01:28:26,400 --> 01:28:35,400
+And it gives us a case, let's call it X and
+Y and just paste this whole thing there.
+
+938
+01:28:37,980 --> 01:28:40,720
+Okay, and now of course, I
+am not using the X and Y.
+
+939
+01:28:40,830 --> 01:28:42,955
+So in this case, Alice was first.
+
+940
+01:28:43,425 --> 01:28:49,570
+So Alice is X and after Alice
+is deposit, we wait for Bob.
+
+941
+01:28:51,300 --> 01:28:51,500
+Okay.
+
+942
+01:28:51,510 --> 01:28:56,540
+And this here can stay the same, this choice.
+
+943
+01:28:57,800 --> 01:28:58,040
+Okay.
+
+944
+01:28:58,040 --> 01:29:07,930
+And now I can replace this whole thing with
+my helper function and write F Alice Bob.
+
+945
+01:29:09,950 --> 01:29:14,090
+And the advantage is that I know
+it's not easy to also add a symmetric
+
+946
+01:29:14,090 --> 01:29:17,030
+case that Bob can deposit first.
+
+947
+01:29:17,540 --> 01:29:22,850
+So I just add a new line
+with another case, Bob Alice.
+
+948
+01:29:25,010 --> 01:29:28,320
+And if all goes well, that should still compile.
+
+949
+01:29:29,780 --> 01:29:39,320
+And if I now send it to the simulator and
+start the simulation, now I have two possible
+
+950
+01:29:39,320 --> 01:29:40,910
+actions that can happen in the first step.
+
+951
+01:29:41,350 --> 01:29:44,750
+Alice can deposit 10 or Bob can deposit 10.
+
+952
+01:29:45,350 --> 01:29:48,465
+So let's Bob start this time.
+
+953
+01:29:48,495 --> 01:29:51,795
+So Bob deposits 10 and now it's Alice's turn.
+
+954
+01:29:53,885 --> 01:29:58,445
+And if Charlie picks Alice
+then as before Alice wins.
+
+955
+01:29:59,585 --> 01:30:06,635
+So the point I'm making is that, it's of
+a big advantage to use the Haskell editor,
+
+956
+01:30:06,665 --> 01:30:08,495
+to write Marlowe contracts in Haskell.
+
+957
+01:30:09,185 --> 01:30:15,365
+So basically you write a program that
+produces something of type contract, and
+
+958
+01:30:15,365 --> 01:30:21,185
+you can use all the features of Haskell
+like local functions or whatever to make
+
+959
+01:30:21,185 --> 01:30:24,445
+your life easier and avoid code duplication.
+
+960
+01:30:24,965 --> 01:30:30,545
+And in the Blockly editor, there's no such option
+if we had wanted to do the same in Blockly because
+
+961
+01:30:30,545 --> 01:30:32,315
+there are no local definitions that you can do.
+
+962
+01:30:32,315 --> 01:30:35,405
+You can't define local contracts
+or something like that.
+
+963
+01:30:35,915 --> 01:30:41,100
+So we would have to paste,
+copy paste this whole big case.
+
+964
+01:30:41,610 --> 01:30:46,680
+And then manually change Alice to Bob in
+Bob to Alice in the first two deposits.
+
+965
+01:30:48,150 --> 01:30:55,650
+And we would have lots of code duplication because
+this choice thing here the third when, would have
+
+966
+01:30:55,650 --> 01:31:00,870
+been copy pasted, and there would have been no way
+to abstract that the way and only write it once.
+
+967
+01:31:02,220 --> 01:31:06,840
+And of course you have other options, for
+example, we could also parameterize our contract.
+
+968
+01:31:07,110 --> 01:31:14,980
+So for example, we could use the Leaf, the
+deposit variable, so we could, instead do a
+
+969
+01:31:15,000 --> 01:31:19,260
+contract is a function from value to contract.
+
+970
+01:31:19,980 --> 01:31:28,740
+And the first parameter is deposit and I delete
+this here and now in the main program I can
+
+971
+01:31:29,190 --> 01:31:31,470
+pick a value for the parameter, for example, 50.
+
+972
+01:31:32,190 --> 01:31:39,030
+And now if I compile, oh,
+sorry, it must be constant 50.
+
+973
+01:31:41,130 --> 01:31:42,450
+So now if I compile.
+
+974
+01:31:45,810 --> 01:31:52,500
+I have a version of the contract when now
+Alice and Bob have to deposit 50 ADA each.
+
+975
+01:31:56,010 --> 01:32:01,950
+And then the winner gets 100 and obviously
+I could do the same for the parties.
+
+976
+01:32:02,670 --> 01:32:11,600
+So I could parameterize it over the
+three parties, party, party, party.
+
+977
+01:32:14,570 --> 01:32:17,580
+And then if I call those Alice, Bob and Charlie.
+
+978
+01:32:19,800 --> 01:32:21,000
+Delete this here.
+
+979
+01:32:23,400 --> 01:32:27,510
+Then I must also be careful and
+this must not depend on the party.
+
+980
+01:32:29,460 --> 01:32:36,390
+It's called P and at the appropriate
+spot here where the choice happens,
+
+981
+01:32:37,440 --> 01:32:40,020
+I must say choice ID Charlie.
+
+982
+01:32:40,960 --> 01:32:50,350
+Here as well and now the contract is
+parameterized by all the participants.
+
+983
+01:32:50,970 --> 01:33:04,940
+So instead of Alice, Bob and Charlie, I can
+use Charles, Simon and Alex and a constant 100.
+
+984
+01:33:09,130 --> 01:33:10,170
+Do now.
+
+985
+01:33:12,450 --> 01:33:17,120
+Oh yes, just a parenthesis problem.
+
+986
+01:33:22,320 --> 01:33:22,710
+Okay.
+
+987
+01:33:24,560 --> 01:33:28,520
+And now I have Charles and
+Simon and deposits of 100.
+
+988
+01:33:31,640 --> 01:33:34,610
+And Alex picks the winner.
+
+989
+01:33:36,840 --> 01:33:38,160
+And it works as before.
+
+990
+01:33:39,750 --> 01:33:47,390
+So it's just very nice and easy to using
+Haskell parameterizing contracts and saving
+
+991
+01:33:47,390 --> 01:33:53,120
+a lot of code duplication by just using
+usual Haskell thing features like local
+
+992
+01:33:53,120 --> 01:33:55,640
+definitions, helper functions, and so on.
+
+993
+01:33:56,750 --> 01:34:04,100
+I could even relatively easily generalized
+this to more than three participants.
+
+994
+01:34:04,130 --> 01:34:11,270
+Maybe there are three people, I could even write a
+contract that's generic in the number of parties.
+
+995
+01:34:11,270 --> 01:34:15,620
+So I get a list of parties and
+then each of them has to deposit.
+
+996
+01:34:15,710 --> 01:34:21,530
+And that would be very inconvenient if
+I had to do that by hand, but just using
+
+997
+01:34:21,530 --> 01:34:23,640
+Haskell, it's quite straightforward.
+
+998
+01:34:27,280 --> 01:34:34,010
+And what is also noteworthy here is that Marlowe
+in contrast to Plutus is extremely basic Haskell.
+
+999
+01:34:34,250 --> 01:34:40,460
+So the Marlowe team made a point of only using
+very basic Haskell functions when features.
+
+1000
+01:34:41,090 --> 01:34:44,090
+So you don't need lenses, you
+don't need template Haskell.
+
+1001
+01:34:44,090 --> 01:34:49,100
+You don't even need Monads type level programming.
+
+1002
+01:34:49,130 --> 01:34:54,170
+All of that is not present in Marlowe,
+it's extremely basic standard Haskell.
+
+1003
+01:34:55,130 --> 01:35:02,150
+So after what you have learnt while learning
+Plutus about Haskell, Marlowe should be a walk in
+
+1004
+01:35:02,150 --> 01:35:05,690
+the park for you and a very relaxing and simple.
+
+1005
+01:35:06,770 --> 01:35:12,380
+Of course Marlowe is not always appropriate
+because it's specifically for financial contracts.
+
+1006
+01:35:12,950 --> 01:35:18,750
+But if it is appropriate, it's a very nice
+option because of all the safety assurances
+
+1007
+01:35:18,750 --> 01:35:24,180
+that Simon mentioned and because it's much
+simpler and easier to get right than Plutus.
+
+1008
+01:35:25,380 --> 01:35:31,040
+For homework, I would like you to modify
+the contract that I wrote as follows.
+
+1009
+01:35:31,820 --> 01:35:37,160
+Charlie should put down a deposit
+in the very beginning of twice the
+
+1010
+01:35:37,160 --> 01:35:38,990
+deposit that Alice and Bob put down.
+
+1011
+01:35:39,830 --> 01:35:44,990
+And if he then doesn't choose
+when it's his turn to choose. 
+
+1012
+01:35:46,030 --> 01:35:48,470
+Alice and Bob get half of 40 put down.
+
+1013
+01:35:48,470 --> 01:35:52,610
+So, Alice and Bob each end
+up with 20 in this example.
+
+1014
+01:35:52,700 --> 01:35:57,620
+So in the very beginning,
+Charlie supposed to put down 20.
+
+1015
+01:35:58,710 --> 01:36:00,990
+And then it proceeds as usual.
+
+1016
+01:36:01,290 --> 01:36:08,070
+So if all goes well, Alice and Bob, both put down
+10 and Charlie makes his choice, for example,
+
+1017
+01:36:08,070 --> 01:36:13,770
+for Alice, then as before Alice gets the 20
+and Charlie gets his originally deposit back.
+
+1018
+01:36:14,220 --> 01:36:21,270
+But if Charlie does not make a choice
+and the deadline is reached, then
+
+1019
+01:36:21,330 --> 01:36:27,140
+his 20 split amongst Alice and Bob
+so Alice and Bob both end up with 20.
+

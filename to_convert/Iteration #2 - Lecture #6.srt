@@ -1,0 +1,8761 @@
+1
+00:00:06,620 --> 00:00:11,489
+In today's lecture, I want to look at the
+case study to see how what we've learned so
+
+2
+00:00:11,490 --> 00:00:17,749
+far can be turned into an actual application,
+a complete executable or several executables
+
+3
+00:00:19,260 --> 00:00:22,120
+that even come with a little front-end.
+
+4
+00:00:22,820 --> 00:00:28,470
+And it will be a fully fledged Dapp
+apart for the fact that we don't
+
+5
+00:00:28,480 --> 00:00:30,499
+have a real blockchain available yet.
+
+6
+00:00:30,929 --> 00:00:35,319
+So this will run on a simulated
+blockchain, a so-called mockchain, but
+
+7
+00:00:35,320 --> 00:00:41,130
+apart from that, it will contain all
+the pieces that you will also need for
+
+8
+00:00:41,170 --> 00:00:46,019
+real application as soon as Plutus is
+available on the Cardano main chain.
+
+9
+00:00:46,420 --> 00:00:49,990
+And the example I've chosen for
+that is the example of oracles
+
+10
+00:00:50,000 --> 00:00:50,700
+
+11
+00:00:50,750 --> 00:00:54,810
+So I want to show how to
+implement a very simple oracle.
+
+12
+00:00:55,400 --> 00:01:02,360
+Now for this an oracle, an oracle in the
+blockchain world is a service or a way to get
+
+13
+00:01:02,620 --> 00:01:07,700
+real world information onto the blockchain
+and make it usable in smart contracts.
+
+14
+00:01:08,240 --> 00:01:11,630
+And there are numerous
+examples of use cases for that.
+
+15
+00:01:11,690 --> 00:01:17,370
+So you can think of external data
+sources like weather data, or election
+
+16
+00:01:17,370 --> 00:01:23,529
+results, or stock exchange rates,
+or maybe randomness for games or
+
+17
+00:01:23,539 --> 00:01:28,639
+lotteries, or simply time, temperatures,
+water levels, all sorts of things.
+
+18
+00:01:29,459 --> 00:01:36,399
+And often information like that is useful
+or needed for real world smart contract.
+
+19
+00:01:36,600 --> 00:01:40,110
+For example, you could have a betting
+smart contract that depends on the
+
+20
+00:01:40,110 --> 00:01:42,980
+outcome of a specific sports game.
+
+21
+00:01:43,440 --> 00:01:48,299
+And in order for the contract logic to
+decide who wins the bet, you of course
+
+22
+00:01:48,300 --> 00:01:52,770
+need the information from the real world
+who actually won that game, or maybe you
+
+23
+00:01:52,780 --> 00:01:59,450
+want some trading contract that takes real
+world stock exchange data into account.
+
+24
+00:02:00,219 --> 00:02:04,839
+And there are various ways to implement
+oracles of various sophistication.
+
+25
+00:02:05,240 --> 00:02:10,740
+And I want to choose a very simple
+approach where we have one trusted data
+
+26
+00:02:10,770 --> 00:02:14,430
+provider that provides one feed of data.
+
+27
+00:02:14,430 --> 00:02:18,840
+And as an example for data, I want to
+use the exchange rate from ADA to USD
+
+28
+00:02:19,550 --> 00:02:24,219
+And of course there are lots of problems
+with this approach because you have to
+
+29
+00:02:24,240 --> 00:02:26,760
+trust that source, this data source.
+
+30
+00:02:27,020 --> 00:02:32,419
+And there are also ways to mitigate that
+risk, the risk that this data sources either
+
+31
+00:02:32,569 --> 00:02:39,540
+untrustworthy or unreliable, maybe reports
+wrong data, or for various reasons technical
+
+32
+00:02:39,580 --> 00:02:42,410
+issues or whatever fails to provide any data.
+
+33
+00:02:42,730 --> 00:02:50,459
+So for example, you could make the trusted
+party to put down some collateral, and then
+
+34
+00:02:50,480 --> 00:02:56,050
+have some sort of mechanism that if the
+provider fails to deliver or reports false
+
+35
+00:02:56,050 --> 00:03:02,190
+data or doesn't report data, he loses this
+collateral, or you could combine several
+
+36
+00:03:02,290 --> 00:03:08,910
+such oracles into one, like only except the
+value, if all these various sources agree
+
+37
+00:03:09,389 --> 00:03:16,199
+or only take like the median or the average
+value of these different sources, or you can
+
+38
+00:03:16,209 --> 00:03:19,209
+think of much more sophisticated mechanisms.
+
+39
+00:03:19,439 --> 00:03:24,060
+But for this example, I think it's
+enough to take the simple most case,
+
+40
+00:03:24,560 --> 00:03:29,180
+there we have one data provider that we
+trust, and that is willing to provide
+
+41
+00:03:29,219 --> 00:03:31,299
+this real time data to the blockchain.
+
+42
+00:03:32,630 --> 00:03:37,809
+And as we know for anything to happen
+on the blockchain, there must be a UTxO.
+
+43
+00:03:38,680 --> 00:03:45,010
+So the obvious idea is to represent this
+data feed, the present, the current value
+
+44
+00:03:45,010 --> 00:03:51,229
+of the data feed, the oracle data as a UTxO.
+
+45
+00:03:51,249 --> 00:03:56,675
+That UTxO sits at the script address
+of the oracle and in its data field,
+
+46
+00:03:56,910 --> 00:04:02,250
+it carries the value, the current
+value of the provided oracle data.
+
+47
+00:04:02,320 --> 00:04:07,359
+So in this example, the datum
+would carry the value 1.75.
+
+48
+00:04:08,019 --> 00:04:13,230
+And this is where we encounter our first
+problem, because if I have said many times
+
+49
+00:04:13,230 --> 00:04:19,090
+in this lecture, validation only happens when
+you want to consume something from a script
+
+50
+00:04:19,209 --> 00:04:25,010
+address, not when you produce an output at
+a script address, which means that we can't
+
+51
+00:04:25,010 --> 00:04:31,640
+prevent anybody from producing arbitrary
+outputs at the same oracle script address.
+
+52
+00:04:32,170 --> 00:04:40,849
+So we somehow need to way to distinguish
+the true UTxO oracle output from other
+
+53
+00:04:41,130 --> 00:04:43,290
+output sitting at the same script address.
+
+54
+00:04:44,059 --> 00:04:48,430
+Luckily we learned about
+NFTs in the last lecture.
+
+55
+00:04:48,990 --> 00:04:56,550
+And the point about NFTs, if you recall,
+is that an NFT can only exist exactly once.
+
+56
+00:04:56,800 --> 00:05:00,330
+So there's only ever one coin of a given NFT.
+
+57
+00:05:01,179 --> 00:05:07,469
+So the idea to make the correct
+oracle script output unique is
+
+58
+00:05:07,470 --> 00:05:10,849
+to give it an NFT in its value.
+
+59
+00:05:11,510 --> 00:05:16,500
+So not only have it carry the
+data, the actual oracle value, but
+
+60
+00:05:16,940 --> 00:05:19,559
+also put an NFT at that output.
+
+61
+00:05:19,630 --> 00:05:24,559
+And because an NFT can only exist once
+they can only be one output at the
+
+62
+00:05:24,610 --> 00:05:26,770
+oracle address that holds that NFT.
+
+63
+00:05:26,830 --> 00:05:33,210
+And that allows us to uniquely
+identify the correct UTxO that
+
+64
+00:05:33,210 --> 00:05:35,090
+carries the correct oracle value.
+
+65
+00:05:35,710 --> 00:05:37,939
+How can such an oracle be used?
+
+66
+00:05:39,159 --> 00:05:43,860
+And here we come to something we haven't
+seen before in all our previous examples,
+
+67
+00:05:43,890 --> 00:05:51,180
+when we designed validators and contracts,
+we always knew the full API upfront.
+
+68
+00:05:51,380 --> 00:05:57,470
+So we always knew exactly how we intend
+to use our smart contracts, in the case
+
+69
+00:05:57,470 --> 00:06:03,400
+of an oracle this is different, because at
+the moment when the oracle gets created,
+
+70
+00:06:03,790 --> 00:06:08,100
+you don't know how people might want to
+use the data feed provided by the oracle.
+
+71
+00:06:08,160 --> 00:06:11,560
+So in that sense, it's like an open API.
+
+72
+00:06:12,480 --> 00:06:17,379
+The oracle must be able to work
+together with smart contracts that
+
+73
+00:06:17,480 --> 00:06:21,510
+haven't even been written at the
+time when the oracle is created.
+
+74
+00:06:23,240 --> 00:06:27,949
+So as an example, for use case that
+might make use of this specific oracle
+
+75
+00:06:28,550 --> 00:06:35,699
+let's consider a swap contract where
+at the swap address, somebody can
+
+76
+00:06:35,799 --> 00:06:42,510
+deposit ADA and then somebody else can
+take those ADA in exchange for USD.
+
+77
+00:06:43,670 --> 00:06:48,929
+Of course, we don't have USD directly
+on the blockchain, but let's just assume
+
+78
+00:06:48,929 --> 00:06:51,279
+they're represented by some native token...
+
+79
+00:06:52,209 --> 00:06:54,070
+some USD native token.
+
+80
+00:06:55,080 --> 00:07:01,620
+So we have this swap contract and somebody
+can make a swap by exchanging the ADA in
+
+81
+00:07:01,620 --> 00:07:09,620
+the contract for the USD Token And the idea
+is to make use of the oracle by determining
+
+82
+00:07:09,639 --> 00:07:12,559
+the exchange rate by the oracle value.
+
+83
+00:07:13,530 --> 00:07:18,240
+So in this example, because the
+current value of the oracle is 1.75.
+
+84
+00:07:18,860 --> 00:07:27,469
+If somebody offers 100 ADA in the swap,
+the price for that should be 175 USD.
+
+85
+00:07:28,650 --> 00:07:31,950
+In addition to that, we also
+need an incentive for the oracle
+
+86
+00:07:32,000 --> 00:07:33,520
+to actually provide the data.
+
+87
+00:07:34,460 --> 00:07:38,730
+Because if nothing else, the oracle
+provider has to pay transaction
+
+88
+00:07:38,730 --> 00:07:40,580
+fees to actually create this UTxO.
+
+89
+00:07:42,460 --> 00:07:47,269
+So let's say that the oracle provider
+determines a fee that has to be
+
+90
+00:07:47,270 --> 00:07:50,330
+paid each time the oracle is used.
+
+91
+00:07:50,600 --> 00:07:52,910
+So for example, let's say the fee is one ADA.
+
+92
+00:07:52,960 --> 00:07:58,090
+So each time, the oracle value
+is used in a transaction, the
+
+93
+00:07:58,170 --> 00:08:01,340
+user has to provide one ADA fee.
+
+94
+00:08:02,330 --> 00:08:07,410
+So this means if in the swap example,
+the buyer wants to buy the 100 ADA.
+
+95
+00:08:07,870 --> 00:08:16,480
+He would need to pay 175 USD to the seller of
+the ADA and one ADA to the oracle provider.
+
+96
+00:08:18,050 --> 00:08:20,669
+So what will the swap transaction look like?
+
+97
+00:08:21,509 --> 00:08:27,770
+First of all, the swap validation logic
+will need access to the current oracle
+
+98
+00:08:27,770 --> 00:08:33,400
+value, which means that the oracle UTxO
+must be an input to the transaction,
+
+99
+00:08:33,510 --> 00:08:36,510
+so the swap validator has access to it.
+
+100
+00:08:37,450 --> 00:08:42,859
+Then we have the oracle validation logic,
+and in this case, we want to use the oracle,
+
+101
+00:08:43,049 --> 00:08:45,530
+so let's say we have a redeemer called use.
+
+102
+00:08:45,530 --> 00:08:51,150
+And now the oracle validator
+has to check several things.
+
+103
+00:08:51,559 --> 00:08:56,030
+First of all, it has to check that the
+NFT is present in the consumed input to
+
+104
+00:08:56,030 --> 00:08:58,629
+make sure that the correct UTxO is used.
+
+105
+00:08:59,639 --> 00:09:02,989
+Secondly, it has to make sure
+that there's also an output of the
+
+106
+00:09:02,990 --> 00:09:05,470
+transaction at the same oracle address.
+
+107
+00:09:05,800 --> 00:09:11,629
+Again, containing the NFT and
+with the same value by using the
+
+108
+00:09:11,639 --> 00:09:17,180
+oracle, by using the oracle value,
+we don't want to change the value.
+
+109
+00:09:17,180 --> 00:09:18,390
+We just want to use it.
+
+110
+00:09:18,400 --> 00:09:24,250
+So the oracle validator must make sure
+that when this oracle UTxO is consumed
+
+111
+00:09:24,300 --> 00:09:29,720
+to use it in an arbitrary transaction,
+like the swap transaction, the value is
+
+112
+00:09:29,720 --> 00:09:31,639
+not changed, the datum is not changed.
+
+113
+00:09:32,120 --> 00:09:36,550
+Finally, the oracle provider wants to
+get paid, so it must make sure that
+
+114
+00:09:36,590 --> 00:09:43,050
+in addition to the NFT that identifies
+the UTxO, the fee must also be paid.
+
+115
+00:09:44,070 --> 00:09:50,069
+So we have this picture that the transaction
+that makes use of the oracle consumes the
+
+116
+00:09:50,090 --> 00:09:53,596
+current UTxO, the current oracle UTxO,
+makes sure the NFT is there and produces
+
+117
+00:09:53,596 --> 00:10:02,640
+an output again to the oracle address and
+make sure the NFT is again there, the fees
+
+118
+00:10:02,640 --> 00:10:05,629
+are there and the datum has not changed.
+
+119
+00:10:06,630 --> 00:10:08,990
+And now we can complete the transaction.
+
+120
+00:10:09,530 --> 00:10:16,240
+So, both the swap output and the price
+paid by the buyer are consumed as
+
+121
+00:10:16,260 --> 00:10:18,380
+additional inputs to the swap transaction.
+
+122
+00:10:18,990 --> 00:10:25,150
+And we have two more outputs, the USD
+that go to the seller and the ADA that
+
+123
+00:10:25,150 --> 00:10:29,171
+go to the buyer and that all of this is
+correct and has the correct values as
+
+124
+00:10:29,171 --> 00:10:29,174
+the responsibility of the swap validator.
+
+125
+00:10:29,174 --> 00:10:29,183
+So the swap validator will make sure that
+the buyer pays the correct price to the
+
+126
+00:10:29,183 --> 00:10:29,191
+seller whereas the oracle validator is only
+interested in making sure that everything
+
+127
+00:10:29,191 --> 00:10:29,198
+concerning the oracle is correct, so that
+we have this one oracle output consumed
+
+128
+00:10:29,198 --> 00:10:29,212
+which is identified by the NFT and we have a
+continuing output to the oracle address again
+
+129
+00:10:29,212 --> 00:10:59,850
+with the correct value and the correct datum.
+
+130
+00:11:00,639 --> 00:11:07,350
+So this is a complete example of how
+an existing oracle would be used.
+
+131
+00:11:07,480 --> 00:11:13,073
+And just to emphasize, once again,
+this swap contract is just an example.
+
+132
+00:11:13,180 --> 00:11:19,290
+The oracle should be capable of working with
+many different smart contracts that want to
+
+133
+00:11:19,330 --> 00:11:22,550
+make use of the data provided by the oracle.
+
+134
+00:11:23,779 --> 00:11:29,280
+Now, if that was all, then we wouldn't need
+an oracle because if this one value was
+
+135
+00:11:29,290 --> 00:11:35,299
+fixed and it was always 1.75, then we could
+simply hardcode this into our contracts.
+
+136
+00:11:35,710 --> 00:11:40,490
+So obviously, the value of the oracle
+must be able to change, at least
+
+137
+00:11:40,760 --> 00:11:45,050
+in the case of an oracle like this
+one where we have an exchange rate
+
+138
+00:11:45,130 --> 00:11:47,599
+that of course can change over time.
+
+139
+00:11:48,360 --> 00:11:53,870
+There might be other oracles like the
+before mentioned outcome of a sports match
+
+140
+00:11:53,960 --> 00:11:59,390
+where it's a singular event in history and
+either the one side wins or the other wins.
+
+141
+00:12:00,059 --> 00:12:05,280
+But that will never change again, but in
+example of a price oracle like this one,
+
+142
+00:12:05,490 --> 00:12:09,399
+of course it's important that the value
+can change, which means that the oracle
+
+143
+00:12:09,399 --> 00:12:16,209
+validator, in addition to the use redeemer
+must be able to support another operation
+
+144
+00:12:16,279 --> 00:12:21,459
+where the operator, the provider of the
+oracle can actually change the data.
+
+145
+00:12:22,350 --> 00:12:30,510
+So let's say that the value changes
+from 1.75 to 1.77, and the oracle
+
+146
+00:12:30,510 --> 00:12:33,320
+provider needs to update the oracle.
+
+147
+00:12:34,389 --> 00:12:40,980
+Of course, we know that on a UTxO blockchain
+or [E] UTxO blockchain, nothing ever changes.
+
+148
+00:12:41,040 --> 00:12:46,720
+So UTxOs can't change, you can't change
+the datum of an existing UTxO, all you can
+
+149
+00:12:46,720 --> 00:12:49,370
+do is consume UTxOs and produce new ones.
+
+150
+00:12:49,840 --> 00:12:55,480
+So in order to update the value, we have to
+consume the existing oracle UTxO and produce
+
+151
+00:12:55,480 --> 00:12:57,720
+a new one that carries the correct datum.
+
+152
+00:12:58,540 --> 00:13:04,750
+So we would have a transaction that
+uses an update redeemer and now the
+
+153
+00:13:04,750 --> 00:13:06,880
+validation logic is somewhat different.
+
+154
+00:13:06,889 --> 00:13:11,440
+It's the same as before in that the
+NFT needs to be present in the consumed
+
+155
+00:13:11,449 --> 00:13:18,290
+oracle input and also needs to be present
+in the produced new oracle output.
+
+156
+00:13:18,910 --> 00:13:22,809
+In addition to that, that transaction
+must be signed by the oracle provider.
+
+157
+00:13:22,900 --> 00:13:27,400
+So not anybody can change the value
+only the provider of the oracle.
+
+158
+00:13:28,240 --> 00:13:33,839
+And we can use this update transaction
+as an opportunity to allow the
+
+159
+00:13:33,880 --> 00:13:35,839
+oracle provider to collect the fees.
+
+160
+00:13:36,220 --> 00:13:40,819
+So we only insist that the NFT must
+be present in the output, but we
+
+161
+00:13:40,840 --> 00:13:43,060
+don't say anything about other values.
+
+162
+00:13:43,090 --> 00:13:50,390
+So all the accumulated fees that
+got there from other contracts using
+
+163
+00:13:50,390 --> 00:13:56,630
+the oracle, can be collected by the
+oracle provider in this transaction.
+
+164
+00:13:57,760 --> 00:14:00,339
+So to sum up, we represent the
+oracle as a UTxO and we identify
+
+165
+00:14:00,339 --> 00:14:07,240
+the correct UTxO by a specific NFT.
+
+166
+00:14:07,280 --> 00:14:12,845
+And the oracle value is
+the datum of that UTxO.
+
+167
+00:14:13,130 --> 00:14:18,300
+And we support two operations, one
+is use, which uses oracle in some
+
+168
+00:14:18,330 --> 00:14:20,730
+arbitrary transaction and the validator.
+
+169
+00:14:21,429 --> 00:14:27,829
+In the use case will make sure that the
+consumed oracle input carries the NFT
+
+170
+00:14:27,829 --> 00:14:33,300
+and that there is an oracle output that
+again carries the NFT, doesn't change
+
+171
+00:14:33,300 --> 00:14:36,580
+the datum and carries additional fees.
+
+172
+00:14:37,170 --> 00:14:43,760
+The second operation is update, which can
+only be done by the oracle provider and for
+
+173
+00:14:43,760 --> 00:14:50,230
+an update transaction, again, the input, the
+oracle input must carry the NFT, there must
+
+174
+00:14:50,230 --> 00:14:52,780
+be an oracle output, also carrying the NFT.
+
+175
+00:14:53,250 --> 00:14:57,840
+And otherwise there are no restrictions,
+so the datum can change and the
+
+176
+00:14:58,279 --> 00:15:00,989
+accumulated fees can be taken out.
+
+177
+00:15:01,780 --> 00:15:07,070
+So now that we know how it is supposed
+to work, let's look at some code.
+
+178
+00:15:07,980 --> 00:15:12,550
+And I know in the past lectures, I always
+basically in live coded everything,
+
+179
+00:15:13,219 --> 00:15:15,609
+but this time it's quite a lot of code.
+
+180
+00:15:15,610 --> 00:15:22,280
+So I hope you all forgive me for having it
+prepared and I just walk you through it.
+
+181
+00:15:23,490 --> 00:15:27,090
+So as always, you can find the
+code in our GitHub repository.
+
+182
+00:15:28,080 --> 00:15:34,430
+So let's first look at the code, the Plutus
+code that implements the oracle itself.
+
+183
+00:15:35,070 --> 00:15:39,580
+So I put that into a module
+week six oracle core.
+
+184
+00:15:41,830 --> 00:15:46,990
+Right, so first of all, the oracle
+will be a parameterized contract.
+
+185
+00:15:47,460 --> 00:15:52,310
+And this data type that I
+called oracle is the parameter.
+
+186
+00:15:53,339 --> 00:15:58,579
+And it will depend on four fields, so
+this is a record type with four fields.
+
+187
+00:15:59,010 --> 00:16:03,899
+First, the o symbol is the
+currency symbol of the NFT.
+
+188
+00:16:04,629 --> 00:16:10,610
+So the NFT that will always be carried around
+with the oracle UTxO to uniquely identified.
+
+189
+00:16:11,240 --> 00:16:15,870
+I don't need the token name because I
+will use the empty string as a token name.
+
+190
+00:16:17,370 --> 00:16:21,469
+Second, the o operator, that's
+the owner of the oracle, that's
+
+191
+00:16:21,469 --> 00:16:23,459
+the one that can make updates.
+
+192
+00:16:23,610 --> 00:16:30,589
+We saw, just now that the use operation
+is supposed to be used by anybody,
+
+193
+00:16:31,020 --> 00:16:35,080
+but the update operation where the
+datum actually changes can only be
+
+194
+00:16:35,080 --> 00:16:39,850
+done by the operator and that public
+key hash here identifies the operator.
+
+195
+00:16:41,290 --> 00:16:48,220
+Then the fee is the fees in lovelace that
+are due each time somebody uses the oracle,
+
+196
+00:16:48,590 --> 00:16:55,180
+this fourth field o asset identifies
+the target of the oracle, basically.
+
+197
+00:16:55,230 --> 00:17:02,060
+So in this running example, we're talking
+about exchange rates, ADA to something
+
+198
+00:17:02,290 --> 00:17:04,410
+else, and this denotes the something else.
+
+199
+00:17:04,420 --> 00:17:10,280
+So in our example, this would be an asset
+class representing some sort of USD token.
+
+200
+00:17:11,140 --> 00:17:17,289
+So we do the usual boiler plate the type
+classes we need for it to be serializable.
+
+201
+00:17:18,169 --> 00:17:27,580
+And liftable, and now we define the redeemer
+and as we already saw in the diagrams I want
+
+202
+00:17:27,760 --> 00:17:30,879
+to support two operations, update and use.
+
+203
+00:17:30,890 --> 00:17:35,080
+So I just define in a new data type
+that I called oracle redeemer that just
+
+204
+00:17:35,080 --> 00:17:37,510
+has these two values, update and use.
+
+205
+00:17:37,990 --> 00:17:45,260
+And I implement, I mean, use template Haskell
+to implement is data for that redeemer type.
+
+206
+00:17:46,650 --> 00:17:50,573
+Then just some helper definitions,
+so as I said, I want to use the empty
+
+207
+00:17:50,730 --> 00:17:53,049
+string as a token name for my NFT.
+
+208
+00:17:53,249 --> 00:18:02,490
+So this is this oracle token name,
+and this is just a way to identify
+
+209
+00:18:02,490 --> 00:18:06,580
+the NFT asset class, given an oracle.
+
+210
+00:18:06,580 --> 00:18:09,110
+So this is not to be confused,
+maybe the name is not good.
+
+211
+00:18:09,560 --> 00:18:12,534
+This oracle asset is not to
+be confused with the o asset.
+
+212
+00:18:12,639 --> 00:18:17,680
+So remember the o asset is USD token
+in our case whereas the oracle asset
+
+213
+00:18:17,900 --> 00:18:25,209
+will be the asset of the NFT that is
+used to identify uniquely identify
+
+214
+00:18:25,230 --> 00:18:28,049
+the UTxO with the oracle value.
+
+215
+00:18:29,609 --> 00:18:33,429
+So it's just a simple method of
+extracting the symbol from the oracle
+
+216
+00:18:33,429 --> 00:18:37,129
+and then using this fixed token
+name which is just empty string.
+
+217
+00:18:37,670 --> 00:18:41,840
+The next function here, oracle value is
+a little helper function that given a Tx
+
+218
+00:18:41,880 --> 00:18:47,990
+out and a way to turn a datum hash into
+a maybe datum returns and maybe integer.
+
+219
+00:18:49,380 --> 00:18:56,990
+So the Tx out in question will be the
+output of the UTxO that holds the oracle.
+
+220
+00:18:58,200 --> 00:19:03,639
+And then we want to some a lookup the datum
+of that oracle and turn it into an integer.
+
+221
+00:19:04,240 --> 00:19:04,800
+Why integer?
+
+222
+00:19:05,559 --> 00:19:12,539
+In the example, when I showed you
+the diagrams we used rational values,
+
+223
+00:19:12,539 --> 00:19:19,030
+or real values or double values for
+the exchange rates, 1.75 or 1.77.
+
+224
+00:19:19,040 --> 00:19:23,429
+There is a ratio type of rational
+numbers in Plutus, but that has some
+
+225
+00:19:23,480 --> 00:19:27,140
+issues that I think it's not, it
+doesn't implement to json and from json.
+
+226
+00:19:28,230 --> 00:19:32,680
+So I've felt it was easier to just
+use integer for the oracle values.
+
+227
+00:19:32,930 --> 00:19:36,310
+So basically I just take the true
+exchange rate and multiply it
+
+228
+00:19:36,530 --> 00:19:38,760
+one by 1,000,000 and then round.
+
+229
+00:19:39,429 --> 00:19:46,249
+So, an exchange rate of 1.75 would cause
+point to the integer value 1,750,000.
+
+230
+00:19:49,020 --> 00:19:49,679
+Right, and...
+
+231
+00:19:51,340 --> 00:19:58,379
+so we will see later how this helper function
+is used, but it's quite interesting example
+
+232
+00:19:58,389 --> 00:20:04,700
+of using monadic computation in a monad
+that's not IO or for example, contract.
+
+233
+00:20:05,059 --> 00:20:06,780
+So in this case, it's the maybe monad.
+
+234
+00:20:06,800 --> 00:20:11,920
+So this do block here, these monadic
+operations are happen in the maybe monad.
+
+235
+00:20:11,970 --> 00:20:19,220
+So that means the bind captures the
+fact that this could go wrong and
+
+236
+00:20:19,220 --> 00:20:22,840
+we could get a nothing, in which
+case the overall result is nothing.
+
+237
+00:20:24,389 --> 00:20:25,770
+So it's just three steps.
+
+238
+00:20:25,950 --> 00:20:33,860
+First we take our Tx out and try to get
+the Tx out datum which can fail because
+
+239
+00:20:33,929 --> 00:20:38,329
+not any output has a datum, it could be a
+public key output that doesn't have a datum.
+
+240
+00:20:38,329 --> 00:20:42,429
+And if it succeeds, we get a
+datum hash, so that's this DH.
+
+241
+00:20:43,560 --> 00:20:49,250
+Next, we use this provided function
+F the second argument to maybe
+
+242
+00:20:49,250 --> 00:20:51,290
+turn this datum hash into a datum.
+
+243
+00:20:52,020 --> 00:20:53,149
+So this can again fail.
+
+244
+00:20:53,149 --> 00:20:57,940
+but If it succeeds, then we get
+the datum D, datum is just a
+
+245
+00:20:58,440 --> 00:21:00,300
+newtype wrap around built-in data.
+
+246
+00:21:01,160 --> 00:21:06,110
+so then we can use Plutus Tx
+dot from built-in data to maybe
+
+247
+00:21:06,250 --> 00:21:08,080
+turn this D into an integer.
+
+248
+00:21:09,010 --> 00:21:14,019
+So of course there could be a problem
+that the datum is there, but it's
+
+249
+00:21:14,030 --> 00:21:16,830
+not needed at some other data type
+in which case this would fail.
+
+250
+00:21:17,459 --> 00:21:20,660
+So we have to do these three
+steps and each of them can fail.
+
+251
+00:21:20,660 --> 00:21:25,200
+And this is a nice application of the
+maybe monad by using this no monadic
+
+252
+00:21:25,200 --> 00:21:31,370
+computation, this monadic notation
+makes it much nicer to write down.
+
+253
+00:21:32,139 --> 00:21:35,880
+And as I said, we'll see in a bit
+where we use this helper function.
+
+254
+00:21:36,900 --> 00:21:42,629
+So this is now the most important
+function, the make oracle validator.
+
+255
+00:21:43,900 --> 00:21:48,679
+So it gets the parameter,
+which was our data type oracle.
+
+256
+00:21:48,679 --> 00:21:53,420
+Then it gets the datum, which as I
+just explained is integer in our case,
+
+257
+00:21:54,390 --> 00:21:58,080
+then it gets the redeemer represented
+by the data type oracle redeemer.
+
+258
+00:21:59,260 --> 00:22:04,470
+And finally the contracts and returns a
+boolean, whether you should validate or not.
+
+259
+00:22:05,680 --> 00:22:10,919
+And I mean, we do have two cases for use and
+for update, but there are some similarities
+
+260
+00:22:11,260 --> 00:22:15,620
+between them as we saw in the diagrams,
+because in both cases, we want to check
+
+261
+00:22:15,890 --> 00:22:19,120
+that we have the input that holds the NFT.
+
+262
+00:22:19,120 --> 00:22:22,240
+And there is an output
+that again holds the NFT.
+
+263
+00:22:22,720 --> 00:22:27,989
+So those two checks I can do for both cases
+simultaneously that's why I do them upfront.
+
+264
+00:22:27,989 --> 00:22:35,419
+So this first checks that the input
+and validating holds the NFT and that
+
+265
+00:22:35,420 --> 00:22:42,480
+second condition checks that there is an
+oracle output that also holds the NFT.
+
+266
+00:22:43,860 --> 00:22:49,579
+And then I distinguish the two cases
+that I mean, the update or the use case.
+
+267
+00:22:49,579 --> 00:22:52,480
+So let's first look at input has token.
+
+268
+00:22:54,200 --> 00:22:57,870
+So first before I get to that, I have
+two more helper definitions here.
+
+269
+00:22:57,870 --> 00:23:01,655
+So info that you saw before, just take
+the context and extract the transaction
+
+270
+00:23:01,980 --> 00:23:06,232
+info from it and own input, this is the
+output that I'm just trying to consume.
+
+271
+00:23:06,232 --> 00:23:06,683
+So validation is running as you know,
+whenever I try to consume a script input.
+
+272
+00:23:06,683 --> 00:23:06,703
+So in this case I try to own script output.
+
+273
+00:23:06,703 --> 00:23:20,610
+In this case, I try to consume the
+oracle output and this Tx out is
+
+274
+00:23:20,610 --> 00:23:21,359
+supposed to be that, oracle output.
+
+275
+00:23:21,919 --> 00:23:30,290
+And there is a this function that's provided
+by the Plutus library, find own input,
+
+276
+00:23:30,780 --> 00:23:33,530
+which given the context gives me that input.
+
+277
+00:23:34,139 --> 00:23:39,590
+But that case a maybe because I might be
+in a situation where I'm not validating
+
+278
+00:23:39,590 --> 00:23:44,430
+input, I might be in the monetary policy
+context, for example, in which case
+
+279
+00:23:44,430 --> 00:23:47,560
+there's no input, that is being validated.
+
+280
+00:23:48,520 --> 00:23:52,450
+So there's nothing case should not
+really happen because we know we are
+
+281
+00:23:52,480 --> 00:23:55,699
+validating the consumption of the oracle.
+
+282
+00:23:55,699 --> 00:24:00,540
+But in any case, if there nothing happens,
+I just say that it's no input, but we
+
+283
+00:24:00,740 --> 00:24:08,880
+should never end up there and if you have an
+input, then it's of type Tx in or Tx input.
+
+284
+00:24:09,410 --> 00:24:17,250
+And then I can use this Tx in info resolve
+to get the corresponding out, Tx out.
+
+285
+00:24:18,359 --> 00:24:23,290
+So this own input is now the output,
+the oracle output I'm trying to consume.
+
+286
+00:24:24,640 --> 00:24:31,214
+So now I must check that the token is present
+and there's in the ledger dot value module,
+
+287
+00:24:31,469 --> 00:24:39,450
+there is a asset class value o function
+that takes a value, an asset class, and
+
+288
+00:24:39,450 --> 00:24:44,370
+then returns and integer, how many coins of
+that as a class are contained in the value.
+
+289
+00:24:44,929 --> 00:24:48,499
+So as value I use Tx out
+value of my own input.
+
+290
+00:24:48,530 --> 00:24:53,089
+So that's the value attached
+to this input I'm consuming.
+
+291
+00:24:54,359 --> 00:24:58,250
+And as asset class, I just use this
+helper function oracle asset oracle.
+
+292
+00:24:58,280 --> 00:25:00,830
+So that gives me the NFT
+belonging to the oracle.
+
+293
+00:25:01,230 --> 00:25:05,680
+So I check how often is the NFT contained
+in the value of the oracle output
+
+294
+00:25:06,349 --> 00:25:07,940
+and it should be there exactly once.
+
+295
+00:25:08,520 --> 00:25:12,790
+I mean, because it's an NFT, it can
+never be more than one, but it could be
+
+296
+00:25:12,790 --> 00:25:14,460
+missing in which case it would be zero.
+
+297
+00:25:14,510 --> 00:25:17,630
+So I must make sure that it is actually
+there, so I check whether it's one.
+
+298
+00:25:19,840 --> 00:25:24,649
+Next helper function on output, as we
+know, in both cases use and update, I
+
+299
+00:25:24,749 --> 00:25:27,289
+want exactly one oracle output again.
+
+300
+00:25:28,010 --> 00:25:30,150
+So I first want to find that.
+
+301
+00:25:30,379 --> 00:25:34,860
+There's another function defined in the
+libraries called get continuing outputs that
+
+302
+00:25:34,860 --> 00:25:41,330
+gets the context and it returns a list of
+all the outputs that go to the same script
+
+303
+00:25:41,370 --> 00:25:43,529
+address that I'm presently validating.
+
+304
+00:25:44,210 --> 00:25:48,530
+So right now we are in the context
+of validating the oracle, the
+
+305
+00:25:48,530 --> 00:25:51,190
+consummation of the oracle output.
+
+306
+00:25:51,410 --> 00:25:56,659
+So this get continuing outputs would give
+me all the outputs of the transaction,
+
+307
+00:25:56,660 --> 00:25:59,560
+that again go to the oracle address.
+
+308
+00:26:01,400 --> 00:26:06,500
+And I want it to be exactly
+one, one oracle output.
+
+309
+00:26:06,770 --> 00:26:11,820
+So if this get continuing outputs
+results in a list with one
+
+310
+00:26:11,840 --> 00:26:14,120
+element, I return this one element.
+
+311
+00:26:14,590 --> 00:26:21,670
+And if it's zero or more outputs going to
+the oracle address, I produce an error and
+
+312
+00:26:21,719 --> 00:26:24,480
+say I expected exactly one oracle output.
+
+313
+00:26:26,040 --> 00:26:29,395
+Now I can use this very similar
+to input has token, I can now
+
+314
+00:26:29,510 --> 00:26:30,920
+check where the output has token.
+
+315
+00:26:30,920 --> 00:26:35,310
+So that's basically exactly the
+same, except that earlier the
+
+316
+00:26:35,310 --> 00:26:37,220
+value was from the own input.
+
+317
+00:26:37,220 --> 00:26:39,804
+And now I take the value from the own output.
+
+318
+00:26:39,804 --> 00:26:43,610
+And again, check that this NFT,
+which is given by oracle asset
+
+319
+00:26:43,630 --> 00:26:46,570
+oracle is contained exactly once.
+
+320
+00:26:47,060 --> 00:26:52,899
+So this now checks that my oracle
+input carries the NFT and this checks
+
+321
+00:26:52,899 --> 00:26:55,840
+that my oracle output carries the NFT.
+
+322
+00:26:55,840 --> 00:27:01,630
+So this covers these first two lines
+here, which are common for both cases,
+
+323
+00:27:01,630 --> 00:27:03,290
+for the use and for the update case.
+
+324
+00:27:03,970 --> 00:27:07,759
+And now I make a case distinction whether
+I'm in the update or in the use case.
+
+325
+00:27:08,099 --> 00:27:13,200
+So let's look at the update case first,
+which was the second one in the diagram.
+
+326
+00:27:14,320 --> 00:27:16,660
+And there are two conditions we must check.
+
+327
+00:27:17,230 --> 00:27:21,830
+We must check that the operator
+actually sign the transaction this is so
+
+328
+00:27:21,830 --> 00:27:23,600
+simple to check that I did it in line.
+
+329
+00:27:23,600 --> 00:27:30,030
+So I didn't write a specific helper function
+for that, I just use this Tx signed by
+
+330
+00:27:30,030 --> 00:27:34,589
+that we have seen before, it takes the
+info and it takes the signature we want.
+
+331
+00:27:34,900 --> 00:27:39,820
+And remember we know the operator from
+the field in our parameter in the oracle
+
+332
+00:27:39,820 --> 00:27:44,729
+parameter, so o operator oracle gives
+us this public key hash of the operator.
+
+333
+00:27:44,729 --> 00:27:48,589
+And we check here that the
+transaction in the update case is
+
+334
+00:27:48,610 --> 00:27:50,030
+actually signed by the operator.
+
+335
+00:27:51,000 --> 00:27:56,440
+And the second condition we want to
+check is that it again carries validator.
+
+336
+00:27:57,180 --> 00:28:02,540
+So as you know, in update, it can, I
+mean, the exchange rate in the datum
+
+337
+00:28:02,889 --> 00:28:06,949
+can arbitrarily change, but it should
+still be of the right type at least.
+
+338
+00:28:07,059 --> 00:28:08,859
+So in our case, it should
+still be an integer.
+
+339
+00:28:09,559 --> 00:28:13,560
+So I checked it here using first
+the helper function output datum,
+
+340
+00:28:14,200 --> 00:28:15,920
+which gives me a maybe integer.
+
+341
+00:28:16,890 --> 00:28:21,219
+And I just use this helper function
+we discussed earlier oracle value,
+
+342
+00:28:21,320 --> 00:28:23,120
+which now takes my own output.
+
+343
+00:28:23,270 --> 00:28:27,070
+So I'm interested in the new
+value, not in the old value.
+
+344
+00:28:27,110 --> 00:28:31,650
+I mean the old value I have given here
+as parameter to my validator, any way,
+
+345
+00:28:31,740 --> 00:28:37,040
+that's the second argument, the X so
+X is the old oracle value, but now I'm
+
+346
+00:28:37,040 --> 00:28:41,889
+interested in the new oracle value, in
+the datum attached to the oracle output.
+
+347
+00:28:43,430 --> 00:28:47,140
+So I use my helper function oracle
+value apply to this oracle output.
+
+348
+00:28:47,140 --> 00:28:51,860
+And remember there was a second argument
+that given a datum hash gives me a
+
+349
+00:28:51,860 --> 00:28:53,560
+datum or tries to give me a datum.
+
+350
+00:28:53,680 --> 00:28:58,110
+So it gives, it's a function
+type datum hash to maybe datum.
+
+351
+00:28:59,250 --> 00:29:02,560
+And there is one called find
+datum that takes the info.
+
+352
+00:29:03,599 --> 00:29:07,029
+So, find datum takes info and
+the datum hash and then tries to
+
+353
+00:29:07,029 --> 00:29:08,700
+lookup the corresponding datum.
+
+354
+00:29:09,510 --> 00:29:15,879
+So this has exactly the right type and
+that will give me just the new oracle
+
+355
+00:29:15,880 --> 00:29:19,629
+value in case it succeeds and if something
+goes wrong, it will give me nothing.
+
+356
+00:29:20,700 --> 00:29:22,180
+And now to check that it's valid.
+
+357
+00:29:22,230 --> 00:29:25,359
+I mean, I don't say anything
+about the value of the integer.
+
+358
+00:29:25,359 --> 00:29:27,580
+All I care about is that it's not nothing.
+
+359
+00:29:27,580 --> 00:29:28,870
+So it's some integer.
+
+360
+00:29:29,320 --> 00:29:34,240
+So here in the valid output datum,
+I just take this output datum, which
+
+361
+00:29:34,240 --> 00:29:39,179
+is maybe integer and check that
+it's not nothing, that it's a just.
+
+362
+00:29:39,660 --> 00:29:44,690
+And there is a function in the prelude
+called is just that does just that.
+
+363
+00:29:45,530 --> 00:29:49,900
+So is just will be true if it's a just
+and will be false if it's a nothing.
+
+364
+00:29:50,990 --> 00:29:53,389
+So this is the second condition I check here.
+
+365
+00:29:53,940 --> 00:29:59,470
+So all I check is that the operator has
+signed the transaction and that again,
+
+366
+00:29:59,490 --> 00:30:02,890
+I have a valid integer output datum.
+
+367
+00:30:03,580 --> 00:30:07,580
+In particular, I don't check anything
+about the value apart from the
+
+368
+00:30:07,580 --> 00:30:09,280
+fact that it must carry the NFT.
+
+369
+00:30:10,030 --> 00:30:15,790
+So that means that this allows the operator
+in this transaction to retrieve the
+
+370
+00:30:15,799 --> 00:30:18,050
+fees that have accumulated in the value.
+
+371
+00:30:18,629 --> 00:30:24,439
+I only check that the NFT is there, I don't
+check that any other value that was on the
+
+372
+00:30:24,440 --> 00:30:26,540
+input site is still there on the output side.
+
+373
+00:30:26,650 --> 00:30:29,390
+So that allows the operator to get his fees.
+
+374
+00:30:30,520 --> 00:30:35,299
+Now the second case, is the use case,
+which can be used by anybody as we saw,
+
+375
+00:30:35,750 --> 00:30:41,560
+but it is much more restrictive because
+we don't allow the datum to change.
+
+376
+00:30:41,580 --> 00:30:44,260
+So when you use the oracle you
+don't change the value of the
+
+377
+00:30:44,300 --> 00:30:46,330
+oracle, this is the first condition.
+
+378
+00:30:46,830 --> 00:30:50,330
+You already have this helper function
+output datum which is maybe integer,
+
+379
+00:30:50,400 --> 00:30:52,539
+that's the new value of the oracle.
+
+380
+00:30:53,020 --> 00:30:57,470
+And I just check that it's just X,
+remember X was the old value of the oracle.
+
+381
+00:30:57,470 --> 00:31:00,660
+So I'll just make sure that
+the datum hasn't changed.
+
+382
+00:31:01,770 --> 00:31:04,920
+And finally, I must check
+that the fees have been paid.
+
+383
+00:31:05,210 --> 00:31:08,350
+So remember when you use the
+oracle, you're supposed to pay fees.
+
+384
+00:31:08,440 --> 00:31:11,659
+So this is the final helper function here.
+
+385
+00:31:12,559 --> 00:31:17,660
+So I just lookup the value that
+was attached to the oracle input,
+
+386
+00:31:18,660 --> 00:31:21,820
+using Tx out value of our own input.
+
+387
+00:31:22,340 --> 00:31:26,509
+I check the value that's
+attached to the own output.
+
+388
+00:31:27,960 --> 00:31:36,380
+And now I know that the output should be at
+least as large as the input plus the fees.
+
+389
+00:31:36,870 --> 00:31:42,280
+So this is exactly what it says, output
+value should be greater or equal, then
+
+390
+00:31:42,920 --> 00:31:50,170
+the input value plus, remember we can
+use the semi-group operation to combine
+
+391
+00:31:50,480 --> 00:31:53,230
+values, plus and this is the fees.
+
+392
+00:31:53,260 --> 00:31:57,260
+So remember the all fee field in the
+oracle parameter was just an integer.
+
+393
+00:31:57,780 --> 00:31:59,100
+And I said, that's the fee in lovelace.
+
+394
+00:31:59,309 --> 00:32:03,784
+So I use the ADA dot lovelace value of
+function to turn this integer into a lovelace
+
+395
+00:32:04,010 --> 00:32:07,430
+value, add it to the existing input value.
+
+396
+00:32:07,770 --> 00:32:11,910
+And then I say that the old value
+should be greater or equal than this.
+
+397
+00:32:12,330 --> 00:32:17,730
+I could of course also have said equal
+and that would also be correct by writing
+
+398
+00:32:17,730 --> 00:32:23,370
+greater than equal, I basically allow users
+of the oracle to give the operator a tip.
+
+399
+00:32:23,660 --> 00:32:26,920
+If they are very happy with the
+oracle, they can give more than
+
+400
+00:32:26,920 --> 00:32:29,280
+just the fee, they can pay more.
+
+401
+00:32:30,010 --> 00:32:32,850
+I mean that's just a matter of
+taste I could have written equal.
+
+402
+00:32:34,440 --> 00:32:34,500
+And...
+
+403
+00:32:35,360 --> 00:32:39,490
+also recall that, I mean, in the
+example, on the input side, there
+
+404
+00:32:39,490 --> 00:32:40,869
+was just the NFT in the value.
+
+405
+00:32:40,869 --> 00:32:43,660
+And then the output side, there
+was the NFT and one ADA fee.
+
+406
+00:32:44,720 --> 00:32:48,189
+And then in the next step, there
+was an update, so the operator
+
+407
+00:32:48,220 --> 00:32:49,610
+collected that fee immediately.
+
+408
+00:32:50,410 --> 00:32:53,580
+But this is now designed in a
+way that the operator doesn't
+
+409
+00:32:53,590 --> 00:32:55,060
+have to collect all the time.
+
+410
+00:32:55,190 --> 00:33:00,000
+So there can be several uses where
+fees accumulate over time and then
+
+411
+00:33:00,010 --> 00:33:03,570
+with the next update, the operator
+can collect all of them in one go.
+
+412
+00:33:06,320 --> 00:33:10,130
+Okay, this is basically the core
+business logic of the oracle.
+
+413
+00:33:10,820 --> 00:33:15,240
+This is now in code what I tried to
+explain earlier when I showed the diagrams.
+
+414
+00:33:17,139 --> 00:33:22,389
+And now it's just the usual boiler plate,
+so I have this helper type Oracling where I
+
+415
+00:33:22,399 --> 00:33:26,320
+just combine the redeemer and the datum type.
+
+416
+00:33:26,320 --> 00:33:30,780
+So I say the datum type is integer,
+the redeemer type is oracle redeemer.
+
+417
+00:33:30,790 --> 00:33:36,000
+Then I do the usual template Haskell
+stuff to compile it to type validator,
+
+418
+00:33:38,230 --> 00:33:41,445
+and because it's parameterized, I do
+what we always do with parameterized.
+
+419
+00:33:41,810 --> 00:33:46,910
+So I have to use this apply code and
+lift the parameter into Plutus script.
+
+420
+00:33:48,929 --> 00:33:53,790
+So now we have the type validator and
+then we can use the usual boiler plate
+
+421
+00:33:53,790 --> 00:33:58,740
+here, or to turn it into a validator and
+to turn the validator into an address.
+
+422
+00:33:58,750 --> 00:34:04,380
+So now we have our script oracle
+address, and that concludes the
+
+423
+00:34:04,510 --> 00:34:06,840
+on-chain part of the oracle code.
+
+424
+00:34:08,710 --> 00:34:15,960
+Now, I also provide some off-chain
+part, namely to actually start an
+
+425
+00:34:15,960 --> 00:34:22,654
+oracle and to update it, not to use
+it, because how it is used exactly?
+
+426
+00:34:22,909 --> 00:34:26,079
+Depends on who wants to
+use it in which context.
+
+427
+00:34:26,190 --> 00:34:31,110
+So we, on the diagram, we had this swap
+example, but they can many other example,
+
+428
+00:34:31,179 --> 00:34:33,139
+I called it an old maybe IO earlier.
+
+429
+00:34:33,760 --> 00:34:39,449
+So to create a valid transaction
+that actually makes use of
+
+430
+00:34:39,449 --> 00:34:41,740
+the update, of the update.
+
+431
+00:34:42,969 --> 00:34:47,770
+No, not the update of the use redeemer,
+is not the responsibility of the
+
+432
+00:34:47,889 --> 00:34:49,630
+author of this oracle contract.
+
+433
+00:34:50,219 --> 00:34:54,620
+Whoever wants to use the oracle, we'll
+make sure to create a transaction
+
+434
+00:34:54,960 --> 00:34:56,230
+that actually invokes this.
+
+435
+00:34:56,870 --> 00:35:00,940
+So this is the first time we see something
+like that, where we have some on-chain
+
+436
+00:35:00,940 --> 00:35:04,270
+code that is basically not mirrored
+or reflected in the off-chain code.
+
+437
+00:35:05,300 --> 00:35:08,890
+So here we only do what is the
+responsible of the oracle provider.
+
+438
+00:35:11,960 --> 00:35:12,240
+Right.
+
+439
+00:35:12,240 --> 00:35:12,900
+So the...
+
+440
+00:35:14,910 --> 00:35:17,359
+as I said two, two operations.
+
+441
+00:35:17,370 --> 00:35:18,109
+Start the oracle and update it and to start
+it, we need parameters, the fees that we want
+
+442
+00:35:18,109 --> 00:35:34,202
+to charge, the currency symbol and the token
+name, this is now the currency symbol and
+
+443
+00:35:34,202 --> 00:35:37,249
+the token name of the asset we want to check.
+
+444
+00:35:37,290 --> 00:35:42,589
+So USD token in our case, not the NFT,
+because at this point we don't know the
+
+445
+00:35:42,649 --> 00:35:48,620
+NFT, we will actually mint the NFT in
+this start oracle contract function.
+
+446
+00:35:49,270 --> 00:35:52,840
+And that's actually all we
+will do, so we won't provide an
+
+447
+00:35:52,840 --> 00:35:54,689
+initial value for the oracle yet.
+
+448
+00:35:54,799 --> 00:35:58,930
+All we want to do in the start,
+oracle function is mint the NFT.
+
+449
+00:35:58,949 --> 00:36:03,790
+Reason for that is that this minting
+of the NFT can take a couple of slots.
+
+450
+00:36:04,240 --> 00:36:11,070
+So if you already provided the initial
+datum data for the exchange rate that
+
+451
+00:36:11,070 --> 00:36:13,100
+might be outdated by the time we are ready.
+
+452
+00:36:13,130 --> 00:36:16,809
+So therefore I decided to not do
+that here, so that will be handled
+
+453
+00:36:16,820 --> 00:36:18,529
+in the update oracle function.
+
+454
+00:36:18,640 --> 00:36:21,070
+So all this does is mint an NFT.
+
+455
+00:36:21,070 --> 00:36:28,940
+And I could of course have used the code we
+developed in the last lecture, our NFT code,
+
+456
+00:36:29,010 --> 00:36:35,899
+that would have been perfectly fine, but I
+decided to instead use one of the provided
+
+457
+00:36:36,160 --> 00:36:43,569
+use cases from the Plutus minus use minus
+cases package in the Plutus repository.
+
+458
+00:36:44,630 --> 00:36:52,599
+And there's a currency module that provides
+a mint contract function and that can be used
+
+459
+00:36:52,609 --> 00:36:56,080
+to mint NFTs, actually, it's more general.
+
+460
+00:36:56,080 --> 00:37:04,349
+If we check in the repl for the type of mint
+contract, we see it takes a pub key hash.
+
+461
+00:37:04,919 --> 00:37:11,569
+That is the pub key hash of the entity
+that will end up with the minted coins.
+
+462
+00:37:12,160 --> 00:37:15,560
+So we will just use our own, the
+wallets own pub key hash there.
+
+463
+00:37:16,590 --> 00:37:20,820
+And then we see it takes a list of
+pairs of token names and integers.
+
+464
+00:37:22,160 --> 00:37:30,759
+So, this mint contract will create a currency
+symbol, which will depend on a unique UTxO,
+
+465
+00:37:30,780 --> 00:37:33,400
+the same trick we used in the last lecture.
+
+466
+00:37:34,360 --> 00:37:38,880
+But it allows you to specify not
+just one token name and then making
+
+467
+00:37:38,880 --> 00:37:43,810
+NFT with it, but several token names
+with arbitrary integer amounts.
+
+468
+00:37:44,059 --> 00:37:49,750
+So you can mint several coins with different
+token names and also different amounts,
+
+469
+00:37:50,300 --> 00:37:55,339
+but they all will have the same currency
+symbol, and it will be guaranteed that there
+
+470
+00:37:55,340 --> 00:37:57,990
+can only be one such minting transaction.
+
+471
+00:37:58,809 --> 00:38:04,519
+There's one slight problem, if we want
+to use this, and that is the error type.
+
+472
+00:38:05,789 --> 00:38:09,070
+We want a contract where
+we use text error messages.
+
+473
+00:38:10,670 --> 00:38:15,777
+But this contract here is polymorphic
+in the error type, provided the error
+
+474
+00:38:15,830 --> 00:38:21,030
+type implements this as currency error
+class, and unfortunately text doesn't.
+
+475
+00:38:21,349 --> 00:38:27,390
+So we can't use text here for E, so we
+can specialize this function for text.
+
+476
+00:38:27,750 --> 00:38:31,850
+That means we can't directly use
+it in our contract because then
+
+477
+00:38:31,850 --> 00:38:34,859
+we would get an error that takes
+doesn't implement as currency error.
+
+478
+00:38:36,070 --> 00:38:39,870
+Luckily, there's a function called
+map error, let's look at this.
+
+479
+00:38:40,789 --> 00:38:45,900
+That has this signature and this allows
+us to change a contract with error type
+
+480
+00:38:46,090 --> 00:38:52,809
+E into a contract of error type E prime
+provided, I can turn E into an E prime.
+
+481
+00:38:53,600 --> 00:38:59,050
+So if I can turn error messages of the one
+type into error messages of the other type,
+
+482
+00:38:59,730 --> 00:39:04,529
+then I can turn a contract using the first
+type of error messages into the contract
+
+483
+00:39:04,530 --> 00:39:06,130
+using the second type of error message.
+
+484
+00:39:08,240 --> 00:39:16,180
+So that's what I'm using and actually
+one type that's provided in the currency
+
+485
+00:39:16,900 --> 00:39:19,900
+module is called currency error.
+
+486
+00:39:21,760 --> 00:39:26,230
+So we see this actually
+implements currency error.
+
+487
+00:39:26,420 --> 00:39:29,690
+So this class that we need, so
+this is a type we can actually use.
+
+488
+00:39:31,170 --> 00:39:33,040
+And it also implements show.
+
+489
+00:39:34,350 --> 00:39:41,620
+So, by first using show to turn a currency
+error into a string, and then using pack
+
+490
+00:39:41,870 --> 00:39:47,340
+from data dot text, which turn string into
+a text, we can turn a currency error into
+
+491
+00:39:47,340 --> 00:39:53,330
+a text, and then using map error with this
+combination of pack and show, we can turn
+
+492
+00:39:53,330 --> 00:39:58,900
+a contract that has currency error error
+messages into a contract that has text
+
+493
+00:39:58,900 --> 00:40:01,090
+error messages, which is what we need.
+
+494
+00:40:02,780 --> 00:40:08,844
+So that's what I'm doing here, so I use map
+error pack after show, and then use this mint
+
+495
+00:40:09,049 --> 00:40:11,700
+contract function from the currency module.
+
+496
+00:40:12,650 --> 00:40:18,780
+And as list of tokens, I don't want several
+tokens with the amounts, I just want an NFT.
+
+497
+00:40:19,360 --> 00:40:24,900
+So I just have one pair in this list
+oracle token name, recall that's just
+
+498
+00:40:24,900 --> 00:40:27,440
+a empty string with the amount one.
+
+499
+00:40:27,530 --> 00:40:29,389
+So this will just mint NFT.
+
+500
+00:40:30,379 --> 00:40:35,290
+I have to specify the type here
+because otherwise the compiler wouldn't
+
+501
+00:40:35,290 --> 00:40:37,650
+know which type to apply show to.
+
+502
+00:40:38,110 --> 00:40:43,380
+So I have to specify that I'm specializing
+this mean contract to currency error.
+
+503
+00:40:44,440 --> 00:40:49,250
+And then I use map error to turn
+that with show and pack into a text.
+
+504
+00:40:49,770 --> 00:40:53,140
+So now this has the right
+type, I can use it here.
+
+505
+00:40:54,610 --> 00:40:57,260
+And I get this weird one short currency.
+
+506
+00:40:58,179 --> 00:41:02,560
+And that is a specific type,
+specific to the currency module.
+
+507
+00:41:02,710 --> 00:41:07,039
+But I don't really care what that is, all
+I care about is that there is a function
+
+508
+00:41:07,050 --> 00:41:12,110
+in that same module called currency
+symbol that takes such a one short
+
+509
+00:41:12,110 --> 00:41:15,049
+currency and gives me a currency symbol.
+
+510
+00:41:15,049 --> 00:41:19,000
+And all I need is the currency
+symbol of the NFT that I just minted.
+
+511
+00:41:20,270 --> 00:41:23,830
+Once I have that, I can
+fill in my oracle type.
+
+512
+00:41:24,160 --> 00:41:28,830
+So the only information that was missing was
+this currency symbol, so this is now here.
+
+513
+00:41:29,670 --> 00:41:35,219
+As operator, I take myself, my own
+public key hash, which I looked up here
+
+514
+00:41:35,230 --> 00:41:42,190
+in the first line and the fees I just
+take from the parameters and the asset
+
+515
+00:41:42,230 --> 00:41:43,840
+class I also take from the parameters.
+
+516
+00:41:44,870 --> 00:41:49,760
+I suppose I could have used asset class
+here as well, instead of having two
+
+517
+00:41:49,790 --> 00:41:55,509
+fields symbol and token I could just
+have, had one field of type asset class.
+
+518
+00:41:56,240 --> 00:42:02,000
+But that doesn't play so nicely with the
+UI and if you want to try the playground I
+
+519
+00:42:02,000 --> 00:42:07,130
+felt it was easier to use these two separate
+fields and then combine them like so.
+
+520
+00:42:08,389 --> 00:42:15,380
+So this now gives us our oracle and
+we have minted the NFT and I just
+
+521
+00:42:15,380 --> 00:42:18,049
+log a message and return the oracle.
+
+522
+00:42:18,420 --> 00:42:21,460
+So the return type here of this
+function is of type oracle.
+
+523
+00:42:23,030 --> 00:42:28,629
+Okay, and the second function is more
+complicated, is the update oracle.
+
+524
+00:42:29,610 --> 00:42:35,176
+And this has to deal with two cases, the case
+that we already have an oracle value that we
+
+525
+00:42:35,176 --> 00:42:37,350
+want to update, that's like in the diagrams.
+
+526
+00:42:37,780 --> 00:42:42,450
+And also the case that we just started
+the oracle and there is no UTxO yet, so we
+
+527
+00:42:42,450 --> 00:42:44,490
+want to create one for the very first time.
+
+528
+00:42:46,130 --> 00:42:50,840
+Anyway, so it takes as parameters the
+oracle, some oracle, the oracle parameter.
+
+529
+00:42:51,890 --> 00:42:56,393
+And integer is the new value, so
+the value, the oracle value, we
+
+530
+00:42:56,393 --> 00:42:58,030
+want to update, the oracle two.
+
+531
+00:43:00,600 --> 00:43:05,850
+So first we use this helper function find
+oracle oracle, which is defined here.
+
+532
+00:43:06,349 --> 00:43:14,069
+So that takes an oracle and it's supposed
+to lookup the existing oracle UTxO, this can
+
+533
+00:43:14,070 --> 00:43:16,480
+fail because the oracle might not be there.
+
+534
+00:43:16,550 --> 00:43:20,259
+So if you have just started it, remember
+we just minted the NFT, we didn't
+
+535
+00:43:20,690 --> 00:43:24,239
+create an output at the oracle address
+yet, so in that case we won't find it.
+
+536
+00:43:24,340 --> 00:43:29,890
+But if it find it, we return a just
+and then the triple is the Tx out
+
+537
+00:43:29,890 --> 00:43:35,103
+ref which if you recall from last
+time, it's basically identify often
+
+538
+00:43:35,229 --> 00:43:42,920
+UTxO, then the Tx out Tx that's the
+UTxO itself containing all the data.
+
+539
+00:43:43,590 --> 00:43:46,989
+And the integer is the current exchange rate.
+
+540
+00:43:47,510 --> 00:43:52,040
+This is of course encoded here in this Tx out
+Tx, but to make it easier to work with the
+
+541
+00:43:52,040 --> 00:43:53,720
+extract that here in this helper function.
+
+542
+00:43:55,260 --> 00:43:56,500
+And how do we do that?
+
+543
+00:43:56,500 --> 00:44:02,920
+So first we use UTxO at that we
+already know to get all the UTxOs
+
+544
+00:44:02,929 --> 00:44:04,889
+sitting at the oracle address.
+
+545
+00:44:04,940 --> 00:44:10,822
+So this is now a map from Tx
+out ref to Tx out Txs, all the
+
+546
+00:44:10,822 --> 00:44:12,040
+UTxOs sitting at this address.
+
+547
+00:44:12,950 --> 00:44:17,340
+But remember, if you find more than
+one, then most of them will be wrong.
+
+548
+00:44:17,340 --> 00:44:19,520
+I mean, we want the one
+that contains the NFT.
+
+549
+00:44:20,250 --> 00:44:26,210
+So we filter this map, this map dot
+filter comes from the data dot map
+
+550
+00:44:26,220 --> 00:44:31,270
+module, the standard container library
+in Haskell, and it takes a function
+
+551
+00:44:31,770 --> 00:44:34,490
+of type the values in the map to bool.
+
+552
+00:44:35,120 --> 00:44:39,919
+And it will only keep those entries in the
+map for which this function returns true.
+
+553
+00:44:40,820 --> 00:44:43,660
+And here, we now want to
+check that the NFT is there.
+
+554
+00:44:43,690 --> 00:44:49,040
+So given such an UTxO, we do similar
+to what we did to invalidation.
+
+555
+00:44:49,049 --> 00:44:56,970
+So we check the value of that UTxO and
+check how often our NFT is contained in it.
+
+556
+00:44:57,020 --> 00:44:59,189
+And it must be there exactly once.
+
+557
+00:45:00,480 --> 00:45:05,200
+So we will end up with a map
+that has either zero elements.
+
+558
+00:45:05,420 --> 00:45:10,320
+If the oracle UTxO is not or
+one can be more than one because
+
+559
+00:45:10,340 --> 00:45:13,119
+this NFT can only be there once.
+
+560
+00:45:15,080 --> 00:45:18,259
+Right, and now we distinguish the two cases.
+
+561
+00:45:18,260 --> 00:45:22,710
+So the good case is that we find exactly
+one element, so we convert the map
+
+562
+00:45:22,720 --> 00:45:26,830
+into a list of pairs of key value pairs
+with the standard map to list function.
+
+563
+00:45:27,860 --> 00:45:31,540
+And there are two cases that we
+find exactly one element or not.
+
+564
+00:45:32,309 --> 00:45:36,680
+Actually, the second case can only
+be that we don't find anything.
+
+565
+00:45:36,680 --> 00:45:40,080
+As I said before, we can't find more
+than one because it's an NFT, but
+
+566
+00:45:40,640 --> 00:45:41,840
+Haskell of course doesn't know that.
+
+567
+00:45:41,880 --> 00:45:46,569
+So to keep the compiler API don't
+say just empty list here just use
+
+568
+00:45:46,570 --> 00:45:48,379
+the underscore, so all other cases.
+
+569
+00:45:49,299 --> 00:45:53,797
+Anyway, so if you find exactly one key value
+pair, then in order to return this tripled.
+
+570
+00:45:53,797 --> 00:45:57,819
+So we now have the, the Tx out ref
+and the Tx out now we need this
+
+571
+00:45:57,830 --> 00:46:00,480
+integer and that could still go wrong.
+
+572
+00:46:00,480 --> 00:46:04,989
+So even though we have the UTxO with
+the NFT, there could be some corrupt
+
+573
+00:46:04,990 --> 00:46:06,459
+data in it for whatever reason.
+
+574
+00:46:07,040 --> 00:46:11,099
+So now I use this helper function again,
+that I explained right in the beginning
+
+575
+00:46:11,100 --> 00:46:17,520
+that we also used in validation that gets
+the Tx out, which I can get from my all
+
+576
+00:46:17,520 --> 00:46:21,559
+from my Tx out Tx by using Tx out, Tx out.
+
+577
+00:46:22,640 --> 00:46:27,099
+And remember the second argument was a
+function that given a datum hash gives
+
+578
+00:46:27,099 --> 00:46:30,110
+me the corresponding datum, if it can.
+
+579
+00:46:30,850 --> 00:46:34,180
+And the way we can do this here
+in off-chain code is we use the Tx
+
+580
+00:46:34,210 --> 00:46:37,479
+data field of the Tx out Tx, Tx o.
+
+581
+00:46:37,690 --> 00:46:44,130
+So the Tx out Tx, Tx o gives us the
+transaction and that has a Tx data field.
+
+582
+00:46:44,350 --> 00:46:47,649
+And the Tx data field is just a
+map from datum hashes to datums.
+
+583
+00:46:49,009 --> 00:46:54,580
+So we can use map lookup to lookup a
+given hash and we can find it or not.
+
+584
+00:46:54,580 --> 00:46:55,920
+If not, it returns nothing.
+
+585
+00:46:55,930 --> 00:46:58,480
+If we find it, it returns
+the value, the datum.
+
+586
+00:46:59,800 --> 00:47:05,020
+So using this helper function now, if that
+succeeds, X would be the actual datum which
+
+587
+00:47:05,020 --> 00:47:07,110
+is an integer in our case, as we know.
+
+588
+00:47:08,230 --> 00:47:13,230
+So in this case we return this triple.
+
+589
+00:47:13,560 --> 00:47:17,170
+Now we just found out the X, if this
+goes wrong, then it will be nothing.
+
+590
+00:47:17,230 --> 00:47:21,990
+And if we find, we don't find the
+UTxO at all, it will also be nothing.
+
+591
+00:47:23,660 --> 00:47:25,270
+So this is find oracle.
+
+592
+00:47:25,880 --> 00:47:36,760
+So we tried to find it, and this is just
+a helper definition because I need that
+
+593
+00:47:36,760 --> 00:47:41,660
+in both cases, this constraint, maybe
+we can come back to that in a second.
+
+594
+00:47:41,779 --> 00:47:46,250
+So logically, so after we have tried
+to find the UTxO, there are two cases
+
+595
+00:47:46,250 --> 00:47:50,580
+that we found it or not, if it didn't
+find it, we just started the oracle, but
+
+596
+00:47:50,580 --> 00:47:53,060
+haven't provided an initial value yet.
+
+597
+00:47:53,060 --> 00:47:54,479
+So this is the first case.
+
+598
+00:47:56,049 --> 00:47:59,049
+And in this case, all we have to
+do is we must create a transaction
+
+599
+00:47:59,049 --> 00:48:03,370
+that produces this output, the
+first output at the oracle address.
+
+600
+00:48:04,320 --> 00:48:09,470
+So and this is you only need one
+constraint and that is the C.
+
+601
+00:48:09,599 --> 00:48:15,509
+And I extracted that into this its own line
+because I need, need the same constraint
+
+602
+00:48:15,520 --> 00:48:17,180
+later in the second case here as well.
+
+603
+00:48:17,369 --> 00:48:19,509
+So I didn't want to duplicate my work.
+
+604
+00:48:20,360 --> 00:48:25,410
+So I use constraints must pay to the
+script so that as the name suggests
+
+605
+00:48:26,010 --> 00:48:32,620
+provides a way to say the the transaction
+I'm constructing must have an output
+
+606
+00:48:32,690 --> 00:48:34,380
+that pays to a script address.
+
+607
+00:48:34,900 --> 00:48:42,480
+And the arguments are the datum, the
+value I want to attach to that output.
+
+608
+00:48:44,630 --> 00:48:51,379
+And that's it, because which script
+is then a specified here in the second
+
+609
+00:48:51,410 --> 00:48:54,100
+argument of submit Tx constraints.
+
+610
+00:48:54,889 --> 00:48:58,750
+So these script means the
+script I'm looking at right now.
+
+611
+00:48:58,750 --> 00:49:01,299
+So all these functions, these
+constraints functions always
+
+612
+00:49:01,300 --> 00:49:03,200
+have like one script in focus.
+
+613
+00:49:03,200 --> 00:49:05,569
+So in our case, it's the oracle script.
+
+614
+00:49:05,990 --> 00:49:09,290
+There's also a variant it's
+called must pay to other script.
+
+615
+00:49:09,599 --> 00:49:12,679
+In which case I could pay to
+an arbitrary other script.
+
+616
+00:49:13,849 --> 00:49:17,320
+And actually we used it down here
+so I can talk about that there.
+
+617
+00:49:17,360 --> 00:49:22,260
+So anyway, so the datum is X because
+this was one of the parameters, the
+
+618
+00:49:22,270 --> 00:49:29,380
+value we want to set the UTxO to the
+oracle and the, I mean the datum and
+
+619
+00:49:29,380 --> 00:49:31,660
+the value is we want to attach our NFT.
+
+620
+00:49:31,910 --> 00:49:38,012
+So added class value, the
+asset class of our NFT and one.
+
+621
+00:49:38,028 --> 00:49:40,181
+So we want to attach the NFT.
+
+622
+00:49:41,024 --> 00:49:45,789
+So this is all we have to do in that
+case, that the UTxO isn't there yet.
+
+623
+00:49:46,139 --> 00:49:52,480
+So we just submit, wait for
+confirmation and log a message that
+
+624
+00:49:52,480 --> 00:49:54,970
+we set the initial oracle value to X.
+
+625
+00:49:56,139 --> 00:50:02,410
+Now, in the other case so we
+already have an oracle UTxO.
+
+626
+00:50:02,410 --> 00:50:07,189
+We don't care about the old datum
+because we want to update it anyway.
+
+627
+00:50:07,340 --> 00:50:09,049
+So I can just use let's go here.
+
+628
+00:50:10,040 --> 00:50:11,900
+So now it's a bit more complicated.
+
+629
+00:50:11,900 --> 00:50:16,869
+So now, because now I need two conditions
+again, the C it's the same as before.
+
+630
+00:50:16,870 --> 00:50:22,239
+So I want to create an output at the oracle
+address with the new value, the value X.
+
+631
+00:50:23,080 --> 00:50:27,879
+But now I need the additional constraint
+that I also must consume the existing UTxO.
+
+632
+00:50:28,610 --> 00:50:32,490
+And this is this constraint here so,
+must spend script output is basically
+
+633
+00:50:32,490 --> 00:50:34,570
+the opposite of must pay to the script.
+
+634
+00:50:35,070 --> 00:50:39,950
+So, must pay to the script creates an
+output and must spend script output
+
+635
+00:50:40,190 --> 00:50:42,710
+creates an input to the script address.
+
+636
+00:50:43,300 --> 00:50:49,799
+And as parameters it takes the reference
+to the output, the UTxO we want to consume,
+
+637
+00:50:49,800 --> 00:50:54,689
+that's what we call oref here that we
+looked up earlier and it takes the redeemer.
+
+638
+00:50:55,490 --> 00:51:00,489
+And in this case, it's an update, not
+a use, and we just have to convert it
+
+639
+00:51:00,510 --> 00:51:02,440
+to data first and then to a redeemer.
+
+640
+00:51:04,170 --> 00:51:07,960
+And in order for this to work, we
+need to provide a couple of lookups.
+
+641
+00:51:08,210 --> 00:51:12,910
+So, first of all, in order to find this
+output that wants to spend, we must use
+
+642
+00:51:12,910 --> 00:51:19,599
+the unspent outputs lookup, which gets a
+map of the UTxOs that we want to consume.
+
+643
+00:51:19,599 --> 00:51:24,879
+In this case, we can use map singleton to
+construct this map, which will create a map
+
+644
+00:51:24,890 --> 00:51:27,179
+that contains exactly one key value pair.
+
+645
+00:51:27,900 --> 00:51:31,440
+So map singleton takes a key and
+the value as arguments and creates
+
+646
+00:51:31,440 --> 00:51:33,270
+a map with one key value pair.
+
+647
+00:51:33,670 --> 00:51:39,339
+So we just put this one UTxO into this
+map because there's nothing else we
+
+648
+00:51:39,340 --> 00:51:41,830
+want to consume, so all we need is this.
+
+649
+00:51:42,680 --> 00:51:44,610
+And then we must provide
+the script instances.
+
+650
+00:51:44,630 --> 00:51:48,129
+And basically we have to do it
+twice, once for the input side
+
+651
+00:51:48,129 --> 00:51:49,609
+and one for the output side.
+
+652
+00:51:52,379 --> 00:51:56,070
+Because, right...
+
+653
+00:51:57,350 --> 00:52:00,715
+so we give the oracle instance in the
+lookups and we give the oracle validator
+
+654
+00:52:00,720 --> 00:52:14,359
+in the lookups and I always forget which
+we need for what, but anyway, so one is
+
+655
+00:52:14,360 --> 00:52:17,180
+for two to be able to consume the input.
+
+656
+00:52:17,180 --> 00:52:19,920
+And the other one is to be
+able to pay to the output.
+
+657
+00:52:20,360 --> 00:52:25,089
+And we didn't need that here because in
+the first case, because we provided the
+
+658
+00:52:25,090 --> 00:52:31,060
+instance here in the submit Tx constraints,
+a function, but now we have to use,
+
+659
+00:52:31,070 --> 00:52:35,480
+submit Tx constraints with, because we
+have lookups and that doesn't have this
+
+660
+00:52:35,480 --> 00:52:37,160
+parameter where we can provide the instance.
+
+661
+00:52:37,170 --> 00:52:40,470
+So therefore we have to provide
+the instance in the lookups itself.
+
+662
+00:52:40,479 --> 00:52:43,470
+So it's a bit confusing, but
+you get used to it, I hope.
+
+663
+00:52:44,400 --> 00:52:47,990
+And we also have to give the
+compiler and not yet to tell it
+
+664
+00:52:48,100 --> 00:52:50,310
+what script we are talking about.
+
+665
+00:52:50,370 --> 00:52:52,900
+Remember I said, all these
+constraint functions are always
+
+666
+00:52:52,900 --> 00:52:56,100
+specific to a particular script.
+
+667
+00:52:56,950 --> 00:53:03,880
+And this basically signals what type
+datum type redeemer type this script has.
+
+668
+00:53:03,969 --> 00:53:07,219
+So that was this weird Oracling type I
+defined earlier, this helper type that
+
+669
+00:53:07,300 --> 00:53:13,030
+just says datum types is integer, redeemer
+type is oracle redeemer, and we give the
+
+670
+00:53:13,030 --> 00:53:17,819
+lookups and these constraints, and then
+hopefully get a balanced transaction that
+
+671
+00:53:17,819 --> 00:53:21,119
+we submit and we have wait for confirmation.
+
+672
+00:53:21,139 --> 00:53:23,989
+And we log that we updated,
+the oracle value to X.
+
+673
+00:53:25,260 --> 00:53:28,920
+So again, the logic of update
+oracle is first we check whether
+
+674
+00:53:28,920 --> 00:53:31,030
+the oracle is already in existence.
+
+675
+00:53:31,250 --> 00:53:36,100
+If it's not we create a transaction
+that simply creates the first
+
+676
+00:53:37,049 --> 00:53:38,270
+UTxO with the oracle value.
+
+677
+00:53:38,320 --> 00:53:43,529
+So the oracle value is the datum and
+we attach the NFT and if it already
+
+678
+00:53:43,530 --> 00:53:47,470
+exists, we create a transaction that
+consumes the existing one and creates
+
+679
+00:53:47,470 --> 00:53:49,350
+a new one with the updated datum.
+
+680
+00:53:49,520 --> 00:53:55,680
+And again, containing the NFT and note that I
+said something about fee collection earlier,
+
+681
+00:53:56,160 --> 00:53:58,010
+and this will happen automatically here.
+
+682
+00:53:58,010 --> 00:54:02,740
+So the way this balancing work, so
+say that this UTxO the existing one
+
+683
+00:54:02,800 --> 00:54:06,470
+already contains fees, not just the NFT.
+
+684
+00:54:06,970 --> 00:54:11,569
+So in the constraints, we just say that
+we want to consume the existing one.
+
+685
+00:54:12,160 --> 00:54:16,486
+And before one, one to provide
+a new one that contents the NFT.
+
+686
+00:54:16,486 --> 00:54:23,609
+So if the existing one already contains
+fees and we say that in the new one, we only
+
+687
+00:54:23,610 --> 00:54:26,580
+want the NFT and we have imbalance right?
+
+688
+00:54:26,599 --> 00:54:29,819
+On the input side, we have the
+fees and the output side we haven't
+
+689
+00:54:29,820 --> 00:54:31,319
+specified anything about that.
+
+690
+00:54:31,960 --> 00:54:35,709
+And then what this balancing
+algorithm by default always does,
+
+691
+00:54:36,080 --> 00:54:37,790
+is it pays that to our own wallet.
+
+692
+00:54:37,900 --> 00:54:42,279
+So if there is such imbalance, so if
+this already contains fees, then it will
+
+693
+00:54:42,310 --> 00:54:46,640
+automatically here in this line, when
+it constructs the actual transaction,
+
+694
+00:54:47,259 --> 00:54:49,575
+create an output that goes to our
+wallet and constraints the difference.
+
+695
+00:54:49,575 --> 00:54:57,230
+So the fee the, the fees, and also
+it will automatically create an input
+
+696
+00:54:57,240 --> 00:54:58,870
+to pay the transaction fees with.
+
+697
+00:54:59,560 --> 00:55:03,260
+So even though we only specify two things
+here, the script, the oracle script
+
+698
+00:55:03,300 --> 00:55:05,099
+input and the oracle script output.
+
+699
+00:55:06,270 --> 00:55:09,999
+We might end up or we will probably end
+up with a transaction with two inputs and
+
+700
+00:55:10,000 --> 00:55:13,840
+two outputs, one additional input coming
+from our wallet to pay the transaction
+
+701
+00:55:13,840 --> 00:55:20,629
+fees and one additional output going to
+our wallet, giving us the oracle fees that
+
+702
+00:55:20,629 --> 00:55:24,766
+use as of the oracle added to this UTxO.
+
+703
+00:55:25,860 --> 00:55:28,320
+And I think that's basically it.
+
+704
+00:55:28,400 --> 00:55:29,150
+Okay then.
+
+705
+00:55:29,850 --> 00:55:32,299
+So, this is basically the
+bare bones that you need.
+
+706
+00:55:32,770 --> 00:55:39,390
+Now, I also for later provided a
+function that combines this into these
+
+707
+00:55:39,420 --> 00:55:43,129
+two operations into one contract.
+
+708
+00:55:43,380 --> 00:55:48,540
+So, this is then for use, for example, in
+the playground or in the emulator trace
+
+709
+00:55:48,540 --> 00:55:50,720
+monad also as we would see in the PAB.
+
+710
+00:55:51,310 --> 00:55:55,330
+So I define oracle schema, which
+just contains one endpoint,
+
+711
+00:55:56,500 --> 00:55:58,069
+the update integer endpoint.
+
+712
+00:55:59,509 --> 00:56:03,200
+So all it does it, it takes
+the new value as parameter.
+
+713
+00:56:04,440 --> 00:56:06,910
+And what does this run oracle do?
+
+714
+00:56:07,850 --> 00:56:12,310
+So first it uses our start oracle
+function to actually start the oracle,
+
+715
+00:56:12,630 --> 00:56:16,090
+which remember doesn't do anything
+oracle waits a just minds the NFT,
+
+716
+00:56:16,780 --> 00:56:18,920
+and gives us these oracle parameters.
+
+717
+00:56:19,870 --> 00:56:27,800
+Then for reasons that will become clear
+later I use tell to write the oracle value.
+
+718
+00:56:29,810 --> 00:56:31,217
+So this parameter, and this is...
+
+719
+00:56:31,290 --> 00:56:36,909
+the reason is, I need to communicate
+this parameter value to the outside
+
+720
+00:56:37,259 --> 00:56:39,339
+world so that people can use my oracle.
+
+721
+00:56:40,109 --> 00:56:44,770
+So, a time of writing, I don't yet
+know what currency symbol is NFT value.
+
+722
+00:56:44,980 --> 00:56:50,180
+So I don't know the value of
+this oracle parameter yet.
+
+723
+00:56:50,780 --> 00:56:52,779
+So I will only find that out at one time.
+
+724
+00:56:52,800 --> 00:56:57,500
+So once the oracle is actually started and
+then other people that want to use my oracle
+
+725
+00:56:58,020 --> 00:57:02,720
+and need to know this parameter in order
+to parameterize their contracts correctly.
+
+726
+00:57:03,140 --> 00:57:05,200
+So I have to communicate that out.
+
+727
+00:57:05,520 --> 00:57:09,870
+And the way to pass information
+out of a contract is by using tell.
+
+728
+00:57:10,820 --> 00:57:18,010
+Now this last and just, remember
+the tell expects monoid type.
+
+729
+00:57:18,059 --> 00:57:22,980
+So typical use from the write a monad is list
+like list of strings that's when we talked
+
+730
+00:57:22,980 --> 00:57:24,700
+about monads I used that as an example.
+
+731
+00:57:25,550 --> 00:57:29,589
+So, each tell we take a list of strings
+and then they will all be concatenated
+
+732
+00:57:30,490 --> 00:57:35,019
+to one big list of all log messages,
+but it doesn't have to be list.
+
+733
+00:57:35,049 --> 00:57:46,949
+It can be other monoids and in data dot
+monoid, we have this last monoid, so I
+
+734
+00:57:46,950 --> 00:57:49,890
+must import that from data dot monoid.
+
+735
+00:57:56,530 --> 00:58:00,840
+If we look for information, it's
+just a newtype wrapper around maybe.
+
+736
+00:58:00,840 --> 00:58:06,348
+And the point of it is to change the
+provider specific monoid instance.
+
+737
+00:58:06,895 --> 00:58:11,169
+And the idea is as the name suggests,
+it's the monoid operation that
+
+738
+00:58:11,190 --> 00:58:13,279
+always remembers the last value.
+
+739
+00:58:13,920 --> 00:58:22,730
+So let's say I have last just
+X and combine that with last
+
+740
+00:58:23,800 --> 00:58:28,029
+just Y, then I get last just Y.
+
+741
+00:58:28,049 --> 00:58:31,609
+So it forgets about the
+X and remembers the Y.
+
+742
+00:58:32,530 --> 00:58:38,180
+But if the second one is a nothing,
+it will remember the first one.
+
+743
+00:58:38,190 --> 00:58:43,399
+So basically what last the last monoid does
+it always remembers the last just value.
+
+744
+00:58:43,870 --> 00:58:45,609
+If both are nothing, it will be nothing.
+
+745
+00:58:50,430 --> 00:58:50,779
+Okay.
+
+746
+00:58:50,840 --> 00:58:55,580
+Now it complaints, because it doesn't know
+whether it's nothing into a character.
+
+747
+00:58:55,630 --> 00:59:01,059
+It assumes it's nothing unit, but anyway,
+so it's a nothing, so last nothing and last
+
+748
+00:59:01,059 --> 00:59:08,010
+nothing is nothing, but if one of the two
+is a just, it will remember the last just.
+
+749
+00:59:09,250 --> 00:59:12,930
+And this is very useful and it's
+used all the time in these contracts
+
+750
+00:59:13,200 --> 00:59:17,670
+for the tell, because it basically
+allows us to, to keep current state.
+
+751
+00:59:18,400 --> 00:59:19,880
+So it will...
+
+752
+00:59:20,110 --> 00:59:26,609
+the value of the log would
+basically be the last just retold.
+
+753
+00:59:28,150 --> 00:59:30,180
+Actually in this contract
+we will only do that once.
+
+754
+00:59:30,190 --> 00:59:31,162
+So after starting the oracle.
+
+755
+00:59:31,162 --> 00:59:34,190
+So in the beginning, it will
+end up is nothing, last nothing.
+
+756
+00:59:35,940 --> 00:59:37,610
+So at the beginning will be last nothing.
+
+757
+00:59:37,889 --> 00:59:43,640
+And then we mint the NFTE we get our in
+line 192, we get our oracle value and
+
+758
+00:59:43,640 --> 00:59:48,030
+then we tell it, and from that point
+onward, it will always have that value.
+
+759
+00:59:48,610 --> 00:59:53,710
+So as soon as we have our NFT and
+have oracle value with other contracts
+
+760
+00:59:53,710 --> 00:59:58,259
+from the outside query the state,
+they will always get the just oracle.
+
+761
+00:59:58,340 --> 01:00:02,010
+So they will be able to
+discover the value of oracle.
+
+762
+01:00:03,050 --> 01:00:03,740
+Okay and then...
+
+763
+01:00:03,750 --> 01:00:09,809
+so after I've started it, I just call
+this helper function go with oracle as
+
+764
+01:00:09,959 --> 01:00:12,389
+parameter, and this will now loop forever.
+
+765
+01:00:12,639 --> 01:00:15,750
+And it all does is it will
+block at this update endpoint.
+
+766
+01:00:16,850 --> 01:00:22,340
+And as soon as somebody provides an integer,
+which is the new value, it will call our
+
+767
+01:00:22,380 --> 01:00:24,660
+update oracle function with this value.
+
+768
+01:00:25,040 --> 01:00:26,970
+And then just loop to go again.
+
+769
+01:00:27,740 --> 01:00:32,620
+So what is run oracle does is, it
+starts the oracle, tells the oracle,
+
+770
+01:00:33,130 --> 01:00:34,900
+so that others can discover it.
+
+771
+01:00:35,330 --> 01:00:41,790
+And then forever just waits for new
+values and updates the oracle accordingly.
+
+772
+01:00:42,130 --> 01:00:44,490
+So, that's the run oracle function.
+
+773
+01:00:45,480 --> 01:00:49,130
+And that concludes the
+code for the oracle itself.
+
+774
+01:00:49,639 --> 01:00:53,110
+So that's the core oracle code,
+both on-chain and off-chain.
+
+775
+01:00:53,980 --> 01:00:58,440
+So what's now missing is an example,
+some contracts that actually
+
+776
+01:00:58,450 --> 01:01:00,570
+uses the oracle, a swap contract.
+
+777
+01:01:01,060 --> 01:01:04,779
+And then of course, using the
+Plutus application backend
+
+778
+01:01:05,300 --> 01:01:07,220
+to actually run this code.
+
+779
+01:01:07,790 --> 01:01:11,250
+In the real world or at least in
+our case, in a simulated blockchain.
+
+780
+01:01:11,670 --> 01:01:18,990
+Now let's look at an example contract that
+I put into this module oracle dot swap.
+
+781
+01:01:19,840 --> 01:01:23,770
+And the idea is that it's a smart
+contract where somebody couldn't
+
+782
+01:01:23,770 --> 01:01:30,436
+put ADA and then somebody else can
+exchange those ADA for a token.
+
+783
+01:01:30,650 --> 01:01:36,420
+So in our example, we will use some
+token that we call USDT for USD token.
+
+784
+01:01:37,260 --> 01:01:43,409
+The idea is the price, so the amount
+of USDT tokens that the buyer has
+
+785
+01:01:43,410 --> 01:01:48,339
+to pay for the offered ADA will
+be determined by the oracle value.
+
+786
+01:01:48,520 --> 01:01:53,600
+So that will change overtime depending on
+the exchange rate encoded in that oracle.
+
+787
+01:01:55,260 --> 01:01:55,670
+And...
+
+788
+01:01:56,500 --> 01:02:04,889
+so the idea is that we use
+lovelace and we also use this USD
+
+789
+01:02:04,940 --> 01:02:07,010
+token with the fact of 1,000,000.
+
+790
+01:02:07,030 --> 01:02:10,910
+So one dollar would cause point
+to 1,000,000 of those tokens.
+
+791
+01:02:11,480 --> 01:02:17,795
+So I start with the helper function that
+I called price, given amount of lovelace
+
+792
+01:02:17,960 --> 01:02:24,569
+and an exchange rate expressed as I said
+before, it's an integer that where the
+
+793
+01:02:24,610 --> 01:02:30,410
+actual rational number is multiplied by
+1,000,000, get the price of the token.
+
+794
+01:02:30,410 --> 01:02:36,299
+And I must just multiply the lovelace by
+the exchange rate and divide by one million.
+
+795
+01:02:39,569 --> 01:02:44,079
+Second, just another helper function,
+given a value, extract the amount of
+
+796
+01:02:44,570 --> 01:02:49,490
+lovelace in there, the called lovelaces
+and that's just a combination of two
+
+797
+01:02:49,630 --> 01:02:52,379
+functions provided by the Plutus libraries.
+
+798
+01:02:53,030 --> 01:03:01,279
+First given a value I can get ADA
+and then given the ADA value I can
+
+799
+01:03:01,680 --> 01:03:08,400
+get the number of lovelaces and then
+I can provide this swap validator.
+
+800
+01:03:08,940 --> 01:03:11,540
+The idea is that it takes two parameters.
+
+801
+01:03:11,710 --> 01:03:13,369
+It's a contract with two parameters.
+
+802
+01:03:13,809 --> 01:03:18,439
+The oracle we are using that comes from
+this other module that we discussed
+
+803
+01:03:18,440 --> 01:03:20,290
+before, which I'm importing here.
+
+804
+01:03:22,160 --> 01:03:26,660
+And I'm importing another module
+that I called funds, we'll
+
+805
+01:03:26,760 --> 01:03:28,939
+can look at that in a moment.
+
+806
+01:03:30,009 --> 01:03:34,099
+And second parameter, the address.
+
+807
+01:03:35,430 --> 01:03:38,400
+This will be the address of the oracle.
+
+808
+01:03:39,900 --> 01:03:42,379
+So, normally I given the oracle.
+
+809
+01:03:42,800 --> 01:03:47,070
+I can compute the address from it
+in the core module we saw a function
+
+810
+01:03:47,070 --> 01:03:51,320
+oracle address that takes oracle and
+computes the script address from it.
+
+811
+01:03:51,830 --> 01:03:55,460
+But that is a function that I can't
+use in the validator, because it uses
+
+812
+01:03:55,460 --> 01:03:58,879
+code that is not compatible, that
+can't be compiled to Plutus script.
+
+813
+01:03:59,390 --> 01:04:03,260
+So I'll use a trick here and
+explicitly hand in the address as well.
+
+814
+01:04:04,809 --> 01:04:10,989
+So when I actually call this validator,
+later I will compute the address from
+
+815
+01:04:10,990 --> 01:04:14,450
+the oracle, but now I just give it
+as a second parameter explicitly.
+
+816
+01:04:15,540 --> 01:04:20,430
+And for datum, we will use the pub key
+hash which is the pub key hash of the
+
+817
+01:04:20,430 --> 01:04:22,870
+seller that will receive the prize.
+
+818
+01:04:23,490 --> 01:04:27,740
+And we don't use an interesting
+redeemer so we can just use unit.
+
+819
+01:04:29,190 --> 01:04:30,160
+Okay, and...
+
+820
+01:04:31,950 --> 01:04:36,960
+if you recall from the diagram, so
+such a swap transaction, should have
+
+821
+01:04:38,620 --> 01:04:41,060
+three inputs, so two script inputs.
+
+822
+01:04:41,090 --> 01:04:49,550
+The oracle to check the current exchange rate
+and the swap output that holds the lovelace.
+
+823
+01:04:50,190 --> 01:04:54,430
+And then as a third input where the
+funds are actually coming from the
+
+824
+01:04:54,430 --> 01:04:58,960
+buyer, and it should have three outputs.
+
+825
+01:05:00,140 --> 01:05:04,480
+The oracle output again, but we don't have
+to worry about that because the oracle
+
+826
+01:05:05,129 --> 01:05:10,410
+validator takes care of that, that we
+saw in the core module that the oracle
+
+827
+01:05:10,410 --> 01:05:17,454
+validator makes sure that whenever it is
+used, there will be an output with unchanged
+
+828
+01:05:17,809 --> 01:05:19,960
+datum and added fees if you recall.
+
+829
+01:05:21,819 --> 01:05:26,800
+So, so we want that, and then the
+seller must get the tokens and the
+
+830
+01:05:26,800 --> 01:05:30,010
+buyer should get the log lovelace.
+
+831
+01:05:30,860 --> 01:05:34,885
+And we want to support a second
+use case, namely that the
+
+832
+01:05:35,000 --> 01:05:37,630
+seller can retrieve his assets.
+
+833
+01:05:38,660 --> 01:05:42,470
+Otherwise they could be potentially
+locked be, locked there forever.
+
+834
+01:05:43,150 --> 01:05:48,930
+So there are basically two ways to unlock
+the lovelace log by the script address.
+
+835
+01:05:49,460 --> 01:05:54,750
+One is if somebody actually does this swap,
+gives tokens to the seller in exchange
+
+836
+01:05:54,750 --> 01:06:00,260
+for lovelace and the other is that the
+seller himself retrieves the lovelace.
+
+837
+01:06:01,600 --> 01:06:06,520
+So, doesn't want to do this swap
+anymore and gets his money back.
+
+838
+01:06:08,010 --> 01:06:13,860
+So this is the first condition,
+so if the seller himself signs
+
+839
+01:06:13,860 --> 01:06:15,699
+the transaction, then it's fine.
+
+840
+01:06:15,790 --> 01:06:20,150
+There's no additional condition that doesn't
+have to be an oracle involve to anything.
+
+841
+01:06:20,750 --> 01:06:25,170
+So if it's signed by the seller, he can
+just get his hands back on the lovelace.
+
+842
+01:06:25,670 --> 01:06:31,110
+And the more interesting case is the
+second one where we check two conditions.
+
+843
+01:06:31,799 --> 01:06:36,069
+First, we check that they are exactly
+two script inputs because we only want
+
+844
+01:06:36,070 --> 01:06:46,849
+the oracle and we want the, this a swap
+UTxO itself, the all additional inputs
+
+845
+01:06:47,059 --> 01:06:51,970
+to pay transaction fees and to actually
+pay the price must be probably key inputs
+
+846
+01:06:51,990 --> 01:06:57,770
+because we don't want to worry about
+interference with others smart contracts.
+
+847
+01:06:58,790 --> 01:07:01,790
+And secondly we want to check
+that the seller gets paid.
+
+848
+01:07:03,380 --> 01:07:09,279
+So, I need define a couple of helper
+functions to check this, so again we
+
+849
+01:07:09,279 --> 01:07:12,579
+define the info extracted from the context.
+
+850
+01:07:13,530 --> 01:07:23,100
+Then we find the oracle input and
+we do that by taking all the inputs
+
+851
+01:07:24,059 --> 01:07:25,609
+that we get from the info field.
+
+852
+01:07:25,710 --> 01:07:30,429
+So this is a list of all inputs and I'm
+using lists comprehension here, so that's
+
+853
+01:07:30,430 --> 01:07:33,650
+a nice way to construct lists in Haskell.
+
+854
+01:07:33,860 --> 01:07:40,370
+So it has the syntax with the square
+brackets and then vertical bar.
+
+855
+01:07:40,370 --> 01:07:42,820
+And I can basically draw from other lists.
+
+856
+01:07:42,820 --> 01:07:48,840
+So this is, I is now basically looping
+over all inputs of the transaction.
+
+857
+01:07:48,840 --> 01:07:53,879
+And I can have let expressions in
+such a list comprehension as well.
+
+858
+01:07:54,680 --> 01:08:00,239
+So, I is an input and I compute the
+corresponding output with Tx in info
+
+859
+01:08:00,240 --> 01:08:05,830
+resolved that we saw before, and I can
+also put filters or conditions here.
+
+860
+01:08:05,969 --> 01:08:12,509
+So, if the condition is satisfied,
+then this I will be kept and
+
+861
+01:08:12,830 --> 01:08:14,770
+otherwise it will be dropped.
+
+862
+01:08:15,179 --> 01:08:20,300
+So, in the conditioner check here is that
+the address where this output sits at is
+
+863
+01:08:20,330 --> 01:08:24,649
+actually this error parameter, which as I
+said before, will be the oracle address.
+
+864
+01:08:25,149 --> 01:08:30,429
+So this tells me get all inputs with
+corresponding output O that sit at the
+
+865
+01:08:30,460 --> 01:08:33,750
+oracle address, and I keep all those Os.
+
+866
+01:08:34,599 --> 01:08:38,529
+And then I check that
+there's exactly one of those.
+
+867
+01:08:38,710 --> 01:08:43,070
+So I make sure that there's
+exactly one oracle input.
+
+868
+01:08:44,970 --> 01:08:46,650
+Otherwise I throw an exception.
+
+869
+01:08:46,670 --> 01:08:51,390
+So this now gives me the oracle
+input or output, the oracle
+
+870
+01:08:51,390 --> 01:08:53,309
+input consumes the oracle output.
+
+871
+01:08:54,240 --> 01:08:59,844
+Now I want to check the actual
+exchange rate, and I again.
+
+872
+01:08:59,870 --> 01:09:11,238
+I use this helper function that we
+defined in the core module that given
+
+873
+01:09:11,238 --> 01:09:11,282
+the output where the oracle sits.
+
+874
+01:09:11,282 --> 01:09:14,309
+Computes me the actual exchange rate, the
+datum, the integer datum and as before.
+
+875
+01:09:14,380 --> 01:09:18,930
+So I applied it to this oracle input that
+I found in the previous helper function.
+
+876
+01:09:19,370 --> 01:09:25,650
+And again use find datum info to lookup
+the datum to a hash, and this can fail.
+
+877
+01:09:25,830 --> 01:09:29,970
+In which case I didn't find an
+oracle input or it can succeed
+
+878
+01:09:30,050 --> 01:09:33,150
+in which case I provide the X.
+
+879
+01:09:40,660 --> 01:09:47,029
+And I was just wondering, wether I forgot
+to check that this oracle input actually
+
+880
+01:09:48,160 --> 01:09:51,970
+holds the NFT, but I don't need to
+check that because seeing as there isn't
+
+881
+01:09:51,979 --> 01:09:54,130
+oracle input, we made sure of this here.
+
+882
+01:09:55,640 --> 01:10:00,630
+We know that because of how validation
+works, the validation script for
+
+883
+01:10:00,630 --> 01:10:02,290
+the oracle input will also be run.
+
+884
+01:10:02,290 --> 01:10:06,720
+And if you recall, from the core module,
+that script checks that the NFT is present.
+
+885
+01:10:06,720 --> 01:10:07,099
+So we don't have to do that here
+in the validator for the swap.
+
+886
+01:10:12,059 --> 01:10:12,089
+Okay.
+
+887
+01:10:14,610 --> 01:10:18,230
+And now this check here
+has two script inputs.
+
+888
+01:10:18,900 --> 01:10:26,240
+So we Loop over all inputs and
+we filter with this function.
+
+889
+01:10:26,240 --> 01:10:31,890
+So this gives us the output to the input.
+
+890
+01:10:32,430 --> 01:10:34,700
+This gives us the address of that output.
+
+891
+01:10:35,590 --> 01:10:42,059
+This gives us the hash,
+validator hash of this output.
+
+892
+01:10:42,080 --> 01:10:47,349
+If it's a script output or nothing,
+if it's a public key output address.
+
+893
+01:10:48,750 --> 01:10:52,260
+And then it's just, we talked about
+that before that is true if it's a
+
+894
+01:10:52,260 --> 01:10:54,110
+just in false, if it's a nothing.
+
+895
+01:10:54,700 --> 01:11:00,610
+And if filter by that, so the
+XS is now all the script inputs.
+
+896
+01:11:01,870 --> 01:11:06,080
+And we check that the length of at
+least is exactly two because we expect
+
+897
+01:11:06,240 --> 01:11:09,580
+two, the oracle and the swap itself.
+
+898
+01:11:09,580 --> 01:11:11,860
+So this is the first condition.
+
+899
+01:11:12,670 --> 01:11:18,649
+We check that there are exactly these two
+script inputs, and now the second condition
+
+900
+01:11:18,670 --> 01:11:20,790
+is that the seller actually gets paid.
+
+901
+01:11:21,150 --> 01:11:22,750
+So this is the seller paid.
+
+902
+01:11:24,119 --> 01:11:25,409
+How do we do that?
+
+903
+01:11:25,990 --> 01:11:33,380
+So first, we compute the minimum
+price that has to be paid.
+
+904
+01:11:33,690 --> 01:11:38,069
+So we check again with this find own input.
+
+905
+01:11:38,210 --> 01:11:41,379
+Remember that gives me the input
+that is just being validated.
+
+906
+01:11:41,379 --> 01:11:44,330
+So it should be the swap input if
+we don't find it, that's an error.
+
+907
+01:11:44,330 --> 01:11:48,970
+If we do find it, we again
+compute the corresponding output.
+
+908
+01:11:49,320 --> 01:11:53,630
+Take the value and use our helper
+function lovelaces to check
+
+909
+01:11:53,630 --> 01:11:55,740
+how many lovelaces are there.
+
+910
+01:11:56,490 --> 01:12:00,550
+So this is now this lovelace
+in this, how many lovelaces are
+
+911
+01:12:00,770 --> 01:12:03,880
+locked in this swapped UTxO.
+
+912
+01:12:04,920 --> 01:12:09,120
+And then we use the price helper function
+that we defined before given this amount
+
+913
+01:12:09,120 --> 01:12:15,709
+of lovelaces and the oracle value that
+we looked up here to compute the price.
+
+914
+01:12:16,589 --> 01:12:19,230
+And then we can define
+this seller paid condition.
+
+915
+01:12:20,110 --> 01:12:22,045
+So first we check how much he did pay.
+
+916
+01:12:22,045 --> 01:12:22,559
+And there's a helper function in the
+Plutus library is called value paid
+
+917
+01:12:27,770 --> 01:12:31,309
+to given info and the public key hash.
+
+918
+01:12:31,740 --> 01:12:35,959
+It adds up all the values of
+all the outputs, the public key
+
+919
+01:12:35,990 --> 01:12:38,200
+outputs that go to this address.
+
+920
+01:12:38,809 --> 01:12:40,180
+So this is now the total value that
+is sent by this address to the seller
+
+921
+01:12:40,180 --> 01:12:51,409
+and we use this asset class value of
+function to check the component of this
+
+922
+01:12:51,610 --> 01:12:56,779
+value that is the O asset of the oracle.
+
+923
+01:12:57,249 --> 01:13:00,240
+Remember that is the asset what that the
+exchange rate of the oracle is actually for.
+
+924
+01:13:02,990 --> 01:13:09,299
+So in the USD example, this would give
+us now the USD tokens that are sent
+
+925
+01:13:09,360 --> 01:13:10,112
+to the seller by this transaction.
+
+926
+01:13:10,112 --> 01:13:16,048
+And we just check that, the at least
+as many as the min price dictates.
+
+927
+01:13:16,048 --> 01:13:16,062
+So we allow overpaying.
+
+928
+01:13:16,062 --> 01:13:25,190
+So if the buyer wants to be generous,
+he can pay more tokens, but he must
+
+929
+01:13:25,190 --> 01:13:28,880
+pay at least this minimum price that's
+determined by the exchange rate.
+
+930
+01:13:30,410 --> 01:13:33,480
+So this is all, that's our swap trans...
+
+931
+01:13:34,240 --> 01:13:37,110
+validator than the usual boiler plates.
+
+932
+01:13:37,130 --> 01:13:41,849
+So we define this swapping helper type
+that records the datum and redeemer.
+
+933
+01:13:42,330 --> 01:13:47,779
+So again, datum is pub key hash,
+the ha pub key of the seller.
+
+934
+01:13:48,510 --> 01:13:49,890
+No interesting redeemer.
+
+935
+01:13:51,300 --> 01:13:56,410
+Do the usual template Haskell
+stuff to compile this given...
+
+936
+01:13:57,769 --> 01:14:01,280
+the oracle to a script and here received...
+
+937
+01:14:01,770 --> 01:14:05,990
+earlier we had two arguments, the
+oracle and the oracle address.
+
+938
+01:14:06,559 --> 01:14:08,224
+Now we don't need this.
+
+939
+01:14:08,224 --> 01:14:09,000
+We just need the oracle.
+
+940
+01:14:09,190 --> 01:14:14,349
+Because as I said before, you can
+compute the address from the oracle
+
+941
+01:14:14,360 --> 01:14:16,220
+using the oracle address function.
+
+942
+01:14:16,870 --> 01:14:21,450
+We just can't use that in Plutus
+code, in code to code, in this
+
+943
+01:14:21,500 --> 01:14:22,910
+validator function itself.
+
+944
+01:14:23,840 --> 01:14:27,970
+But here we as expected get a way
+with just one parameter, the oracle.
+
+945
+01:14:27,970 --> 01:14:32,465
+In case we now have the instance and if
+we do the usual thing, get the validator,
+
+946
+01:14:32,780 --> 01:14:42,980
+get the address, and now we can come,
+come start a couple of contracts.
+
+947
+01:14:43,289 --> 01:14:46,630
+So the first one offer
+swap is for the seller.
+
+948
+01:14:46,650 --> 01:14:49,920
+If he wants to provide such a swap.
+
+949
+01:14:50,410 --> 01:14:57,050
+And that takes as parameter the
+oracle and integer, that's the
+
+950
+01:14:57,050 --> 01:14:59,059
+amount of lovelace he wants to offer.
+
+951
+01:15:00,149 --> 01:15:03,020
+So we lookup his own public key.
+
+952
+01:15:05,110 --> 01:15:11,980
+And then as in the transaction, we want
+a transaction that locks this amount
+
+953
+01:15:11,980 --> 01:15:14,410
+of lovelace in the swap contract.
+
+954
+01:15:14,940 --> 01:15:20,480
+So we only need one constraint, must
+pay to the script that takes the datum,
+
+955
+01:15:20,550 --> 01:15:25,610
+which is our public key hash because
+we as a seller and it takes the amount.
+
+956
+01:15:25,620 --> 01:15:30,450
+So lovelace value of the amount we
+specified as argument to this function,
+
+957
+01:15:31,759 --> 01:15:38,676
+we submit and wait for confirmation
+and log a message that we offered.
+
+958
+01:15:38,676 --> 01:15:40,610
+So-and-so many lovelace for swap.
+
+959
+01:15:42,880 --> 01:15:50,480
+Then a helper function that finds all
+swaps that satisfy a specific predicate.
+
+960
+01:15:50,480 --> 01:15:54,511
+So given an oracle and the predicate
+on pub key hashes, it gives us
+
+961
+01:15:54,511 --> 01:15:54,513
+a list of all the UTxOs that...
+
+962
+01:15:54,513 --> 01:15:54,515
+that sit at this swap address.
+
+963
+01:15:54,515 --> 01:15:54,530
+So again, the reference to the UTxO
+the UTxO itself and the, this public
+
+964
+01:15:54,530 --> 01:15:54,618
+key hash is the datum of the UTxO.
+
+965
+01:15:54,618 --> 01:15:59,898
+So that's as follows, so we use
+the UTxO at, at the address.
+
+966
+01:15:59,898 --> 01:16:04,280
+So that gives us all UTxOs
+sitting at this swap address.
+
+967
+01:16:04,530 --> 01:16:32,070
+And then we use map maybe on the
+list that we get from this map.
+
+968
+01:16:32,890 --> 01:16:34,730
+So this map, maybe we can check.
+
+969
+01:16:34,730 --> 01:16:45,240
+So if we import data dot
+maybe ask for map maybe.
+
+970
+01:16:46,639 --> 01:16:53,630
+So this takes a function from A to maybe
+B and a list of As and returns a list
+
+971
+01:16:53,630 --> 01:16:59,999
+of Bs and the way it works is it applies
+this function to each A in this list.
+
+972
+01:17:00,840 --> 01:17:05,859
+So we will get a bunch of maybe Bs where
+there can be just Bs and nothings, and
+
+973
+01:17:05,859 --> 01:17:11,010
+then it will throw away the nothings and
+just keep the just and remove the just.
+
+974
+01:17:11,590 --> 01:17:24,280
+So as an example, we could, for example
+F and Int, if, if you have an even
+
+975
+01:17:25,090 --> 01:17:33,310
+integer, then we return just div N two.
+
+976
+01:17:33,349 --> 01:17:36,550
+So we divided by two and if
+it's an odd integer, nothing.
+
+977
+01:17:37,450 --> 01:17:38,259
+So that we...
+
+978
+01:17:40,080 --> 01:17:40,860
+okay, sorry...
+
+979
+01:17:43,410 --> 01:17:47,209
+I must activate that extension.
+
+980
+01:17:47,310 --> 01:17:47,670
+Okay.
+
+981
+01:17:48,200 --> 01:17:49,429
+So now I can try this also.
+
+982
+01:17:49,560 --> 01:17:54,249
+So if I try it on on even
+number, I get just half of it.
+
+983
+01:17:54,880 --> 01:17:57,639
+And if I applied to an
+odd number, I get nothing.
+
+984
+01:17:58,160 --> 01:18:02,560
+And now I can use map maybe in
+combination with this F I just
+
+985
+01:18:02,560 --> 01:18:03,600
+define on the list of integers.
+
+986
+01:18:04,920 --> 01:18:16,540
+So for example, I don't
+know 2, 4, 10, 11, 13, 100.
+
+987
+01:18:18,250 --> 01:18:24,240
+And I get now the list of the half of the
+even numbers, but the odd ones are dropped.
+
+988
+01:18:24,450 --> 01:18:29,770
+So I get one and two, half of 2 and
+4, and 10 is five, 11, and 13 are
+
+989
+01:18:29,780 --> 01:18:32,420
+dropped and I get half of 100 is 50.
+
+990
+01:18:33,150 --> 01:18:37,510
+So I want to use that to filter
+my UTxOs here in the find swap.
+
+991
+01:18:38,120 --> 01:18:41,730
+So I Def I use this function
+G and, but first I...
+
+992
+01:18:42,059 --> 01:18:48,719
+I I define another helper function F that
+just takes one of the UTxOs I'm looking at.
+
+993
+01:18:48,780 --> 01:18:52,129
+And gives me a maybe pub key hash.
+
+994
+01:18:53,039 --> 01:18:58,420
+And what I do is I first
+lookup the datum hash.
+
+995
+01:18:58,560 --> 01:18:59,850
+And again, this is a maybe monad.
+
+996
+01:19:00,330 --> 01:19:02,390
+So this two block is in the maybe monad.
+
+997
+01:19:02,950 --> 01:19:09,379
+So I lookup the datum hash attached to this
+output that could fail that's a maybe datum
+
+998
+01:19:09,380 --> 01:19:17,940
+hash, but if it succeeds, so the hash, the
+datum hash is DH, then in the Tx data field
+
+999
+01:19:17,960 --> 01:19:24,300
+of the transaction, I lookup this hash to
+get to the datum, datum D, D of type data.
+
+1000
+01:19:24,730 --> 01:19:30,110
+And finally, I try to deserialize it
+basically from data to pub key hash.
+
+1001
+01:19:31,230 --> 01:19:36,630
+So I expect of course that all the
+swap UTxOs, the datum will be there
+
+1002
+01:19:36,630 --> 01:19:38,910
+and it will be a public key hash.
+
+1003
+01:19:39,889 --> 01:19:42,660
+So in this case I will get
+just a public key hash.
+
+1004
+01:19:44,820 --> 01:19:45,210
+Okay.
+
+1005
+01:19:45,210 --> 01:19:50,080
+And now this G function
+has now the right type.
+
+1006
+01:19:50,080 --> 01:19:54,770
+So it takes a pair of key and
+value on these UTxOs and returns a
+
+1007
+01:19:54,770 --> 01:19:57,339
+maybe key value and pub key hash.
+
+1008
+01:19:57,400 --> 01:20:01,630
+And what I do is, first I use my
+first helper function to get the
+
+1009
+01:20:01,670 --> 01:20:03,639
+public key hash if it's there.
+
+1010
+01:20:03,639 --> 01:20:05,009
+So that's the datum now.
+
+1011
+01:20:06,479 --> 01:20:12,720
+Then I apply this this predicate that
+was argument here to my helper function.
+
+1012
+01:20:13,920 --> 01:20:16,280
+And guard, we haven't seen that before.
+
+1013
+01:20:16,280 --> 01:20:21,200
+So in some monads, including maybe
+this guard is available and that takes
+
+1014
+01:20:21,200 --> 01:20:26,380
+something of type boolean and what it
+does is it fails if this boolean is...
+
+1015
+01:20:29,340 --> 01:20:31,820
+if it's false, then this computation fails.
+
+1016
+01:20:32,500 --> 01:20:34,530
+And if it's true it just continuous.
+
+1017
+01:20:34,540 --> 01:20:38,129
+So that means I check whether this
+predicate, whether the datum of
+
+1018
+01:20:38,130 --> 01:20:41,129
+the UTxO satisfies my predicate.
+
+1019
+01:20:41,129 --> 01:20:44,520
+And if it does not, then
+this will return nothing.
+
+1020
+01:20:44,860 --> 01:20:46,460
+So I've dropped this UTxO.
+
+1021
+01:20:47,520 --> 01:20:49,519
+And if it is, then I return the triplet...
+
+1022
+01:20:49,519 --> 01:20:56,520
+assisting of the reference, the UTxO
+itself, and the datum included in it.
+
+1023
+01:20:56,520 --> 01:21:00,349
+And we would see how we use
+this find swaps in a bit.
+
+1024
+01:21:00,350 --> 01:21:01,460
+So this helper function.
+
+1025
+01:21:03,210 --> 01:21:07,400
+Right, the next contract I
+define is this retrieve swaps.
+
+1026
+01:21:07,510 --> 01:21:12,230
+So that's for the seller if he changes
+his mind enforces swap, swap spec.
+
+1027
+01:21:13,230 --> 01:21:15,759
+And so how does it work?
+
+1028
+01:21:15,789 --> 01:21:20,370
+It just takes the owners public key hash.
+
+1029
+01:21:20,750 --> 01:21:25,940
+Now it uses our helper function and
+here as predicate, it checks that
+
+1030
+01:21:26,010 --> 01:21:28,809
+it's the swaps that belong to himself.
+
+1031
+01:21:29,730 --> 01:21:34,809
+So, remember the datum is the seller,
+the public key hash of the seller.
+
+1032
+01:21:35,320 --> 01:21:41,040
+So, I check that, I only take
+those UTxO sitting at that
+
+1033
+01:21:41,040 --> 01:21:42,860
+swap address that belong to me.
+
+1034
+01:21:43,610 --> 01:21:44,530
+So this is now this Xs.
+
+1035
+01:21:46,290 --> 01:21:49,669
+If there are none, then
+there's nothing to retrieve.
+
+1036
+01:21:50,730 --> 01:21:53,059
+So, if it's the empty list has nothing to do.
+
+1037
+01:21:53,449 --> 01:21:59,730
+If it's not the empty list, I now construct
+a transaction that retrieves all of those.
+
+1038
+01:22:01,410 --> 01:22:02,420
+And how do I do that?
+
+1039
+01:22:04,030 --> 01:22:11,399
+So, I take all the UTxOs in this
+list and for each of them, I build a
+
+1040
+01:22:11,520 --> 01:22:17,300
+constraint and say I want to spend that
+UTxO, must spend script output, this
+
+1041
+01:22:17,310 --> 01:22:20,790
+UTxO and as redeemer, just the unit.
+
+1042
+01:22:21,429 --> 01:22:26,917
+So now I have a list of constraints
+and M concat is a function that if
+
+1043
+01:22:27,027 --> 01:22:31,463
+I have the list of elements in the
+semi-group, it combines all of them.
+
+1044
+01:22:32,072 --> 01:22:34,761
+So, I mean, normally we did that explicitly.
+
+1045
+01:22:34,785 --> 01:22:39,250
+So we had, for example, two constraints
+and we use this operator here to
+
+1046
+01:22:39,710 --> 01:22:42,340
+combine them together to one constraint.
+
+1047
+01:22:42,710 --> 01:22:46,769
+So now I have a list of constraints, I
+don't know how many elements there are.
+
+1048
+01:22:47,100 --> 01:22:50,129
+And with M concat, I can
+combine all of them together.
+
+1049
+01:22:50,810 --> 01:22:56,430
+So now I have this Tx is now the
+constraint that all the UTxOs that
+
+1050
+01:22:56,440 --> 01:22:58,929
+belong to me, sit at the swap address.
+
+1051
+01:22:59,290 --> 01:23:01,280
+I want to consume in this one transaction.
+
+1052
+01:23:01,330 --> 01:23:04,309
+I want to get all the lovelaces
+from all those swaps back.
+
+1053
+01:23:05,599 --> 01:23:14,550
+And as lookups for, for this to work, I must
+provide all the UTxOs, but that's, I mean,
+
+1054
+01:23:14,550 --> 01:23:18,059
+those I have, those are in this list XS.
+
+1055
+01:23:19,049 --> 01:23:21,729
+So I just, I don't care about this hash.
+
+1056
+01:23:21,750 --> 01:23:24,169
+I know it's mine anyway, this pub key hash.
+
+1057
+01:23:24,609 --> 01:23:30,727
+So I have the oref and the O from all of
+these, and I can use map from list to turn
+
+1058
+01:23:30,880 --> 01:23:37,089
+this list of key value pairs into an action
+map, and then apply this unspent outputs
+
+1059
+01:23:37,969 --> 01:23:40,684
+constraint to it, to get me the lookup.
+
+1060
+01:23:40,879 --> 01:23:45,620
+So now when I try to solve this constraint
+and construct a transaction, I will
+
+1061
+01:23:45,650 --> 01:23:48,620
+find all these UTxOs I want to consume.
+
+1062
+01:23:49,910 --> 01:23:56,940
+And I must as before provide the
+validator of the oracle actually, and
+
+1063
+01:23:57,530 --> 01:24:02,410
+also not of the oracle of the swap
+itself, it's parameterized by the oracle.
+
+1064
+01:24:03,890 --> 01:24:08,120
+Because I must provide the, I must
+include the validator script in
+
+1065
+01:24:08,120 --> 01:24:12,730
+the transaction because I want
+to consume those script outputs.
+
+1066
+01:24:13,450 --> 01:24:13,730
+Okay.
+
+1067
+01:24:13,730 --> 01:24:15,099
+And then I submitted...
+
+1068
+01:24:15,190 --> 01:24:18,570
+I wait until it's confirmed.
+
+1069
+01:24:18,570 --> 01:24:21,730
+And then I just say, how many
+of these swaps I retrieved.
+
+1070
+01:24:23,730 --> 01:24:29,230
+Okay, and the interesting one, is now this
+one where actually make use of the oracle.
+
+1071
+01:24:30,040 --> 01:24:32,400
+So this is I want to use as swap.
+
+1072
+01:24:33,440 --> 01:24:37,900
+And, I mean, there can be several swaps in
+that didn't want to make it too complicated.
+
+1073
+01:24:37,900 --> 01:24:44,813
+So basically what I do is, I lookup
+my own funds that's in this third
+
+1074
+01:24:44,813 --> 01:24:48,349
+module I mentioned earlier that's why
+I have to import the funds module.
+
+1075
+01:24:48,830 --> 01:24:53,499
+You get to that in a second, but all
+that does this own funds module this
+
+1076
+01:24:53,500 --> 01:24:59,550
+own funds contract, it checks my own
+wallet and adds up all the money I have.
+
+1077
+01:24:59,900 --> 01:25:05,570
+So funds is now of type value, contains
+all the funds I own, because I want to
+
+1078
+01:25:05,570 --> 01:25:11,330
+check how much USD tokens or tokens I
+have to actually pay for these swaps.
+
+1079
+01:25:12,209 --> 01:25:18,570
+So I given all my funds, I check
+how many of the tokens that we are
+
+1080
+01:25:18,570 --> 01:25:20,340
+talking about in the oracle I have.
+
+1081
+01:25:20,349 --> 01:25:21,640
+So that's not amount.
+
+1082
+01:25:22,830 --> 01:25:26,039
+I just log that as
+information how much I have.
+
+1083
+01:25:27,040 --> 01:25:32,130
+This find oracle function comes from
+the core module, we used it for some
+
+1084
+01:25:32,130 --> 01:25:33,889
+of the oracle functionality before.
+
+1085
+01:25:34,320 --> 01:25:42,070
+So it finds us the oracle, the UTxO
+that contains the oracle and the value.
+
+1086
+01:25:43,120 --> 01:25:44,429
+If you don't find the oracle.
+
+1087
+01:25:45,129 --> 01:25:48,429
+Then we just log a message
+that we didn't find it.
+
+1088
+01:25:48,530 --> 01:25:53,559
+And if we do find it, so oref and
+O reference the oracle UTxO and
+
+1089
+01:25:53,610 --> 01:25:55,570
+X is the current exchange rate.
+
+1090
+01:25:55,820 --> 01:25:58,040
+So we log a message that we found it.
+
+1091
+01:25:59,150 --> 01:26:00,880
+We check our own public key.
+
+1092
+01:26:01,600 --> 01:26:06,580
+We now look for all the available
+swaps where we are not the owner.
+
+1093
+01:26:06,790 --> 01:26:09,900
+So where the owner is not us.
+
+1094
+01:26:11,860 --> 01:26:18,130
+Now we use a helper function find, that's in
+the Haskell prelude, it's in data dot list.
+
+1095
+01:26:18,429 --> 01:26:26,470
+So given a predicate on elements of
+list, it finds us, maybe finds us one
+
+1096
+01:26:26,470 --> 01:26:29,143
+that satisfies this prep, predicate.
+
+1097
+01:26:30,280 --> 01:26:34,830
+And this is defined here and
+we give it two parameters.
+
+1098
+01:26:34,840 --> 01:26:42,510
+So the amount that we have, the assets
+that we own and the current exchange rate.
+
+1099
+01:26:43,190 --> 01:26:48,920
+So this predicate now takes the amount
+we have, the current exchange rate,
+
+1100
+01:26:49,640 --> 01:26:55,260
+and now it goes over the elements
+of the swaps we found and the return
+
+1101
+01:26:55,320 --> 01:26:57,090
+whether this is a suitable swap or not.
+
+1102
+01:26:57,460 --> 01:27:04,410
+And all we do is we check that the price we
+would have to pay for that specific swap is
+
+1103
+01:27:05,820 --> 01:27:11,650
+at most as high as the tokens we own and this
+get price function is to find above here.
+
+1104
+01:27:12,219 --> 01:27:18,000
+So, given exchange rate and an output,
+we just use our price helper function
+
+1105
+01:27:18,690 --> 01:27:25,400
+and apply it to the lovelace is contained
+in this swap and the exchange rate.
+
+1106
+01:27:26,530 --> 01:27:32,769
+So what this line does is it tries to find
+a swap that we can afford where given the
+
+1107
+01:27:32,780 --> 01:27:38,450
+current exchange rate that oracle tells us
+and the amount locked in this swap UTxO we
+
+1108
+01:27:38,810 --> 01:27:41,010
+have enough assets to actually pay for it.
+
+1109
+01:27:41,520 --> 01:27:45,790
+If you don't find such a swap, then we log
+a message that we didn't find such a swap.
+
+1110
+01:27:46,130 --> 01:27:48,599
+If we do find, find one,
+we just take the first one.
+
+1111
+01:27:49,030 --> 01:27:50,400
+I mean, that's not really realistic.
+
+1112
+01:27:50,400 --> 01:27:53,149
+Of course, in, in a real world example...
+
+1113
+01:27:54,569 --> 01:27:57,580
+would probably use, I mean,
+specifying the exact amount how
+
+1114
+01:27:57,580 --> 01:27:58,990
+much we want to swap or whatever.
+
+1115
+01:27:59,400 --> 01:28:01,740
+I just wanted to keep it simply
+because it doesn't matter.
+
+1116
+01:28:01,740 --> 01:28:03,070
+I mean, we are talking about oracle.
+
+1117
+01:28:03,110 --> 01:28:05,519
+It's not about the swapping,
+it's just an example.
+
+1118
+01:28:05,539 --> 01:28:08,350
+So I just pick a swap that I can afford.
+
+1119
+01:28:10,219 --> 01:28:12,219
+And now I construct a transaction.
+
+1120
+01:28:12,250 --> 01:28:17,650
+So this is the output for the oracle.
+
+1121
+01:28:18,530 --> 01:28:26,209
+So that will be the existing
+O value in the oracle.
+
+1122
+01:28:26,529 --> 01:28:29,170
+So the O I remember is
+the oracle we found here.
+
+1123
+01:28:29,880 --> 01:28:33,920
+So this is the value that's already
+in the oracle, which will be the
+
+1124
+01:28:33,920 --> 01:28:38,600
+oracle NFT, and maybe some fees that
+previous uses of the oracle paid.
+
+1125
+01:28:39,190 --> 01:28:42,090
+And I just add my fee to that.
+
+1126
+01:28:42,160 --> 01:28:44,429
+So this is now the output value.
+
+1127
+01:28:44,870 --> 01:28:47,839
+Remember when I use the
+oracle I have to add fees.
+
+1128
+01:28:49,039 --> 01:28:49,399
+Okay.
+
+1129
+01:28:49,420 --> 01:28:56,290
+And the P is the price
+I have to pay actually.
+
+1130
+01:28:56,340 --> 01:29:02,329
+So I take the lovelaces contained in
+the swap and the exchange rate from the
+
+1131
+01:29:02,330 --> 01:29:04,390
+oracle use my price helper function.
+
+1132
+01:29:05,389 --> 01:29:09,900
+And this is just a number and integer,
+how many of tokens I have to pay.
+
+1133
+01:29:09,900 --> 01:29:15,520
+And I convert it into a value with
+asset class value and this asset class.
+
+1134
+01:29:16,460 --> 01:29:19,019
+Right, now let's look at the constraints.
+
+1135
+01:29:19,650 --> 01:29:23,949
+The first constraint says we
+must use the oracle as an input.
+
+1136
+01:29:24,529 --> 01:29:29,340
+So this is the reference to the oracle
+and as redeemer, we use the use redeemer.
+
+1137
+01:29:29,660 --> 01:29:35,339
+So this is now the first time we actually use
+the use redeemer, in the oracle code itself
+
+1138
+01:29:35,339 --> 01:29:40,549
+we never used the dev, we only used the
+update because the oracle provider is only
+
+1139
+01:29:40,549 --> 01:29:43,309
+responsable for providing the oracle values.
+
+1140
+01:29:44,390 --> 01:29:46,469
+The oracle provider doesn't
+care about using it.
+
+1141
+01:29:46,470 --> 01:29:49,580
+So now here in the swap contract,
+we actually want to use it.
+
+1142
+01:29:49,620 --> 01:29:52,960
+So that's the first constraint,
+consume the oracle input.
+
+1143
+01:29:53,849 --> 01:29:56,809
+Second constraint is consume the swap input.
+
+1144
+01:29:56,990 --> 01:30:01,770
+So there is a trivial redeemer, and
+this is the reference to the swap input.
+
+1145
+01:30:03,020 --> 01:30:11,500
+Third constraint is we
+want to pay to the oracle.
+
+1146
+01:30:12,009 --> 01:30:15,409
+So the value we computed before.
+
+1147
+01:30:16,150 --> 01:30:22,190
+So we, this is now this pay other script,
+because now two scripts are in play,
+
+1148
+01:30:22,320 --> 01:30:24,710
+the oracle script in the swap script.
+
+1149
+01:30:24,730 --> 01:30:26,970
+So other script is now the oref script.
+
+1150
+01:30:26,970 --> 01:30:35,120
+So we provide the oracle hash, as datum we
+must use the existing datum, so we mustn't
+
+1151
+01:30:35,120 --> 01:30:37,100
+change the exchange rate when we use it.
+
+1152
+01:30:37,170 --> 01:30:40,860
+Only the operator of the oracle
+can change the exchange rate
+
+1153
+01:30:40,870 --> 01:30:43,610
+by using the update redeemer.
+
+1154
+01:30:44,980 --> 01:30:48,430
+And the value is the one
+we computed before the V.
+
+1155
+01:30:48,639 --> 01:30:53,889
+So this was the existing value in the
+oracle and the fee that we have to pay.
+
+1156
+01:30:54,990 --> 01:31:01,110
+And last constraint is we must also
+pay the seller of the lovelace and
+
+1157
+01:31:01,110 --> 01:31:02,550
+that's the price we calculated.
+
+1158
+01:31:03,460 --> 01:31:07,500
+And then we need these lookups
+to actually make that work.
+
+1159
+01:31:07,900 --> 01:31:11,330
+So we must provide the
+validator of the swap contract.
+
+1160
+01:31:11,330 --> 01:31:17,629
+We must provide the validator of the oracle
+contract and we must provide the two UTxOs
+
+1161
+01:31:17,629 --> 01:31:20,950
+we want to consume, the oracle and the swap.
+
+1162
+01:31:22,389 --> 01:31:23,850
+And then the usual things.
+
+1163
+01:31:23,850 --> 01:31:27,490
+So we submitted, we wait for
+confirmation and we log a message
+
+1164
+01:31:27,490 --> 01:31:29,950
+that we actually made a swap.
+
+1165
+01:31:30,279 --> 01:31:33,370
+And just for information,
+we log the price we paid.
+
+1166
+01:31:35,190 --> 01:31:39,810
+Okay that's basically the raw
+contract then that also provide like
+
+1167
+01:31:39,830 --> 01:31:42,100
+a bundle that contains all of them.
+
+1168
+01:31:42,670 --> 01:31:44,860
+So I define a schema blockchain
+actions as always with four endpoints:
+
+1169
+01:31:44,860 --> 01:31:50,639
+offer to offer a swap
+for given amount of ADA,
+
+1170
+01:31:51,160 --> 01:31:53,339
+retrieve to retrieve all my swaps,
+
+1171
+01:31:53,360 --> 01:31:57,000
+use to actually do a swap and
+
+1172
+01:31:57,000 --> 01:32:02,699
+funds just give me my
+currently available funds.
+
+1173
+01:32:04,919 --> 01:32:05,059
+Okay.
+
+1174
+01:32:05,059 --> 01:32:06,639
+And how do I define that?
+
+1175
+01:32:07,809 --> 01:32:09,470
+I use the select operator.
+
+1176
+01:32:09,630 --> 01:32:14,740
+I'm not sure whether we have talked
+about that before, so that allows,
+
+1177
+01:32:14,820 --> 01:32:16,650
+it's basically a contract that wait.
+
+1178
+01:32:16,650 --> 01:32:20,400
+I mean, if, if there are several
+endpoints, it waits until one of those
+
+1179
+01:32:20,400 --> 01:32:22,237
+is picked and then executes this one.
+
+1180
+01:32:22,463 --> 01:32:29,110
+So this will offer simultaneously the
+offer endpoint, the retrieve, the use and
+
+1181
+01:32:29,220 --> 01:32:35,719
+the funds and whatever of these components
+makes progress first will be executed.
+
+1182
+01:32:35,910 --> 01:32:42,960
+So in, after I've done that I just sequence
+with recursive fee calling myself again.
+
+1183
+01:32:43,320 --> 01:32:49,370
+So over and over again, I will offer
+these four endpoints and these four
+
+1184
+01:32:49,370 --> 01:32:54,440
+endpoints are basically just rip us of
+the contracts we defined before, except
+
+1185
+01:32:54,450 --> 01:32:57,410
+that now I, I actually add an endpoint.
+
+1186
+01:32:58,029 --> 01:33:03,880
+So for example, for offer, I know
+block with the offer endpoint until
+
+1187
+01:33:04,280 --> 01:33:08,230
+some body from the outside, provides
+me with an amount in integer.
+
+1188
+01:33:08,670 --> 01:33:12,890
+And then I call the offer swap oracle
+amount contract that I defined before.
+
+1189
+01:33:14,240 --> 01:33:17,499
+Same for retrieve, except
+there is no parameters.
+
+1190
+01:33:17,499 --> 01:33:22,610
+So I just block until somebody invokes the
+retrieve endpoint and then call my previously
+
+1191
+01:33:22,610 --> 01:33:29,569
+defined retrieve swaps contract, same for
+use and funds is a little bit different.
+
+1192
+01:33:31,009 --> 01:33:34,313
+Again, so this own funds comes from
+the module we haven't looked at
+
+1193
+01:33:34,313 --> 01:33:39,690
+yet the funds module, but what this
+does is ignore the H for a second.
+
+1194
+01:33:39,880 --> 01:33:43,780
+That's just an error handler which I...
+
+1195
+01:33:43,790 --> 01:33:44,979
+by the way use everywhere.
+
+1196
+01:33:44,980 --> 01:33:46,450
+So I must explain that anyway.
+
+1197
+01:33:46,990 --> 01:33:54,349
+So this blocks until this endpoint
+is invoked, then I call the own funds
+
+1198
+01:33:54,350 --> 01:33:58,860
+function from the funds module, which
+gives me the V, the value that I own.
+
+1199
+01:33:59,330 --> 01:34:00,310
+And then I tell that.
+
+1200
+01:34:00,850 --> 01:34:03,270
+So I log that value away.
+
+1201
+01:34:03,740 --> 01:34:08,660
+So when somebody calls a funds
+endpoint I log that to the state
+
+1202
+01:34:08,700 --> 01:34:12,149
+and then it will be possible from
+the outside to look at that state.
+
+1203
+01:34:12,150 --> 01:34:16,710
+So that's a way to report back to
+the outside, how much money I own.
+
+1204
+01:34:17,590 --> 01:34:20,650
+And now for the H this
+is just an error handler.
+
+1205
+01:34:20,650 --> 01:34:24,410
+So it uses this handle error
+function that we saw before.
+
+1206
+01:34:24,469 --> 01:34:27,289
+And if there's an error,
+I just log that error.
+
+1207
+01:34:28,869 --> 01:34:34,589
+So I wrap all these into these error handlers
+so if anything goes wrong in between.
+
+1208
+01:34:34,650 --> 01:34:36,410
+I don't want the whole thing to crash.
+
+1209
+01:34:36,430 --> 01:34:38,540
+I just log the error and then continue.
+
+1210
+01:34:39,170 --> 01:34:39,520
+Okay.
+
+1211
+01:34:39,670 --> 01:34:43,300
+And that concludes the swap
+contract, the swap example.
+
+1212
+01:34:44,150 --> 01:34:50,559
+Now let's quickly look at the funds
+module, which just provides two contracts.
+
+1213
+01:34:50,570 --> 01:34:51,690
+So it's a very short module.
+
+1214
+01:34:52,620 --> 01:34:58,409
+And as I said before, it particularly has
+this own funds function, whose goal it is
+
+1215
+01:34:58,520 --> 01:35:02,380
+to sum up all the value in my own UTxO.
+
+1216
+01:35:03,509 --> 01:35:11,929
+So how it works is just looks up my own
+public key, then looks up the UTxOs at
+
+1217
+01:35:12,150 --> 01:35:14,500
+the address given by my own public key.
+
+1218
+01:35:14,559 --> 01:35:18,319
+So that's the UTxO sitting in my own wallet.
+
+1219
+01:35:19,429 --> 01:35:25,680
+And then I get this map of UTxOs.
+
+1220
+01:35:27,010 --> 01:35:34,200
+And now I apply to the values of this map.
+
+1221
+01:35:34,200 --> 01:35:40,849
+So that's remember that's a map from
+basically references to UTxOs to UTxOs.
+
+1222
+01:35:41,910 --> 01:35:45,250
+So map also implements functor.
+
+1223
+01:35:45,890 --> 01:35:51,030
+So I can basically map over the
+values of this map, change the
+
+1224
+01:35:51,030 --> 01:35:53,440
+values from UTxOs to something else.
+
+1225
+01:35:54,040 --> 01:35:59,890
+So I first get the output belong
+to the UTxO, then its value.
+
+1226
+01:36:01,740 --> 01:36:06,349
+So now I have a map from
+UTxO references to values.
+
+1227
+01:36:07,940 --> 01:36:12,290
+The map elems function forgets
+the keys and just gives me the
+
+1228
+01:36:12,300 --> 01:36:16,139
+list of all values and M concat.
+
+1229
+01:36:16,139 --> 01:36:24,830
+As I said before given a semi-group or monoid
+combines a list of values of the type to one.
+
+1230
+01:36:25,510 --> 01:36:28,320
+So what that does is it
+just adds up all the values.
+
+1231
+01:36:28,330 --> 01:36:34,290
+So V is now the sum of all the
+values of all the UTxOs that I own.
+
+1232
+01:36:35,270 --> 01:36:40,860
+And I just log that result and return it.
+
+1233
+01:36:40,900 --> 01:36:46,009
+So this is a contract that has a as a
+return value this value, and this here
+
+1234
+01:36:46,010 --> 01:36:53,500
+is just a variation, which instead of
+returning the value permanently tells it.
+
+1235
+01:36:54,060 --> 01:36:56,750
+So what does it do?
+
+1236
+01:36:57,100 --> 01:37:02,160
+It calls this own funds function and
+then uses monadic binds, so result
+
+1237
+01:37:02,510 --> 01:37:04,289
+of his own funds functions a value.
+
+1238
+01:37:04,289 --> 01:37:09,089
+And then it tells just last that value.
+
+1239
+01:37:09,549 --> 01:37:14,709
+So it writes the sum of money
+that our own to the log.
+
+1240
+01:37:16,800 --> 01:37:20,565
+And if there's some error there, I
+handle it and just log the error.
+
+1241
+01:37:21,130 --> 01:37:24,329
+Then I wait one slot and recourse.
+
+1242
+01:37:24,790 --> 01:37:31,259
+So this own funds contract will run forever
+and every slot check how much money I have.
+
+1243
+01:37:32,190 --> 01:37:36,100
+And write that value into the log.
+
+1244
+01:37:37,980 --> 01:37:42,769
+Let's look at the test module next,
+which tests the contracts we have
+
+1245
+01:37:42,770 --> 01:37:44,969
+written using the emulator trace monad.
+
+1246
+01:37:46,520 --> 01:37:51,320
+In order to test it, I of course need
+some assets that I can use to swap.
+
+1247
+01:37:52,000 --> 01:37:55,130
+So I just make up an
+arbitrary currency symbol.
+
+1248
+01:37:55,410 --> 01:38:00,880
+So this FF, obviously it's not the hash
+of some policy script, but same as in
+
+1249
+01:38:00,880 --> 01:38:06,520
+the playground in the emulator trace
+monads we can do that and as token name I
+
+1250
+01:38:06,529 --> 01:38:13,760
+just pick USDT and this time in order to
+actually run the trace that I'm writing,
+
+1251
+01:38:13,760 --> 01:38:19,514
+I'm not using the run emulator trace IO
+by the prime version, which takes two
+
+1252
+01:38:19,809 --> 01:38:25,920
+more arguments to have more fine-great
+control about the emulation environment.
+
+1253
+01:38:26,230 --> 01:38:32,090
+So the first one would determine how exactly
+the various log messages are displayed.
+
+1254
+01:38:32,130 --> 01:38:35,390
+So by picking def I just choose the default.
+
+1255
+01:38:35,390 --> 01:38:39,299
+So that's the same as in the unprime
+version, but the reason I'm using this
+
+1256
+01:38:39,320 --> 01:38:44,389
+extended version is because I want to
+configure the initial distribution and I
+
+1257
+01:38:44,410 --> 01:38:46,890
+can do so the so-called emulator config.
+
+1258
+01:38:48,090 --> 01:38:54,141
+And what I specify is that everybody
+has 100 million lovelace, so 100
+
+1259
+01:38:54,160 --> 01:38:59,499
+ADA in the beginning, and everybody
+has 100 of these USDT tokens.
+
+1260
+01:39:00,809 --> 01:39:04,770
+So then I define a helper
+contract check oracle.
+
+1261
+01:39:05,010 --> 01:39:08,650
+So the idea is it just
+supposed to permanently check
+
+1262
+01:39:08,690 --> 01:39:10,980
+the oracle value and log it.
+
+1263
+01:39:11,880 --> 01:39:16,610
+So I use the find oracle functions
+that we have seen before the contract.
+
+1264
+01:39:17,039 --> 01:39:20,429
+And if it's nothing, I just stop.
+
+1265
+01:39:20,760 --> 01:39:29,480
+So this would stop if, if the oracle
+is not there, but if I do find it with
+
+1266
+01:39:29,480 --> 01:39:32,600
+value X, I just log the oracle value.
+
+1267
+01:39:33,170 --> 01:39:37,750
+And then afterwards I wait
+for one slot and recurse.
+
+1268
+01:39:39,110 --> 01:39:41,630
+So if the oracle is not
+there, this won't do anything.
+
+1269
+01:39:41,630 --> 01:39:42,599
+I just wait for one slot.
+
+1270
+01:39:42,630 --> 01:39:45,360
+If it's there I log the value
+and do that permanently.
+
+1271
+01:39:46,530 --> 01:39:51,440
+And now I can define my trace and
+that's all things we have already seen.
+
+1272
+01:39:51,929 --> 01:39:55,340
+So I just define some
+parameters for the oracle.
+
+1273
+01:39:55,630 --> 01:40:00,160
+So I just pick fees of one ADA,
+100 sorry, 1,000,000 lovelace.
+
+1274
+01:40:01,300 --> 01:40:07,789
+And as asset class, I use this
+tokens I defined up here that I now
+
+1275
+01:40:08,119 --> 01:40:10,090
+have in the initial distribution.
+
+1276
+01:40:11,400 --> 01:40:15,440
+Then I start the oracle with
+these parameters for wallet one.
+
+1277
+01:40:16,640 --> 01:40:23,599
+I wait for one slot and now
+I use this get oracle helper
+
+1278
+01:40:23,599 --> 01:40:25,990
+function that's defined down here.
+
+1279
+01:40:26,450 --> 01:40:30,010
+The idea is because in order to
+run the swap contract, they are
+
+1280
+01:40:30,010 --> 01:40:32,820
+parameterized over the oracle value.
+
+1281
+01:40:33,350 --> 01:40:35,490
+And so I must somewhat discover that.
+
+1282
+01:40:36,630 --> 01:40:40,389
+And remember this run oracle writes
+down, as soon as the oracle is
+
+1283
+01:40:40,389 --> 01:40:42,809
+created it, it tells the oracle.
+
+1284
+01:40:43,110 --> 01:40:47,969
+So I must somehow get that state and that's
+the purpose of this get oracle function.
+
+1285
+01:40:48,600 --> 01:40:52,170
+So I use the observable state function
+that we saw before with the handle.
+
+1286
+01:40:52,540 --> 01:40:58,650
+So that takes the observable
+state of the run oracle contract,
+
+1287
+01:40:59,020 --> 01:41:00,710
+which should contain the oracle.
+
+1288
+01:41:01,710 --> 01:41:06,540
+If it doesn't, the oracle might not be
+there yet, one might not have started yet.
+
+1289
+01:41:06,540 --> 01:41:08,870
+So I just wait one slot and try again.
+
+1290
+01:41:09,260 --> 01:41:14,950
+But if it's there, I now have this
+value and I just log it for for
+
+1291
+01:41:15,230 --> 01:41:16,809
+debugging purposes and I return it.
+
+1292
+01:41:18,509 --> 01:41:21,650
+So that means I start the oracle.
+
+1293
+01:41:22,029 --> 01:41:24,270
+I get it, get the value.
+
+1294
+01:41:24,889 --> 01:41:27,940
+And now once I have the value, I can use it.
+
+1295
+01:41:28,210 --> 01:41:33,809
+So now on wallet two, I start this check
+oracle function that we saw here, whose job
+
+1296
+01:41:33,809 --> 01:41:38,250
+adjusted to every slot printer oracle value.
+
+1297
+01:41:39,950 --> 01:41:50,030
+Then I initialized the oracle to 1.5
+dollar per ADA, wait for three slots.
+
+1298
+01:41:50,889 --> 01:41:56,909
+And now I start I just call the own
+funds function on the wallets one, three,
+
+1299
+01:41:56,920 --> 01:41:59,959
+four, five to check the initial balances.
+
+1300
+01:42:00,939 --> 01:42:06,120
+And now I start this swap contract
+on H three H four and H five.
+
+1301
+01:42:08,059 --> 01:42:11,710
+Right, and now I just try some scenarios.
+
+1302
+01:42:11,719 --> 01:42:18,670
+So wallet three offers 10 ADA for
+swap, wallet four offers 20 ADA
+
+1303
+01:42:18,970 --> 01:42:24,650
+for swapping, I wait three slots
+and now wallet five uses a swap.
+
+1304
+01:42:24,710 --> 01:42:28,259
+So it will pick one of the two it's
+not obvious which one, which ever
+
+1305
+01:42:28,260 --> 01:42:31,750
+it finds first and pays USD for it.
+
+1306
+01:42:31,799 --> 01:42:36,640
+According to the current value of the oracle,
+which we sit here at this point it's 1.5.
+
+1307
+01:42:37,500 --> 01:42:38,950
+Anyway another three slots.
+
+1308
+01:42:39,320 --> 01:42:45,030
+Now, wallet one updates, the oracle
+value to 1.7 and H five tries again.
+
+1309
+01:42:45,030 --> 01:42:49,460
+So now it will grab the remaining swap
+of these two, but now pay a different
+
+1310
+01:42:49,460 --> 01:42:53,160
+price, pay 1.7 dollars instead of 1.5.
+
+1311
+01:42:53,709 --> 01:43:00,760
+Wait again, now I set it to 1.8
+the oracle value to allow wallet
+
+1312
+01:43:00,780 --> 01:43:02,540
+one to extract all the fees.
+
+1313
+01:43:02,590 --> 01:43:07,449
+So by now fees should have been paid twice
+because the oracle was used twice here.
+
+1314
+01:43:07,469 --> 01:43:12,680
+So each one should be able to collect
+two ADA fees, wait another three slots.
+
+1315
+01:43:13,070 --> 01:43:16,530
+And now I retrieve our remaining swaps,
+but that shouldn't do anything because
+
+1316
+01:43:16,530 --> 01:43:18,570
+I only had those two to begin with.
+
+1317
+01:43:18,610 --> 01:43:20,750
+And they were both used by H five.
+
+1318
+01:43:20,760 --> 01:43:25,610
+So this I could have left out, wait
+another three slots and that's it.
+
+1319
+01:43:25,950 --> 01:43:31,909
+And in the repl we can run it and
+hopefully be some desired result.
+
+1320
+01:43:34,029 --> 01:43:34,119
+Okay.
+
+1321
+01:43:34,380 --> 01:43:38,170
+So let's see lots of output.
+
+1322
+01:43:39,780 --> 01:43:42,950
+So here the oracle was started.
+
+1323
+01:43:42,950 --> 01:43:44,790
+So this is when the NFTs minted.
+
+1324
+01:43:46,260 --> 01:43:50,710
+And we have now the oracle value,
+the parameter we can use for...
+
+1325
+01:43:51,260 --> 01:43:51,960
+everything else.
+
+1326
+01:43:52,210 --> 01:43:59,459
+Here this get oracle is, is started,
+which once every slot logs the oracle
+
+1327
+01:43:59,460 --> 01:44:01,100
+value just for our information.
+
+1328
+01:44:02,870 --> 01:44:04,789
+So the first one, it find is indeed this 1.5.
+
+1329
+01:44:04,819 --> 01:44:13,960
+And now I start the the, I get the funds.
+
+1330
+01:44:14,010 --> 01:44:17,670
+So I see the initial funds of all
+the wallets to three, four, and
+
+1331
+01:44:17,940 --> 01:44:19,440
+five, still have the initial ones.
+
+1332
+01:44:19,799 --> 01:44:23,480
+One has a bit less because it
+started the oracle and needed to
+
+1333
+01:44:23,480 --> 01:44:24,990
+pay transaction fees for that.
+
+1334
+01:44:26,320 --> 01:44:28,800
+So oracle value is 1.5.
+
+1335
+01:44:29,030 --> 01:44:33,650
+Now the offers are made,
+the two swap offers of 1...
+
+1336
+01:44:34,220 --> 01:44:37,730
+10 ADA and 20 ADA, wait a bit.
+
+1337
+01:44:38,349 --> 01:44:41,860
+So the funds are still the same,
+oracle value hasn't changed.
+
+1338
+01:44:43,630 --> 01:44:45,930
+And now the first use happens.
+
+1339
+01:44:46,010 --> 01:44:50,570
+So the wallet five tries to use,
+and has enough money to do the swap.
+
+1340
+01:44:51,300 --> 01:44:53,890
+And at some point it will happen.
+
+1341
+01:44:53,890 --> 01:44:58,440
+So not exactly clear yet
+already has happened.
+
+1342
+01:45:00,000 --> 01:45:09,320
+And we wait a bit now the oracle gets
+updated to 1.7 and here is the second
+
+1343
+01:45:09,350 --> 01:45:13,229
+use where it's five tries again to swap.
+
+1344
+01:45:13,849 --> 01:45:18,119
+And some fund logging and basically
+nothing interesting happened anymore.
+
+1345
+01:45:18,420 --> 01:45:23,470
+And if you look at the final balances, we
+see that wallet two still has everything
+
+1346
+01:45:23,470 --> 01:45:28,200
+from the beginning, because our wallet
+two does is this oracle checking,
+
+1347
+01:45:28,210 --> 01:45:32,070
+which doesn't cost any transaction fees
+because it's purely an off-chain meta.
+
+1348
+01:45:32,690 --> 01:45:37,530
+Wallet one paid some transaction
+fees, but ends up with roughly two ADA
+
+1349
+01:45:37,530 --> 01:45:40,630
+more than it started with, it started
+with 100 and now it almost has 102.
+
+1350
+01:45:41,880 --> 01:45:46,669
+And that it's because it collected
+the two ADA fee for the oracle use.
+
+1351
+01:45:48,050 --> 01:45:51,420
+Wallet three and wallet
+four, they both made offers.
+
+1352
+01:45:51,830 --> 01:45:55,700
+So wallet three offer 10 ADA,
+wallet four offer 20 ADA.
+
+1353
+01:45:56,310 --> 01:46:02,900
+And we see, so the first swap that
+happened was wallet two where the exchange
+
+1354
+01:46:02,900 --> 01:46:04,429
+rate was one fifty and because it...
+
+1355
+01:46:05,070 --> 01:46:08,500
+of a 20, it got 30 dollars in return.
+
+1356
+01:46:08,500 --> 01:46:10,710
+So it ends up with 130 dollars.
+
+1357
+01:46:11,280 --> 01:46:18,370
+Then wallet three had an exchange rate
+of one seventy but only offered 10 ADA.
+
+1358
+01:46:18,720 --> 01:46:24,799
+So it got 17 dollars in return and wallet
+five finally had to pay these prices.
+
+1359
+01:46:24,799 --> 01:46:30,440
+So the 17 plus 30, so 47 but got the offer...
+
+1360
+01:46:30,440 --> 01:46:35,470
+at, ADA return, so, so it
+paid, this is the 47 less.
+
+1361
+01:46:35,470 --> 01:46:38,310
+So it started with 100 now 53 dollars left.
+
+1362
+01:46:38,310 --> 01:46:40,290
+But for that, it got the...
+
+1363
+01:46:42,980 --> 01:46:50,220
+basically would have gotten 30 ADA, 10 plus
+20, but had to pay one ADA each oracle fees.
+
+1364
+01:46:50,280 --> 01:46:54,360
+So that's why it's only 28 and
+it's a bit less than 28 because
+
+1365
+01:46:54,360 --> 01:46:56,300
+of a normal transaction fees.
+
+1366
+01:46:56,889 --> 01:46:58,139
+So it's exactly what we expect.
+
+1367
+01:46:58,139 --> 01:46:59,880
+And we see here apart from the wallet.
+
+1368
+01:47:00,210 --> 01:47:02,010
+So the oracle is still happily going.
+
+1369
+01:47:02,049 --> 01:47:05,850
+So this here is the oracle NFT.
+
+1370
+01:47:05,859 --> 01:47:08,390
+In, in this log we don't see the datum value.
+
+1371
+01:47:08,430 --> 01:47:10,390
+So we just see that the
+oracle is still there.
+
+1372
+01:47:12,060 --> 01:47:17,540
+Apart from the idea how to actually
+do an oracle in Plutus, nothing
+
+1373
+01:47:17,550 --> 01:47:19,290
+we have seen until now is new.
+
+1374
+01:47:19,299 --> 01:47:23,920
+I mean, there may have been some Plutus
+library functions we haven't seen before or
+
+1375
+01:47:23,920 --> 01:47:30,110
+some Haskell functions, but in principle,
+we are all familiar with the way validators
+
+1376
+01:47:30,110 --> 01:47:34,339
+are written for on-chain code and contracts
+are written for off-chain code and how we
+
+1377
+01:47:34,340 --> 01:47:36,819
+can test it with the emulator trace monad.
+
+1378
+01:47:38,559 --> 01:47:43,580
+So now in the second part of this lecture, we
+talking about something new namely the Plutus
+
+1379
+01:47:43,580 --> 01:47:48,290
+application backend, which allows you to
+take all that, what we have done until now,
+
+1380
+01:47:48,770 --> 01:47:54,389
+and turn it into an actual application, a
+executable that actually runs the contracts.
+
+1381
+01:47:55,420 --> 01:47:59,660
+If there was a Testnet or if Plutus was
+available on the main net already, we could
+
+1382
+01:48:00,230 --> 01:48:06,310
+then actually deploy this on those testsnets,
+but for now we have to be satisfied with
+
+1383
+01:48:06,310 --> 01:48:08,530
+using a mock chain, a simulated blockchain.
+
+1384
+01:48:10,429 --> 01:48:16,650
+But the process of turning this into a
+Dapp is virtually the same as it will
+
+1385
+01:48:16,650 --> 01:48:19,850
+be when a proper Testnet is available.
+
+1386
+01:48:21,000 --> 01:48:25,470
+So we need one more tiny
+module that I called PAB.
+
+1387
+01:48:25,470 --> 01:48:28,270
+And it's just basically
+just one type definition.
+
+1388
+01:48:28,530 --> 01:48:33,429
+And the idea is it reifies the
+contract instances we want to run.
+
+1389
+01:48:33,889 --> 01:48:37,969
+So we have various contracts and now
+we define the data type where each
+
+1390
+01:48:37,969 --> 01:48:42,540
+value of the data type corresponds to
+a contract we eventually want to run.
+
+1391
+01:48:43,030 --> 01:48:47,250
+This init is nothing we have written
+until now, but this basically
+
+1392
+01:48:47,440 --> 01:48:51,510
+corresponds to what I did in the emulator
+trace monad to give initial funds.
+
+1393
+01:48:51,549 --> 01:48:57,280
+So we will just use that to set up
+an environment where there is a USD
+
+1394
+01:48:57,340 --> 01:49:01,050
+token available and where the wallets
+have an initial supply of those.
+
+1395
+01:49:02,010 --> 01:49:07,990
+Then this constructor, the oracle
+constructor corresponds to the run oracle
+
+1396
+01:49:08,070 --> 01:49:12,389
+contract that will actually start and
+then run the oracle and provide this
+
+1397
+01:49:12,420 --> 01:49:17,769
+update endpoint, the currency symbol
+parameter I will use to communicate the
+
+1398
+01:49:18,010 --> 01:49:20,800
+currency symbol we use for our USD token.
+
+1399
+01:49:21,230 --> 01:49:29,550
+And finally, the swap parameterized
+by oracle will be used to run the swap
+
+1400
+01:49:29,600 --> 01:49:37,946
+contract, which if you recall offers various
+endpoints like offer retrieve use and funds.
+
+1401
+01:49:38,970 --> 01:49:41,870
+So this is just this definition that
+I have to put it in a separate module
+
+1402
+01:49:41,870 --> 01:49:47,100
+because I will use it both from the
+PAB and also later from the front-end.
+
+1403
+01:49:47,100 --> 01:49:52,930
+But now let's switch to the, or let
+first look at the cabal file actually.
+
+1404
+01:49:54,970 --> 01:50:04,480
+Sorry, because everything we have
+seen so far is in this library.
+
+1405
+01:50:04,549 --> 01:50:06,690
+So, all the modules we have now discussed.
+
+1406
+01:50:07,650 --> 01:50:08,790
+Now I have various executables.
+
+1407
+01:50:10,300 --> 01:50:16,509
+So first, now will talk about this
+oracle PAB, which would basically start
+
+1408
+01:50:16,509 --> 01:50:22,433
+a simulated wallet and initialize all
+the contracts and start a set up a web
+
+1409
+01:50:22,433 --> 01:50:26,330
+server that allows the outside world
+to interact with these contracts.
+
+1410
+01:50:26,940 --> 01:50:32,200
+And then I have two more executables, one
+that would be run by the oracle provider.
+
+1411
+01:50:32,500 --> 01:50:39,429
+So that will interact with the run oracle
+contract and actually fetch exchange rates
+
+1412
+01:50:39,440 --> 01:50:45,510
+from the internet and feed them into the
+system and then a swap client executable,
+
+1413
+01:50:45,900 --> 01:50:50,320
+which would be run by the clients that
+want to make use of the swap contract.
+
+1414
+01:50:51,150 --> 01:50:54,900
+So let's look at all of these
+interns starting with this
+
+1415
+01:50:54,990 --> 01:50:59,960
+one, that's an app oracle PAB.
+
+1416
+01:51:01,179 --> 01:51:07,059
+And before we look at this
+code, let's first look at...
+
+1417
+01:51:07,289 --> 01:51:11,610
+this stuff here, this is boiler plate.
+
+1418
+01:51:11,780 --> 01:51:14,450
+So I basically just copy pasted that from...
+
+1419
+01:51:15,950 --> 01:51:16,460
+until here.
+
+1420
+01:51:17,110 --> 01:51:20,990
+So these handlers thing, this is boiler
+plate to somehow hook up the data type
+
+1421
+01:51:21,139 --> 01:51:26,770
+I just defined, these reified contract
+instances with actual contracts.
+
+1422
+01:51:27,970 --> 01:51:28,370
+So...
+
+1423
+01:51:30,630 --> 01:51:36,460
+this basically just assigns for each
+of these three, reified instances we
+
+1424
+01:51:36,460 --> 01:51:41,940
+defined in it, oracle and swap to hook
+that up with the correspondent schemas
+
+1425
+01:51:43,330 --> 01:51:46,910
+and contracts that you defined earlier.
+
+1426
+01:51:47,330 --> 01:51:54,330
+So init won't have any schema so it just
+is blockchain actions, and oracle uses the
+
+1427
+01:51:54,330 --> 01:51:56,980
+oracle schema and swap uses the swap schema.
+
+1428
+01:51:57,090 --> 01:51:58,060
+No surprise there.
+
+1429
+01:51:58,720 --> 01:52:04,169
+And init will run the init contract, which
+I defined down here, oracle will run the...
+
+1430
+01:52:04,579 --> 01:52:06,680
+run oracle contract that we saw earlier.
+
+1431
+01:52:08,889 --> 01:52:11,029
+oracle params I think I define up here.
+
+1432
+01:52:11,029 --> 01:52:17,310
+So that just takes the currency symbol of
+USD and then defines example oracle params.
+
+1433
+01:52:17,650 --> 01:52:24,550
+So fee one ADA currency symbol the provided
+argument and token is just hard coded USDT.
+
+1434
+01:52:26,900 --> 01:52:32,400
+And finally, the swap will just given
+an oracle value., will run our swap
+
+1435
+01:52:32,430 --> 01:52:34,950
+contract with this value as parameter.
+
+1436
+01:52:36,030 --> 01:52:40,160
+This is poor boiler plate that
+I just copied, copy pasted.
+
+1437
+01:52:40,610 --> 01:52:46,149
+And this is now this init contract which is
+supposed to, to generate the initial funds.
+
+1438
+01:52:46,170 --> 01:52:47,110
+So that's not important.
+
+1439
+01:52:47,110 --> 01:52:48,859
+I just need that for, for the demo.
+
+1440
+01:52:48,859 --> 01:52:52,230
+And it's very, I mean, it's,
+it's very straightforward.
+
+1441
+01:52:52,230 --> 01:52:56,650
+So I again make use of this forge
+contract from the Plutus use cases.
+
+1442
+01:52:56,650 --> 01:52:56,650
+So I lookup my own public key.
+
+1443
+01:52:56,650 --> 01:52:56,653
+And as before I used the forge contract,
+but before we just minted one token, this
+
+1444
+01:52:56,653 --> 01:53:12,667
+NFT, and now I mint more, so basically
+this amount is just, I think, a hundred
+
+1445
+01:53:12,667 --> 01:53:18,814
+million So I want to give each wallet 100
+dollars So I count how many wallets there
+
+1446
+01:53:18,814 --> 01:53:23,540
+are and just multiply it and the wallets
+I hard-coded here, so I just use five
+
+1447
+01:53:23,540 --> 01:53:26,300
+wallets for this, it's completely arbitrary.
+
+1448
+01:53:27,070 --> 01:53:32,230
+So I use this forge contract
+lookup the currency symbol...
+
+1449
+01:53:32,230 --> 01:53:35,270
+provide the value how much
+each wallet should get.
+
+1450
+01:53:36,139 --> 01:53:44,010
+And then I just create transactions that
+sense each of the wallets, the amount
+
+1451
+01:53:44,320 --> 01:53:46,280
+except myself, because I already have it.
+
+1452
+01:53:46,930 --> 01:53:52,399
+So one wallet will mint all the USDs and then
+distribute them evenly to the other wallets.
+
+1453
+01:53:53,270 --> 01:53:59,569
+And in the end, I tell this currency
+symbol that was the result of forging.
+
+1454
+01:54:01,379 --> 01:54:01,959
+Right.
+
+1455
+01:54:02,170 --> 01:54:05,620
+And now we can look at the actual PAB code.
+
+1456
+01:54:06,820 --> 01:54:07,200
+And...
+
+1457
+01:54:07,600 --> 01:54:10,139
+so this is in IO, it's a proper main program.
+
+1458
+01:54:10,139 --> 01:54:16,050
+So that will be a proper executable
+and it makes use of yet another monad
+
+1459
+01:54:16,770 --> 01:54:21,450
+that we haven't seen before and that's
+specific to the PAB, but it's very, it's
+
+1460
+01:54:21,450 --> 01:54:25,686
+called the simulator monad, but it's
+very similar to the emulator trace monad.
+
+1461
+01:54:25,686 --> 01:54:31,320
+So in principle, it has exactly the
+same, more or less the same capabilities.
+
+1462
+01:54:31,330 --> 01:54:39,340
+So you can start contracts on wallets and
+you can like inspect the log, the state
+
+1463
+01:54:39,740 --> 01:54:42,180
+and, and so on, and you can call endpoints.
+
+1464
+01:54:43,490 --> 01:54:46,340
+So it's a bit unfortunate that there
+are actually two different monads
+
+1465
+01:54:46,559 --> 01:54:48,019
+for this because they are so similar.
+
+1466
+01:54:48,190 --> 01:54:51,550
+And I know from the Plutus team
+that they plan to align these
+
+1467
+01:54:51,550 --> 01:54:53,339
+and maybe turn them into one.
+
+1468
+01:54:53,789 --> 01:54:56,630
+So probably you shouldn't pay too
+much attention or spend too much
+
+1469
+01:54:56,660 --> 01:55:00,850
+effort on learning the intricacies
+of this model because that will
+
+1470
+01:55:00,870 --> 01:55:04,990
+probably change soon and will be
+aligned with the emulator trace monad.
+
+1471
+01:55:06,590 --> 01:55:13,000
+And Similar to how we have this run emulator
+trace IO, there's something run simulation
+
+1472
+01:55:13,020 --> 01:55:18,470
+with, so we need these handlers, this boiler
+plate to find downstairs further down.
+
+1473
+01:55:19,100 --> 01:55:21,919
+And then this is a script
+in this simulator monad now.
+
+1474
+01:55:22,510 --> 01:55:26,100
+One significant difference to the
+emulator trace monad though is the
+
+1475
+01:55:26,170 --> 01:55:31,800
+emulator trace monad was pure code, no
+revert side effects, no IO involved.
+
+1476
+01:55:32,000 --> 01:55:34,820
+So we couldn't do IO in the
+run emulator trace monad.
+
+1477
+01:55:36,200 --> 01:55:40,809
+In particular there was this pure
+interpreter run emulator trace
+
+1478
+01:55:40,809 --> 01:55:42,869
+without IO, just run emulator trace.
+
+1479
+01:55:43,580 --> 01:55:45,780
+That's a pure Haskell
+function, no side effects.
+
+1480
+01:55:45,920 --> 01:55:49,536
+So in this emulator trace
+expressions, you can't do any IO.
+
+1481
+01:55:50,382 --> 01:55:51,494
+Simulator is different.
+
+1482
+01:55:52,003 --> 01:55:55,679
+You can do IO and the way it
+works, it's a so-called monad IO.
+
+1483
+01:55:56,360 --> 01:56:01,330
+And monad IO is one method lift
+IO, and that takes an IO action and
+
+1484
+01:56:01,349 --> 01:56:04,320
+lifts it into the monad in question.
+
+1485
+01:56:04,330 --> 01:56:08,860
+So if you have some arbitrary IO
+action that you can do in Haskell,
+
+1486
+01:56:09,250 --> 01:56:14,260
+then by applying lift IO to it, you
+can move it into the simulator monad.
+
+1487
+01:56:14,860 --> 01:56:21,000
+So inside this two block, we can do arbitrary
+IO as well, plus the specific things that
+
+1488
+01:56:21,000 --> 01:56:22,990
+the simulation monad allows us to do.
+
+1489
+01:56:24,150 --> 01:56:27,270
+Right, but apart from that, I
+mean, if you squint, it looks
+
+1490
+01:56:27,270 --> 01:56:31,219
+very similar to emulator trace.
+
+1491
+01:56:32,510 --> 01:56:35,179
+So first thing I do is I just log.
+
+1492
+01:56:36,230 --> 01:56:38,990
+So is that we also have a log capabilities.
+
+1493
+01:56:38,990 --> 01:56:41,170
+So there's a function called log string.
+
+1494
+01:56:42,020 --> 01:56:46,660
+And I just say, okay, I start
+the server, is PAB server.
+
+1495
+01:56:46,660 --> 01:56:51,420
+Then this starts over the
+back actually starts it.
+
+1496
+01:56:51,920 --> 01:56:56,290
+And the return value is an action that
+I can later use to shut down the server
+
+1497
+01:56:56,300 --> 01:57:03,099
+again, right now I use something called
+activate contract and that's very similar
+
+1498
+01:57:03,099 --> 01:57:07,950
+to, I think it was called activate contract
+instance in the emulator trace monad.
+
+1499
+01:57:07,960 --> 01:57:10,889
+So that's basically the same thing,
+but now in the simulator monad.
+
+1500
+01:57:11,770 --> 01:57:16,009
+So it gets a wallet where I want
+to start that instance, and then a
+
+1501
+01:57:16,010 --> 01:57:18,770
+value of this reified contract type.
+
+1502
+01:57:18,770 --> 01:57:24,700
+So remember this init constructor
+we associated down here, somewhere
+
+1503
+01:57:24,710 --> 01:57:29,920
+here with this init contract
+that was then defined here.
+
+1504
+01:57:30,860 --> 01:57:37,169
+So what this will do, it will on wallet
+one, launch this contract, and remember
+
+1505
+01:57:37,170 --> 01:57:43,630
+the contract just means this USD token
+and distributes it to the other wallets.
+
+1506
+01:57:44,950 --> 01:57:46,310
+Now we need the currency symbol.
+
+1507
+01:57:46,400 --> 01:57:48,999
+So this is now an example of
+how we get information back
+
+1508
+01:57:49,030 --> 01:57:51,040
+out of a contract using this...
+
+1509
+01:57:51,053 --> 01:57:52,387
+a monad right-hand detail.
+
+1510
+01:57:55,371 --> 01:57:57,820
+And we'll see that in a second.
+
+1511
+01:57:58,790 --> 01:57:58,990
+Right.
+
+1512
+01:57:58,990 --> 01:58:03,189
+And I do that here with his helper function
+because I need to do that couple of times.
+
+1513
+01:58:03,190 --> 01:58:07,260
+So I've wrote a helper function,
+wait for last that I defined here.
+
+1514
+01:58:08,730 --> 01:58:12,099
+So given such a constants
+contact instance ID.
+
+1515
+01:58:14,119 --> 01:58:18,309
+I use a function that's provided by the
+simulator, that's called wait for state.
+
+1516
+01:58:18,460 --> 01:58:24,489
+That's similar to the observable state
+function we got in the, in the emulator
+
+1517
+01:58:24,490 --> 01:58:29,709
+trace monad, so what wait for state
+does is, it takes the contract instance
+
+1518
+01:58:30,260 --> 01:58:37,780
+and it takes a predicate that gets a
+json expression and returns a maybe A.
+
+1519
+01:58:38,620 --> 01:58:44,170
+The idea is, so it will read
+the state of the contract.
+
+1520
+01:58:45,190 --> 01:58:48,090
+Remember we write the state
+from the contract using tell.
+
+1521
+01:58:48,550 --> 01:58:54,300
+So this reads this, but it's serialized
+to it, it gets a json value, realized
+
+1522
+01:58:54,300 --> 01:58:59,440
+as json and then it applies that
+json value to the provided predicate.
+
+1523
+01:58:59,880 --> 01:59:04,889
+And this provides returns, as I said a
+maybe A, so if the result of applying
+
+1524
+01:59:04,920 --> 01:59:10,030
+our custom predicate to this, json
+value is nothing this will simply wait
+
+1525
+01:59:10,920 --> 01:59:13,259
+more until the state changes again.
+
+1526
+01:59:13,700 --> 01:59:16,179
+But if it's just X it will return the X.
+
+1527
+01:59:16,349 --> 01:59:19,930
+So this will block until we get a just here.
+
+1528
+01:59:20,429 --> 01:59:25,170
+And, So this helper function, it's just
+a special case where the state is in
+
+1529
+01:59:25,290 --> 01:59:28,019
+this last monoid that I explained before.
+
+1530
+01:59:28,030 --> 01:59:37,859
+So and success is that's comes from
+the data dot aeson library for json
+
+1531
+01:59:37,860 --> 01:59:40,789
+handling in Haskell, so if you...
+
+1532
+01:59:41,170 --> 01:59:44,630
+sorry, I use this from json to parse to json.
+
+1533
+01:59:45,780 --> 01:59:47,340
+So if that succeeds, I should get...
+
+1534
+01:59:48,550 --> 01:59:51,730
+last ex...
+
+1535
+01:59:51,920 --> 01:59:58,169
+last A if A is the type, but of
+course the json parsing can also fail.
+
+1536
+01:59:58,480 --> 02:00:02,790
+And this is so-called result type
+that's defined in data dot aeson.
+
+1537
+02:00:03,530 --> 02:00:08,460
+So if it succeeds, it says succeeds and
+then the value it's successfully parsed.
+
+1538
+02:00:09,150 --> 02:00:13,465
+So in the good case, it succeeds
+the json passing succeeds, and we
+
+1539
+02:00:13,650 --> 02:00:16,370
+get last of just of state value.
+
+1540
+02:00:17,430 --> 02:00:21,769
+And they are two ways it could
+fail either the parsing could,
+
+1541
+02:00:21,770 --> 02:00:26,290
+could fail, or even if the parsing
+succeeds, we could get a last nothing.
+
+1542
+02:00:26,780 --> 02:00:30,269
+In which case we also consider
+that as failure and wait some more.
+
+1543
+02:00:30,679 --> 02:00:36,080
+So this waits until the state
+of the contract has told a just
+
+1544
+02:00:36,080 --> 02:00:37,990
+value and then returns that value.
+
+1545
+02:00:39,720 --> 02:00:40,150
+Right?
+
+1546
+02:00:40,180 --> 02:00:45,889
+So to go back to our simulator
+script, So we use this wait for last
+
+1547
+02:00:45,900 --> 02:00:49,260
+on the handle for the init contract.
+
+1548
+02:00:49,270 --> 02:00:52,990
+And if you remember the init contract
+in the last line, when we are done.
+
+1549
+02:00:53,010 --> 02:00:57,350
+We wrote the currency symbol of
+the USD token that we minted.
+
+1550
+02:00:58,100 --> 02:01:04,400
+So this means that this line will block
+until this init contract has done its job
+
+1551
+02:01:04,460 --> 02:01:08,970
+has minted the USD and has distributed
+the USD tokens to the other wallets.
+
+1552
+02:01:09,360 --> 02:01:13,330
+And then it will return the currency
+symbol, then there's another
+
+1553
+02:01:13,890 --> 02:01:15,520
+function called wait until finished.
+
+1554
+02:01:15,530 --> 02:01:18,850
+So we just wait until this
+init contract has finished.
+
+1555
+02:01:20,429 --> 02:01:24,959
+Now, next step is we start
+the oracle on wallet one.
+
+1556
+02:01:25,960 --> 02:01:29,909
+So it's again makes use of this
+data type I explained before.
+
+1557
+02:01:29,910 --> 02:01:35,480
+So given the currency symbol, we basically
+do run oracle where the O asset of
+
+1558
+02:01:35,480 --> 02:01:40,939
+the oracle params field now uses the
+CS that we got from the first step.
+
+1559
+02:01:41,620 --> 02:01:43,829
+So after this, the oracle should not run.
+
+1560
+02:01:44,150 --> 02:01:48,950
+So we log a message and here
+I'm using No, no, sorry.
+
+1561
+02:01:49,810 --> 02:01:50,820
+We don't log a message.
+
+1562
+02:01:51,080 --> 02:01:55,075
+The point is I need these handles
+in order to, from the outside world
+
+1563
+02:01:55,370 --> 02:01:57,730
+later, interact with these contracts.
+
+1564
+02:01:58,210 --> 02:02:02,059
+I need to get my hands on
+these these, these handles.
+
+1565
+02:02:02,870 --> 02:02:08,336
+So this cid contract identify oracle,
+I need that, because if I want to
+
+1566
+02:02:08,460 --> 02:02:12,849
+use the web interface later to talk
+to the contract, I need this cid.
+
+1567
+02:02:13,300 --> 02:02:17,820
+So what I do here is I write that
+into a file that I call oracle cid.
+
+1568
+02:02:18,519 --> 02:02:20,659
+So I just basically extract the...
+
+1569
+02:02:20,659 --> 02:02:29,799
+uuid that, that basically is this cid
+and write that into oracle cid file,
+
+1570
+02:02:30,210 --> 02:02:34,019
+that's just, I mean, this is of course
+quick and dirty in production code.
+
+1571
+02:02:34,020 --> 02:02:38,569
+You would probably use a safer mechanism,
+but this is just for demonstration.
+
+1572
+02:02:38,929 --> 02:02:44,129
+So we start the oracle, we get the handle to
+the contract and we write that into a file.
+
+1573
+02:02:44,790 --> 02:02:49,840
+And now I use my wait for last again,
+to actually get the oracle value.
+
+1574
+02:02:50,000 --> 02:02:53,100
+Remember in the run oracle contract,
+once we have the oracle, once we have
+
+1575
+02:02:53,100 --> 02:02:59,249
+minted the NFT, we tell this oracle
+value and I need that because the swap
+
+1576
+02:02:59,359 --> 02:03:01,800
+contract is parameterized by this value.
+
+1577
+02:03:02,020 --> 02:03:03,530
+So I use this wait for last again.
+
+1578
+02:03:03,530 --> 02:03:08,970
+So this will block until the NFTs minted,
+and I know what the oracle value is.
+
+1579
+02:03:08,970 --> 02:03:11,960
+And then I loop over all other wallets.
+
+1580
+02:03:11,969 --> 02:03:14,330
+So I exclude wallet one that runs to oracle.
+
+1581
+02:03:15,639 --> 02:03:19,219
+And activate the swap
+contract for that wallet.
+
+1582
+02:03:19,480 --> 02:03:22,678
+And I do a similar trick to here
+because I need those handles as well.
+
+1583
+02:03:22,678 --> 02:03:25,030
+So here I use the file oracle cid.
+
+1584
+02:03:25,559 --> 02:03:32,049
+And here I use files W wallet number dot
+cid to write the contract instance id cid.
+
+1585
+02:03:33,500 --> 02:03:34,269
+And that's it.
+
+1586
+02:03:34,270 --> 02:03:36,190
+So basically I have a file.
+
+1587
+02:03:36,320 --> 02:03:40,190
+I mean, produced initial funds
+started the oracle, started the
+
+1588
+02:03:40,280 --> 02:03:43,840
+swap contracts swap, swap contracts.
+
+1589
+02:03:44,929 --> 02:03:48,030
+Now I just basically block
+until the user presses enter
+
+1590
+02:03:48,429 --> 02:03:49,829
+and then I shut down the server.
+
+1591
+02:03:50,290 --> 02:03:54,950
+And actually it's not necessary to do
+all of this because you can also start
+
+1592
+02:03:54,980 --> 02:03:57,580
+instances from outside via the web interface.
+
+1593
+02:03:58,350 --> 02:04:03,239
+I just found it easier to do that, basically
+in a scripted way at least for this demo,
+
+1594
+02:04:03,639 --> 02:04:07,259
+but in principle, you don't need any of this,
+you just have to start the simulator, and
+
+1595
+02:04:07,330 --> 02:04:11,880
+then you could immediately basically wait
+until you shut down and you can do all the
+
+1596
+02:04:11,880 --> 02:04:18,139
+control, you can trigger starting contract
+instances and stopping them from the outside.
+
+1597
+02:04:19,280 --> 02:04:25,910
+And in case you are curious what API is
+provided by the PAB, what web API, you
+
+1598
+02:04:26,330 --> 02:04:29,547
+can check that in the Plutus PAB module in
+sorry, in the Plutus PAB package, in the
+
+1599
+02:04:29,547 --> 02:04:29,616
+module Plutus dot PAB dot web server dot API.
+
+1600
+02:04:29,616 --> 02:04:41,599
+And there are several
+ones, but the relevant one.
+
+1601
+02:04:42,530 --> 02:04:48,470
+Is this one, at least the one I'm using now,
+this what's called new API and there's also
+
+1602
+02:04:48,480 --> 02:04:51,205
+a web socket API, but I didn't play with it.
+
+1603
+02:04:51,290 --> 02:04:52,509
+So I haven't tried that.
+
+1604
+02:04:52,919 --> 02:04:54,849
+So I only worked with this one here.
+
+1605
+02:04:56,740 --> 02:04:57,809
+And I mean, this is...
+
+1606
+02:04:58,139 --> 02:05:05,160
+makes use of the very popular Haskell library
+servant to write type-safe web applications.
+
+1607
+02:05:05,800 --> 02:05:09,410
+But I think it should be readable more
+or less even if you don't know servant.
+
+1608
+02:05:09,780 --> 02:05:14,729
+So that's just mean, so the path
+is API slash news slash contract,
+
+1609
+02:05:15,150 --> 02:05:16,730
+and then you have various options.
+
+1610
+02:05:16,740 --> 02:05:18,830
+So this symbol here means alternative.
+
+1611
+02:05:19,500 --> 02:05:24,229
+So you have activate, you have
+instance, instances definitions.
+
+1612
+02:05:24,930 --> 02:05:30,090
+So for example, here, the first endpoint
+a web endpoint would be API slash
+
+1613
+02:05:30,590 --> 02:05:32,690
+new slash contract slash activate.
+
+1614
+02:05:33,570 --> 02:05:34,969
+It's a post request.
+
+1615
+02:05:36,249 --> 02:05:42,870
+And in its request body, it takes
+in json format contract activation
+
+1616
+02:05:42,930 --> 02:05:44,770
+arguments, whatever that is.
+
+1617
+02:05:45,980 --> 02:05:49,280
+And it will return a contract instance ID.
+
+1618
+02:05:49,390 --> 02:05:53,770
+So that's what I said you, instead of
+doing it in the simulation monad, you could
+
+1619
+02:05:53,770 --> 02:05:59,200
+also have done it via the web interface
+to actually start a contract instance.
+
+1620
+02:05:59,469 --> 02:06:06,030
+But I didn't try that out, then
+for, if you're using instead API
+
+1621
+02:06:06,400 --> 02:06:10,950
+new contract instance, and then the
+instance ID, that's what I need.
+
+1622
+02:06:10,950 --> 02:06:12,679
+That's what I wrote in these files.
+
+1623
+02:06:13,799 --> 02:06:15,199
+Then you'll have various options.
+
+1624
+02:06:15,210 --> 02:06:18,259
+For example, status gives you
+the status of the contract.
+
+1625
+02:06:19,420 --> 02:06:26,430
+endpoint allows you to call endpoints,
+so endpoint, endpoint name, post, request
+
+1626
+02:06:26,530 --> 02:06:31,000
+weather parameters for the endpoint are
+provided as json and the request body.
+
+1627
+02:06:31,220 --> 02:06:34,980
+And you can also stop a contract instance.
+
+1628
+02:06:35,750 --> 02:06:40,490
+And then there are other ways, here for
+example, for given a specific wallet,
+
+1629
+02:06:40,830 --> 02:06:46,150
+you can check all the contract instances
+that are running on this wallet or you
+
+1630
+02:06:46,150 --> 02:06:50,610
+can get all the instances overall that
+are running in the system and some
+
+1631
+02:06:50,639 --> 02:06:52,950
+definitions, but I also haven't tried that.
+
+1632
+02:06:53,180 --> 02:06:58,130
+So all I'm using in this
+demo is status an endpoint.
+
+1633
+02:06:58,130 --> 02:07:03,730
+So endpoint to, to call an endpoint
+and status, to get feedback from the
+
+1634
+02:07:03,730 --> 02:07:07,600
+contract to read the, of what I wrote
+with tell to read that out again.
+
+1635
+02:07:08,740 --> 02:07:10,090
+So let's actually try it.
+
+1636
+02:07:10,150 --> 02:07:14,990
+This is now an executable and I can just
+run it, so I can use cabal run and the name
+
+1637
+02:07:14,990 --> 02:07:17,730
+of the executable, which was oracle PAB.
+
+1638
+02:07:21,760 --> 02:07:26,069
+And we get log output similar to what
+we get when we do the emulator trace.
+
+1639
+02:07:26,090 --> 02:07:31,769
+But this is now a running executable
+in IO that set up a live server.
+
+1640
+02:07:32,500 --> 02:07:41,180
+So if we scroll up, so this is probably
+to mint this USD token, and then we later
+
+1641
+02:07:41,410 --> 02:07:46,939
+mint this oracle NFT and so on, and we
+see that here, for example, an instance.
+
+1642
+02:07:47,559 --> 02:07:55,030
+So this is the oracle, so on
+activated instance on W1, wallet one.
+
+1643
+02:07:55,389 --> 02:07:59,480
+And this is this contract instance
+idea is talking about that we need
+
+1644
+02:08:00,139 --> 02:08:02,990
+as parameters to our HTTP endpoints.
+
+1645
+02:08:03,830 --> 02:08:09,850
+If we want to interact with this specific
+instance, and then further down here,
+
+1646
+02:08:09,850 --> 02:08:14,810
+these four are the other wallets W
+two, three, four, and five that now
+
+1647
+02:08:14,820 --> 02:08:16,509
+activate that the swap instances.
+
+1648
+02:08:21,150 --> 02:08:22,673
+Let me stop that quickly.
+
+1649
+02:08:23,671 --> 02:08:29,830
+If we just look in the directory, we see
+these files that the script now wrote out.
+
+1650
+02:08:29,970 --> 02:08:38,269
+So for example, if you checked the W
+five cid, that should be the same number
+
+1651
+02:08:38,269 --> 02:08:40,420
+that we see here in the log, and it is.
+
+1652
+02:08:41,740 --> 02:08:46,260
+So I just, as I said, wrote that in the file
+so that's easy for me to, to then use that
+
+1653
+02:08:46,640 --> 02:08:52,839
+to interact with these instances and I could
+in principle, and I would demonstrate that,
+
+1654
+02:08:52,840 --> 02:08:55,940
+but the lecture is very very long already.
+
+1655
+02:08:55,940 --> 02:09:01,599
+So I think I won't do that, but I could
+just use any tool now, for example, curl
+
+1656
+02:09:01,600 --> 02:09:09,740
+or wget or even the browser for the get
+requests to just check at the correct port.
+
+1657
+02:09:09,830 --> 02:09:13,839
+I think that's 8080 that should
+say source here somewhere.
+
+1658
+02:09:14,620 --> 02:09:20,110
+Yes, so starting PAB backend server on
+port 8080, so I can just go to 8080 and
+
+1659
+02:09:20,340 --> 02:09:29,669
+then use any tool I like to interact with
+these HTTP endpoints, but instead I like
+
+1660
+02:09:29,670 --> 02:09:33,010
+wrote little demo programs that do that.
+
+1661
+02:09:33,010 --> 02:09:38,299
+And of course, because it's just a
+rest API, HTTP endpoints, you can use
+
+1662
+02:09:38,300 --> 02:09:41,190
+whatever programming language you like.
+
+1663
+02:09:42,360 --> 02:09:46,490
+I of course use Haskell because Haskell is
+my favorite language, but you could also
+
+1664
+02:09:46,550 --> 02:09:52,049
+use whatever you want, Python or Java or
+JavaScript, or as I said, curl and bash.
+
+1665
+02:09:53,840 --> 02:09:57,180
+So let's just look at first oracle client.
+
+1666
+02:09:57,450 --> 02:10:00,889
+And I don't want to go into detail
+here because I mean, the point is not
+
+1667
+02:10:00,900 --> 02:10:03,389
+to show you how to write a front-end.
+
+1668
+02:10:03,969 --> 02:10:05,729
+Just give you the general idea.
+
+1669
+02:10:07,030 --> 02:10:11,910
+So actually I'm using a Haskell
+library called REQ or req,
+
+1670
+02:10:12,150 --> 02:10:16,799
+request to do these requests.
+
+1671
+02:10:18,170 --> 02:10:25,279
+So, what I do in the main program
+is, I read this file to get the
+
+1672
+02:10:25,290 --> 02:10:31,580
+uuid that has the correct instance,
+just log that and then go to go.
+
+1673
+02:10:31,850 --> 02:10:36,200
+And this loops forever and what it
+does it, looks up the current exchange
+
+1674
+02:10:36,200 --> 02:10:42,599
+rate, ADA, USD on coin market cap,
+checks whether that has changed.
+
+1675
+02:10:42,610 --> 02:10:46,769
+So this parameter here is the old value
+that starts with nothing in the beginning,
+
+1676
+02:10:46,770 --> 02:10:49,420
+I don't have any, so then it checks the
+new exchanged rate and if this exchange
+
+1677
+02:10:51,460 --> 02:10:53,840
+rate has changed, it calls update oracle.
+
+1678
+02:10:53,840 --> 02:10:58,390
+We'll get to that in a second, so that
+calls the update oracle endpoint on
+
+1679
+02:10:58,390 --> 02:11:00,379
+our contract that we defined before.
+
+1680
+02:11:00,949 --> 02:11:03,860
+Then it waits for five seconds and loops.
+
+1681
+02:11:04,309 --> 02:11:08,010
+This is of course arbitrary, I
+don't know whether coin market cap
+
+1682
+02:11:08,160 --> 02:11:09,730
+does some sort of rate throttling.
+
+1683
+02:11:09,860 --> 02:11:13,849
+So I didn't want to risk being
+bent for having too many requests.
+
+1684
+02:11:14,360 --> 02:11:18,260
+So I just did it five seconds, in
+reality seeing as blocks on Cardano
+
+1685
+02:11:18,260 --> 02:11:22,279
+only appear every 30 seconds on average,
+probably even five seconds is too
+
+1686
+02:11:22,279 --> 02:11:24,990
+much and should rather be 30 seconds.
+
+1687
+02:11:25,370 --> 02:11:31,240
+But anyway, so this oracle, update oracle is
+now the interesting one where I demonstrate
+
+1688
+02:11:31,240 --> 02:11:33,210
+how to interact with the running contract.
+
+1689
+02:11:33,740 --> 02:11:38,969
+So this stuff here is just
+comes from this req package.
+
+1690
+02:11:38,969 --> 02:11:42,160
+So that's not important, but
+basically the essence of what I'm
+
+1691
+02:11:42,160 --> 02:11:44,509
+doing is I prepare a post request.
+
+1692
+02:11:45,100 --> 02:11:48,040
+So I go to my local server.
+
+1693
+02:11:49,380 --> 02:11:51,290
+With this endpoint we just saw.
+
+1694
+02:11:51,300 --> 02:11:56,570
+In the API model, so API new
+contract instance, then the
+
+1695
+02:11:56,570 --> 02:11:58,559
+next parameter is this uuid.
+
+1696
+02:11:58,559 --> 02:12:03,190
+So I just converted to text
+then endpoint, the name of the
+
+1697
+02:12:03,190 --> 02:12:05,260
+endpoint was, which was update.
+
+1698
+02:12:05,960 --> 02:12:11,070
+And now I must provide the request
+body in json format of the value I
+
+1699
+02:12:11,090 --> 02:12:13,570
+want to update to that is this X.
+
+1700
+02:12:14,389 --> 02:12:19,930
+And this just says that I expect a json
+format response, and this gives the port.
+
+1701
+02:12:20,730 --> 02:12:25,509
+And then if that goes well, sort
+of the status code to 100, I
+
+1702
+02:12:25,519 --> 02:12:27,740
+just log a message accordingly.
+
+1703
+02:12:27,880 --> 02:12:28,540
+And that's it.
+
+1704
+02:12:29,110 --> 02:12:31,120
+And as I said the details don't matter.
+
+1705
+02:12:31,120 --> 02:12:33,489
+You can do that in the programming
+language of your choice.
+
+1706
+02:12:33,490 --> 02:12:36,820
+It's just a plain old when
+they learn HTTP endpoint.
+
+1707
+02:12:37,450 --> 02:12:42,460
+And this here is it's very, my very
+quick and dirty way to get the actual ADA
+
+1708
+02:12:42,620 --> 02:12:45,200
+USD exchange rate from coin market cap.
+
+1709
+02:12:45,700 --> 02:12:51,320
+I, of course they also provide a proper
+API, but I just basically get the whole
+
+1710
+02:12:51,320 --> 02:12:58,050
+website for currencies Cardano and then use
+a regular expression, which of course is very
+
+1711
+02:12:58,050 --> 02:13:03,670
+fragile and would never work as production
+code just to, to grab the exchange rate.
+
+1712
+02:13:03,710 --> 02:13:06,649
+And basically that's it.
+
+1713
+02:13:06,940 --> 02:13:12,710
+And then I just multiply it one by
+1,000,000 and rounded to get this integer
+
+1714
+02:13:12,920 --> 02:13:15,120
+value you want to use and log a message.
+
+1715
+02:13:15,810 --> 02:13:17,200
+So we can try that out.
+
+1716
+02:13:17,300 --> 02:13:20,139
+Let me just run a start the PAB again.
+
+1717
+02:13:23,010 --> 02:13:25,110
+Wait until the oracle start it.
+
+1718
+02:13:28,840 --> 02:13:29,829
+The funds are distributed.
+
+1719
+02:13:30,039 --> 02:13:30,309
+Okay.
+
+1720
+02:13:30,309 --> 02:13:31,860
+So now everything should be running.
+
+1721
+02:13:32,760 --> 02:13:41,129
+And let me just go to another terminal
+window and I run the second executable
+
+1722
+02:13:41,469 --> 02:13:43,460
+that I just showed you, the oracle client.
+
+1723
+02:13:44,990 --> 02:13:45,309
+Okay.
+
+1724
+02:13:45,309 --> 02:13:50,160
+Now it's a, when to corn market, Kevin,
+it seems right now the exchange rate
+
+1725
+02:13:50,160 --> 02:13:57,910
+is 1 dollar 75 and now I call update
+oracle with this 1,750,000 value.
+
+1726
+02:13:58,290 --> 02:14:04,429
+If you switch back to where the PAB runs, we
+see that we also get log messages for this.
+
+1727
+02:14:04,639 --> 02:14:09,570
+So this update transaction that
+updates the oracle UTxO has actually
+
+1728
+02:14:09,570 --> 02:14:11,250
+been received and processed.
+
+1729
+02:14:11,950 --> 02:14:18,030
+And we also get the correct log message
+that we saw earlier in the core module that
+
+1730
+02:14:18,040 --> 02:14:21,929
+the initial oracle value was set to 1.75.
+
+1731
+02:14:22,750 --> 02:14:26,740
+Now, of course I have no
+control over the exchange rate.
+
+1732
+02:14:27,440 --> 02:14:31,440
+So I don't know whether this will
+change from 1.75 anytime soon.
+
+1733
+02:14:32,730 --> 02:14:36,920
+Maybe we wait for that, we look
+at the swap client, which is very
+
+1734
+02:14:36,929 --> 02:14:41,539
+similar so that can actually, sorry.
+
+1735
+02:14:41,639 --> 02:14:51,040
+So that uses the same technique,
+same req library to handle HTTP.
+
+1736
+02:14:51,040 --> 02:14:56,250
+And the idea is I just want to offer
+a very simple console interface.
+
+1737
+02:14:56,259 --> 02:14:58,370
+So I didn't bother with
+graphics or a nice web UI.
+
+1738
+02:14:59,150 --> 02:15:00,409
+It's just console based.
+
+1739
+02:15:00,830 --> 02:15:03,810
+So the idea is I just want to
+offer these four possibilities.
+
+1740
+02:15:03,810 --> 02:15:06,990
+You can make an offer, you can
+retrieve, you can use, or you can
+
+1741
+02:15:06,990 --> 02:15:08,830
+check your funds and it loops forever.
+
+1742
+02:15:09,740 --> 02:15:12,370
+So I don't have to go into that in detail.
+
+1743
+02:15:12,730 --> 02:15:13,550
+Same thing here.
+
+1744
+02:15:13,559 --> 02:15:13,929
+I...
+
+1745
+02:15:14,200 --> 02:15:18,610
+well, one difference is I actually provide
+the command line parameter because I want
+
+1746
+02:15:18,610 --> 02:15:20,620
+to run this clients for different wallets.
+
+1747
+02:15:21,060 --> 02:15:25,980
+So I provide the wallet number
+as a command line parameter.
+
+1748
+02:15:26,900 --> 02:15:33,210
+Then I read the correct uuid from the file
+and log something and then loop forever.
+
+1749
+02:15:33,210 --> 02:15:37,770
+And this loop, all it does is it
+just parses this command that I
+
+1750
+02:15:37,770 --> 02:15:42,310
+enter by a text from the console and
+then calls the appropriate endpoint.
+
+1751
+02:15:44,010 --> 02:15:46,450
+And this endpoint calling is defined here.
+
+1752
+02:15:46,450 --> 02:15:53,750
+And it's basically always the same,
+always the same thing, for example,
+
+1753
+02:15:53,859 --> 02:15:58,730
+for get funds, we want information
+out of, out of the web interface.
+
+1754
+02:15:58,730 --> 02:16:02,628
+So we must use this status status endpoint.
+
+1755
+02:16:03,138 --> 02:16:03,488
+So we...
+
+1756
+02:16:04,248 --> 02:16:04,658
+no, sorry.
+
+1757
+02:16:04,677 --> 02:16:07,830
+We call first, we call
+the the funds endpoint.
+
+1758
+02:16:09,309 --> 02:16:13,160
+And then remember in the funds endpoint
+in the swap contract, what it did, it
+
+1759
+02:16:13,250 --> 02:16:15,900
+checks its own funds and then tells them.
+
+1760
+02:16:16,480 --> 02:16:18,349
+So here we checked them.
+
+1761
+02:16:18,640 --> 02:16:23,750
+And now we do a second request
+where we use the status endpoint
+
+1762
+02:16:24,330 --> 02:16:26,990
+to get the status of that instance.
+
+1763
+02:16:27,860 --> 02:16:32,210
+And then we basically can extract
+the observable state from that.
+
+1764
+02:16:32,490 --> 02:16:41,049
+So we just have to, so we get the
+response body then have to play cic
+
+1765
+02:16:41,049 --> 02:16:46,499
+current state and then observable
+state, and then parse it from json.
+
+1766
+02:16:46,499 --> 02:16:51,370
+And if all goes well, then finally we
+get our value that the contract totaled.
+
+1767
+02:16:52,360 --> 02:16:58,190
+So that's how you get information back out
+of a contract and offer, the others are
+
+1768
+02:16:58,200 --> 02:17:02,469
+simpler because we don't need information
+out, so we only have to do one request,
+
+1769
+02:17:03,129 --> 02:17:07,230
+we call the appropriate endpoint that we
+defined earlier in the contract monad.
+
+1770
+02:17:08,780 --> 02:17:12,070
+So this is for offer, this is
+for retrieve and this is for use.
+
+1771
+02:17:12,620 --> 02:17:15,929
+And once again, the details here don't
+matter, you just need the programming
+
+1772
+02:17:15,929 --> 02:17:20,599
+language of your choice that allows you
+to do post requests and get requests
+
+1773
+02:17:20,599 --> 02:17:23,359
+and handle the request bodies and so on.
+
+1774
+02:17:25,240 --> 02:17:27,709
+So let's see whether the
+exchange rate has changed.
+
+1775
+02:17:27,740 --> 02:17:30,180
+No, it's still 1.75.
+
+1776
+02:17:31,170 --> 02:17:33,459
+So we are still at our initial value.
+
+1777
+02:17:34,929 --> 02:17:37,399
+But nevertheless, let's
+start this client as well.
+
+1778
+02:17:38,629 --> 02:17:45,930
+So cabal run swap client, and you pass
+command line, if you use cabal run and
+
+1779
+02:17:46,219 --> 02:17:50,050
+command line parameters, you have to
+do double dash and then the parameters.
+
+1780
+02:17:50,070 --> 02:17:55,349
+So this will execute this executable
+I just showed you for wallet two.
+
+1781
+02:17:55,690 --> 02:17:56,570
+So let's do that.
+
+1782
+02:17:57,089 --> 02:18:01,300
+And let's also do it for wallet three.
+
+1783
+02:18:03,340 --> 02:18:03,620
+Okay.
+
+1784
+02:18:03,620 --> 02:18:07,550
+And now I have this, this
+primitive console interface.
+
+1785
+02:18:07,750 --> 02:18:13,919
+So now I can issue these command and actually
+I forgot, I just see that I missed the funds
+
+1786
+02:18:13,919 --> 02:18:19,720
+here, so I not only have offer retrieve and
+use I also have funds so I could change that.
+
+1787
+02:18:19,830 --> 02:18:20,320
+Of course.
+
+1788
+02:18:31,590 --> 02:18:31,940
+Okay.
+
+1789
+02:18:35,059 --> 02:18:36,429
+Let's try that again.
+
+1790
+02:18:36,730 --> 02:18:39,339
+If we get the proper help message,
+
+1791
+02:18:42,600 --> 02:18:44,890
+it's either the no exchange rate.
+
+1792
+02:18:44,920 --> 02:18:46,270
+Ah, now it just changed.
+
+1793
+02:18:46,280 --> 02:18:55,379
+So now it changed from 1.75 to 1.76 and we
+call the update endpoint on our contract.
+
+1794
+02:18:55,389 --> 02:18:59,960
+And if we switched back to the
+PAB, now we see a log message here
+
+1795
+02:18:59,960 --> 02:19:03,139
+that updated oracle value to 1.76.
+
+1796
+02:19:04,020 --> 02:19:11,329
+So now the UTxO on the blockchain changed
+from having 1,750,000 to 1,760,000.
+
+1797
+02:19:13,070 --> 02:19:13,309
+Okay.
+
+1798
+02:19:13,410 --> 02:19:15,019
+Now we should be able to try it.
+
+1799
+02:19:15,020 --> 02:19:18,839
+So this is now wallet two, let's
+start with the funds command.
+
+1800
+02:19:20,299 --> 02:19:20,650
+Okay.
+
+1801
+02:19:20,650 --> 02:19:22,410
+And I still have on my initial funds.
+
+1802
+02:19:22,410 --> 02:19:25,270
+So hundred USD one hundred ADA.
+
+1803
+02:19:25,940 --> 02:19:28,399
+I can do that for the other wallet as well.
+
+1804
+02:19:31,589 --> 02:19:32,119
+Great.
+
+1805
+02:19:37,180 --> 02:19:41,230
+But anyway, so same thing
+here, 100 USD 100 ADA.
+
+1806
+02:19:41,459 --> 02:19:46,090
+Now let's switch back to wallet
+two and let's offer a swap.
+
+1807
+02:19:46,119 --> 02:19:50,630
+So offer let's say 10 ADA.
+
+1808
+02:19:50,710 --> 02:19:53,900
+So ten, one, two, three, one, two, three.
+
+1809
+02:19:56,280 --> 02:20:00,300
+Now if I call funds again,
+there's a difference.
+
+1810
+02:20:00,300 --> 02:20:04,059
+So I still have all my USD
+but now I have 10 ADA less.
+
+1811
+02:20:04,080 --> 02:20:08,210
+And the bid for the transaction fee,
+if he switched back to the PAB, we
+
+1812
+02:20:08,480 --> 02:20:10,279
+should see that something happened here.
+
+1813
+02:20:10,420 --> 02:20:14,340
+So a couple of own fund endpoints
+were called and we get these log
+
+1814
+02:20:14,740 --> 02:20:16,420
+messages that the offer was made.
+
+1815
+02:20:17,240 --> 02:20:19,399
+Let's just check what the
+current exchange rate is.
+
+1816
+02:20:19,400 --> 02:20:19,590
+Okay.
+
+1817
+02:20:19,590 --> 02:20:20,520
+It's still 1.76.
+
+1818
+02:20:20,900 --> 02:20:25,779
+So if I now go to the other wallet
+to wallet three and call use.
+
+1819
+02:20:26,310 --> 02:20:33,070
+I should be able to exchange
+those 10 ADA for 17 dollars 60.
+
+1820
+02:20:33,250 --> 02:20:33,829
+Let's see.
+
+1821
+02:20:36,219 --> 02:20:36,929
+Okay.
+
+1822
+02:20:37,520 --> 02:20:39,439
+Now let's check the funds here.
+
+1823
+02:20:41,369 --> 02:20:41,709
+Okay.
+
+1824
+02:20:41,709 --> 02:20:45,953
+That hasn't updated yet,
+sorry, it takes a while.
+
+1825
+02:20:46,120 --> 02:20:47,440
+Okay, now it has updated.
+
+1826
+02:20:48,080 --> 02:20:51,660
+So now I have more ADA.
+
+1827
+02:20:51,700 --> 02:20:58,219
+I got the, well, the swap was 10 ADA,
+so I got the 10 but in order to use the
+
+1828
+02:20:58,219 --> 02:21:01,050
+oracle, I had to pay one ADA oracle fee.
+
+1829
+02:21:01,120 --> 02:21:04,870
+So that's why I only have nine and
+I have a little bit less because I
+
+1830
+02:21:04,890 --> 02:21:06,960
+had to pay transaction fees as well.
+
+1831
+02:21:07,580 --> 02:21:12,649
+And in exchange, I had to pay 17 dollars 60.
+
+1832
+02:21:13,440 --> 02:21:19,110
+Now, if we switch to the original wallet
+that did the swap and do funds, then
+
+1833
+02:21:19,110 --> 02:21:20,619
+hopefully that will have changed as well.
+
+1834
+02:21:24,150 --> 02:21:24,640
+Right.
+
+1835
+02:21:24,829 --> 02:21:28,459
+So that now got the 17.60 dollars.
+
+1836
+02:21:28,990 --> 02:21:33,079
+So the swap is compete and the correct
+value of the exchange rate, the actual
+
+1837
+02:21:33,189 --> 02:21:39,360
+live right now exchange rate USD to
+ADA was used, which was injected into
+
+1838
+02:21:39,460 --> 02:21:43,310
+the mock blockchain via my oracle.
+
+1839
+02:21:44,300 --> 02:21:52,609
+So now we have seen end to end example
+of a Plutus Dapp from front-end.
+
+1840
+02:21:52,609 --> 02:21:59,200
+So it talks to the outside world goes on the
+internet, gets information interacts with
+
+1841
+02:21:59,880 --> 02:22:06,165
+Plutus smart contracts, which then submit
+certain transactions to the blockchain.
+
+1842
+02:22:06,410 --> 02:22:10,439
+And then on the blockchain, the validation
+logic clicks in and makes sure that
+
+1843
+02:22:10,440 --> 02:22:12,640
+everything follows the business rules.
+
+1844
+02:22:13,109 --> 02:22:17,600
+So this is a complete walk through
+from on-chain code over off-chain
+
+1845
+02:22:17,600 --> 02:22:21,090
+code over PAB code to front-end.
+
+1846
+02:22:22,260 --> 02:22:25,750
+And as I said, it's very similar to
+what the real system will look like.
+
+1847
+02:22:26,360 --> 02:22:31,760
+At least in the beginning, until we have
+like a browser based way to, to interact
+
+1848
+02:22:31,770 --> 02:22:35,880
+with Plutus, the only difference of
+course is because now it's a mockchain.
+
+1849
+02:22:36,050 --> 02:22:39,970
+I only have one instance of the
+PAB running and all my simulated
+
+1850
+02:22:39,980 --> 02:22:43,870
+wallets use the same server, which of
+course in real life would be silly.
+
+1851
+02:22:44,380 --> 02:22:48,670
+So obviously different wallets will
+have different instances of PAB running.
+
+1852
+02:22:49,150 --> 02:22:53,560
+But now it has to be one instance because
+this, I mean, otherwise, because there's
+
+1853
+02:22:53,560 --> 02:22:58,760
+no real blockchain, so there's this one PAB
+instance holds the simulated blockchain.
+
+1854
+02:22:59,679 --> 02:23:03,579
+So this is slightly different, but if you
+squint a bit and, and forget about that
+
+1855
+02:23:04,510 --> 02:23:09,730
+it's almost exactly end to end how the
+real system will work in the beginning.
+
+1856
+02:23:11,280 --> 02:23:13,340
+This was a very long lecture.
+
+1857
+02:23:13,390 --> 02:23:17,250
+So congratulations to all
+that made it to this point.
+
+1858
+02:23:18,340 --> 02:23:24,109
+And I'm sorry about that, but I really
+want to honor your request to talk about
+
+1859
+02:23:24,109 --> 02:23:30,160
+oracles and to provide an overview of how
+an end to end Plutus application works.
+
+1860
+02:23:30,780 --> 02:23:34,880
+And unfortunately, that required
+me to talk about lots of things.
+
+1861
+02:23:36,690 --> 02:23:42,340
+So I think because the lecture was long,
+I don't want to post specific homework.
+
+1862
+02:23:42,950 --> 02:23:47,949
+I think what you should do is
+try to get this demo running.
+
+1863
+02:23:47,950 --> 02:23:51,699
+So run all these executables and see
+whether it works for you and play
+
+1864
+02:23:51,700 --> 02:23:57,709
+a bit with the UI and issue various
+commands from various wallets.
+
+1865
+02:23:58,170 --> 02:24:03,980
+And then of course, if you are ambitious,
+you can improve this in various directions.
+
+1866
+02:24:04,290 --> 02:24:10,040
+So you could, for example, write
+different front-ends either in different
+
+1867
+02:24:10,040 --> 02:24:16,329
+programming languages or also in Haskell
+but offering different features like a
+
+1868
+02:24:16,520 --> 02:24:21,370
+nicer graphical UI or whatever, or you
+could also make the oracle more secure.
+
+1869
+02:24:21,370 --> 02:24:22,150
+I mentioned before.
+
+1870
+02:24:22,150 --> 02:24:27,410
+One way to not have to rely on one trusted
+party would be to have several oracles.
+
+1871
+02:24:28,550 --> 02:24:34,509
+You could imagine having three wallets
+running oracles and have using different
+
+1872
+02:24:34,520 --> 02:24:38,715
+front-ends, so maybe one wallet uses
+data from coin market cap and the other
+
+1873
+02:24:38,870 --> 02:24:41,390
+two use data from different sources.
+
+1874
+02:24:41,900 --> 02:24:45,820
+And then in the swap contract,
+instead of requiring just the
+
+1875
+02:24:45,820 --> 02:24:48,500
+one UTxO, the oracle UTxO in...
+
+1876
+02:24:50,030 --> 02:24:54,890
+as input to a swap transaction, you could
+require all three oracles to be present
+
+1877
+02:24:54,930 --> 02:24:59,500
+and then decide on some way to get the
+value out of those three, for example,
+
+1878
+02:24:59,540 --> 02:25:02,859
+throwing away the min and the max and
+just keeping the one in the middle.
+
+1879
+02:25:04,989 --> 02:25:10,320
+That of course would be a lot of work, but it
+also would make this a much more realistic.
+
+1880
+02:25:10,570 --> 02:25:13,900
+So there are various ways you could
+improve that, or you could support more
+
+1881
+02:25:13,900 --> 02:25:15,529
+than just one token, more than just USD.
+
+1882
+02:25:17,370 --> 02:25:21,690
+So I just recommend playing a
+bit with it and modifying it.
+
+1883
+02:25:21,770 --> 02:25:23,319
+If you, if you feel like it.
+

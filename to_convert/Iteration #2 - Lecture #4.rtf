@@ -1,0 +1,544 @@
+{\rtf1\ansi\deff0
+\margl1800\margr1800\margb1440\margt1440\deflang1033\lndscpsxn
+{\colortbl;
+}
+{\fonttbl;
+{\f0 Arial}
+}
+{\pard  \line \par}
+{\b\fs36 [00:00:00] 0401 Introduction\b0}
+{\pard  \line \par}
+{We have spent the last two lectures talking about the on-chain part of Plutus, the validation logic that is compiled to Plutus script and actually lives on the blockchain and then is executed by nodes that validate a transaction. And there's a lot more to say about the on-chain part. We haven't looked at more complex examples of validation yet that make more sophisticated use of the context and actually look at the inputs and outputs of the transaction.}
+{\pard  \line \par}
+{And we haven't seen how native tokens work yet. So Plutus script is also used to validate the minting and burning of native tokens. And we'll definitely have to talk about those topics and come back to that. However, before we go into too many sophisticated topics of on-chain validation, I don't want to neglect the off-chain part because that's equally important.}
+{\pard  \line \par}
+{The on-chain part takes care of validation but in order to, for there to be something to be validated, we must build these transactions and submit them to the blockchain. And that's what the off-chain part does. So I want to start talking about how to write off-chain Plutus code in this lecture.}
+{\pard  \line \par}
+{And unfortunately there is a slight problem concerning the Haskell features needed. So the on-chain part that we have seen so far is somewhat alien and need some time to get used to due to the fact that we have this compilation to Plutus script, but we don't really have to worry about that, if we accept that there's this template Haskell metric, the validation function is just a plain Haskell function.}
+{\pard  \line \par}
+{And it's actually a very simple Haskell function from the technical point of view. We don't use any fancy Haskell features to write this function. And one of the reasons for that is the way Plutus compilation works. I explained that, in principle, in these template Haskell quotes, we need to have everything, all the code inside these quotes, and we can get around that using this inline Pragma, but that still means that everything we want to use all the helper functions or combinators we want to use, must have this inline PragmA and Because the standard Haskell libraries don't have it, we have the Plutus prelude, for example, that is like a copy or it's similar to the Haskell standard prelude but it adds these inline pragmas to all the functions in there so that we can use them in validation code that gets compiled to Plutus script. But of course they are hundreds of thousands of Haskell libraries out there.}
+{\pard  \line \par}
+{And most of them didn't ever written with Plutus in mind. So we can't use them inside validation. And that has the effect that the Haskell code insight validation will be relatively simple and not have many dependencies. So it's really just a plain old Haskell function. It gets these three arguments, the datum, the redeemer and the context and returns a boolean. Or maybe a fourth argument if you parameterize a contract. }
+{\pard  \line \par}
+{And somehow in the off-chain part of Plutus, the situation also reversed. We don't have to worry about compilation, nothing gets compailed to Plutus script, it's just Haskell. So we just write plain old Haskell in the off-chain part, but the flip side is that the way this is implemented, the way that works use as much more sophisticated Haskell features, quite advanced Haskell features,}
+{\pard  \line \par}
+{so-called effect systems and streaming and in particular, monads. So, all the wallet code, the off-chain code is written in a special monad called the contract monad. }
+{\pard  \line \par}
+{And monads are very infamous in the Haskell world. They are normally the first stumbling block for beginners, for people that are new to Haskell. And there are a lot of tutorials out there that try to explain monads. Monads get compared to burritos and all sorts of metaphors to try to explain the concept. But I thought I should at least try to give a crash course in monad for those of you that, that are new to Haskell. And I do realize that will be a bit boring from... for people that are already familiar with Haskell, but you can just skip ahead until I get to the actual contract monad that is relevant for the wallet. So I want to start with a brief, quick introduction to monads.}
+{\pard  \line \par}
+{\b\fs36 [00:05:05] 0402 Monads \b0}
+{\pard  \line \par}
+{Before I get to general monads, I want to start with IO. So how IO side-effects are handled in Haskell. And before we get to Haskell, let's look at a mainstream language like Java, and imagine we have a Java method with this signature.}
+{\pard  \line \par}
+{With this signature, a Java method foo that doesn't take an Argument and returns an int. And somewhere in the code later we use it, maybe we use it twice. }
+{\pard  \line \par}
+{So in Java, this call of the first call of foo and the second call of foo can very vary result in different Integers. Even though there is no argument, as long as we don't know what these "..." do.}
+{\pard  \line \par}
+{We have no way of saying that this and this will result in the same. And why? Because in Java it's perfectly possible that some IO happens here inside the body of the foo method.}
+{\pard  \line \par}
+{For example, inside the body that could be code that, asks the user to input an integer on the console and then returns it. So if you call it here and then again here. Maybe at those two occasions, the user provides a different integer from the terminal and we get different results. And that also means that we really have to look at the code of this function in order to understand it, or in order to reason about it. Which makes testing, for example, more difficult.}
+{\pard  \line \par}
+{And it also means that, I mean, if we evaluate it here and for example, get the result 13. We can replace all other occurrences of foo, of invocation of foo, with the number 13, because as I said, maybe it wouldn't always result in 13. That can be something like console input here, or it could carry a website or a database, for example.}
+{\pard  \line \par}
+{And that could change between different invocations of foo. Now in Haskell the situation is very different because Haskell is a pure functional language. So the equivalent signature in Haskell would be something like, foo type int. And, if then we have the same situation that we encounter foo twice, then... I don't know what the value of foo is, but if, for example, I see that here it is 13, then I can be sure that here it will also be 13. And I don't have to look at the dots in order to know that. I don't care what happens here. I know that if I use the same thing twice, it will have the same value. And that's a very important feature that's called referential transparency. And that's a feature that Haskell has. Actually I'm lying, there are ways there are like escape hatches to get around it, but, we can ignore that. So the vast majority of Haskell programs, something like this, we have a fixed value and that value can't never change.}
+{\pard  \line \par}
+{And you can rely on that fact. That for example, makes refactoring very easy because I can just replace foo everywhere by 13, or I could do something like, let X equals foo in and then do the same code as before now with this local variable X. And I guarantee that this term in line 15 and the term in line 14 will have exactly the same behavior semantics value. And that's this referential, transparency.}
+{\pard  \line \par}
+{So that's a very nice feature, It makes many things, much nicer in Haskell than other languages. Also, for example, testing, because it means if I have something like that in order to test it, I must just check that the test, the right value, this value can't change. So if I have, I mean, this is, no, it doesn't take any arguments, but if I had an Argument, then I just have to, I know that if I plug in the, if I call foo with the same argument, I will always get the same result. Which is not true in a Java function, because side-effects can happen. So that is very nice and all very well. But of course you need side-effects to have an effect on the world. Otherwise, all your program does is heat up the processor. So you need input and you need output. you must make things happen in the world, I mean, must write results on the screen or read input from the terminal or from a network connection or from a file.}
+{\pard  \line \par}
+{If you can't do that, then, your program is useless. It doesn't do anything. There's a famous video by Simon Peyton Jones on YouTube, that's called Haskell is useless. And that is about this thing that it's beautiful mathematically to have a pure side-effect free language, but eventually in the end you do need side-effects to make anything happen.}
+{\pard  \line \par}
+{And of course, Haskell has way to deal with side-effects. And that is the so-called IO type constructor or IO Monad but don't worry about the monad right now. So the equivalent of something like that in Java, in Haskell would be foo of type not int, but IO int.}
+{\pard  \line \par}
+{So IO is type constructor, that takes one argument. Like maybe for example, maybe it's another example of type constructor with one argument or list is yet another example. So IO is one of these type constructors and IO is special in the sense that you can't implement it in the language itself.}
+{\pard  \line \par}
+{So it's a built in primitive. And, what does this mean? What does this type IO int mean, it means, this is a action or a recipe. To compute an int and this computation can invoke side-effects. So you can think of it like a cooking recipe or a baking recipe. So it's like a list of instructions, what a computer should do to end up with an int in the end, as a result.}
+{\pard  \line \par}
+{So this type IO int is a computation that can have side-effects and results in int. However, it's important to notice that referential transparency is not broken with this. IO. So it's a recipe to produce an int, but when I evaluate this foo, the recipe won't be executed. And the result of the evaluation is just a recipe to produce an int, but the no execution is happening.}
+{\pard  \line \par}
+{So, referential transparency is still maintained and the only way to actually execute such a recipe to execute an IO action is in a main program, in the executable, in the main entry point. So if you compile Haskell to an executable, if you have an executable, then similar to other languages like Java, for example, there is a main function and that actually gets executed by the Haskell runtime system. And there's another way, the second way you can also do it in the repl, so GHCI also allows you to execute IO so-called IO actions. So, the hello world in Haskell looks like this. So we need, a module called main or in case of the main module you can also skip the module header. And it must contain a function named main and the type must be IO unit. So this is a recipe that can do some side-effects. And in the end returns a unit, which means nothing. I mean, nothing of value because there's only exactly one value of type unit.}
+{\pard  \line \par}
+{So the only interesting part are the side-effects and this would be hello world in Haskell. Put string line, I can ask for the type in my repl. So the type of put string line, it is a function, it takes a string and returns an IO action with no interesting result. So the type of put string line, sorry.}
+{\pard  \line \par}
+{Hello world is IO unit. So it's suitable for a main program. And I can actually execute it for example, with cabal run. Now, in my case, I called this hello, so that specified in the cabal file.}
+{\pard  \line \par}
+{It compiles and then indeed has a side-effect and writes hello world to the console. I should briefly show you the cabal file as well.}
+{\pard  \line \par}
+{So until now I know previous examples we only had this one stanza out the library stanza. So we were always just writing Haskell libraries without a main program, without an executable. Now I added this stanza here, is executable stanza. There just specify the source directory and then which file contains the main module.}
+{\pard  \line \par}
+{So I called it hello.hs. So here is an exception, normally Haskell modules always have to have, I mean, the file name must equal the module name, executables are the exception. So the module name is allways main, but the file can have a different name like hello in this example. I also mentioned that another way to actually execute an IO action is to do it in the repl. So early, I asked for the type of this expression, put string line hello world. But if I just enter it like that, then it will actually be executed in the repl. So this hello world is the side-effect happening by executing this iO action. So we have, one example of, often}
+{\pard  \line \par}
+{IO action way to create one, namely this put string line, let's look at another one it's called get line. And that is of type IO string. So that means it's a recipe, possibly containing side-effects that after having executed the side-effects will produce a string. And in the case of get line, the side-effects in question is, it will wait for user input from the keyboard. So if I execute get line in the repl. Now, it waits for keyboard input.}
+{\pard  \line \par}
+{And if I enter something like Haskell and press enter, then I get the result. So the string result, which is the string Haskell.}
+{\pard  \line \par}
+{And there are of course variety of IO actions predefined in Haskell. And we now saw how to write to the console and read from the keyboard. And obviously there are many many actions to do all sorts of things that you would expect like reading files, writing files, opening sockets, reading from sockets and so on. But obviously no matter how many predefined actions you have, that will never be enough if you want to achieve something complex.}
+{\pard  \line \par}
+{So there must be a way to combine these primitive provided IO actions, into, into bigger, more complex recipes. One thing we can do is make use of the functor instance of IO. So if I ask for IO, information on IO we see the dreaded monad instance that I'm explaining now, but we also see a functor instance and functor is a very important type class in Haskell. And it in principle only has this one method that's important, I mean, this one, the second one is just for convenience. So if we have a functor type constructor, then you can turn F A into an F B If you have a function from A to B. So we are now only interested in the case for F is IO. so if it's specialized this to IO, we see that using F map and given a function from A to B, we can turn IO A into an IO B. And how does that work? When IO A is a recipe containing side-effects that in the end produces an A. So how do we get an IO B out of that? Well we take the same recipe with the same side-effects, but then before eventually returning the A we apply the given function to it, and then return the result of applying this function to A to get the B.}
+{\pard  \line \par}
+{So, as an example, if we import data dot character from the standard libraries, we have the function to upper, which converts a character into it's uppercase version. So for example, to upper, small Q, sorry, characters, not double quotes, single quotes. So to upper Q, give me the character capital Q. Now if I want to apply that to strings. I can use the map function on this because strings in Haskell are just list of characters. So if I map that to upper function over a string, for example, Haskell. Then it gives me the string when now all the characters in this string have been converted to upper case.}
+{\pard  \line \par}
+{Okay, so this map to upper function is a function from string to string. Remember string is just another name in Haskell for a list of character. So that means I can use that in combination with F map. So if I have F map and as function from A to B, so in this case A and B are both string and as function from string to string I use this to upper. And then get line, I again, get something of type IO string. So get line was of type IO string.}
+{\pard  \line \par}
+{The function I'm F mapping is from string to string. So I again get something of type IO string. And we can try that out and see it in action. So if I execute this in the repl, it waits for user input and if I now provide Haskell and press enter. We see that the result is now, not just a string I entered, which would be the result of get line.}
+{\pard  \line \par}
+{But this function, this map to upper has been applied to result before returning it. So we get Haskell all capitals. So that's one way how we can take existing IO actions and turn them into new IO actions. The second way is provided by the, by this character. I don't actually know how to pronounce it, greater than greater than. }
+{\pard  \line \par}
+{That just chains two IO actions together ignoring the result of the first. So for example, we can do put string line hello and then this operator, put string line world. And if we execute this simply both actions will be performed in sequence. So I think it's called sequence the operator. And in this case, the put string line only has a unit result, but of course this first one could also be a function that has a non-trivial result, but this operator simply ignores it.}
+{\pard  \line \par}
+{So given these two recipes, what the sequence operator does, it just basically sticks the recipes together. First performs all the side-effects from the first recipe, then throws away the result and then just attaches the second recipe.}
+{\pard  \line \par}
+{So That's one way, then there is a very important operator, which does not ignore the result of the first one, and that is called bind.}
+{\pard  \line \par}
+{So it's like this. And if we look at the type of bind, we see this monad constraint, but we can ignore that for now and just think of IO. So what that says is, if I have a recipe that perform side-effects and returns an A, and if I have a function that given an A, gives me a recipe that returns a B. Then this can, these two can be combined to a recipe that produces a B.}
+{\pard  \line \par}
+{And how does that work? Well, if you have this IO A, we have a recipe to produce an A, so we can perform these side-effects that will eventually give us an A, then once we have this A we apply this function here to that A and get a second recipe now of type iO B. And we simply execute that and in the end get a B as a result. So as an example, I can apply this to get line input string that has exactly the right type.}
+{\pard  \line \par}
+{So get line is IO string, and then put string line has type string to IO unit. So if I combine these two with this operator, I get something of type IO unit. And what does it do? It will first execute the get line, which will return a string, then plug that string into put string line.}
+{\pard  \line \par}
+{So it will put the string line that was just entered out on the console. So to demonstrate, if I do this, get line put, sorry, it must be bind, put string line. So now the get line is executed. If I enter Haskell, now this results in the string Haskell, which is parsed onto put string line and then put string line executes its side-effects and writes Haskell to the console.}
+{\pard  \line \par}
+{There's another very important way to create IO actions and that is to produce recipes that immediately return a result without performing any side-effects. And that is done with a function called return. So if I asked for the type of return, again, it's general for any monad, but we can just think IO. So will return as type A to IO A. So given an A, it produces a recipe that can contain side-effects and eventually produces an A and in the case of return, the recipe will simply not perform any side-effects and immediately return the given A. So for example, I can do return Haskell and now I have to give a type annotation because otherwise, I wouldn't know what monad it is.}
+{\pard  \line \par}
+{So IO string and immediately returns the string Haskell. Returning back to our main program, using these operators that I just explained, we can now write relatively complex IO actions. For example, I can define an IO action that will ask for two strings and then write the result of concatenating those two strings to the console. So let's call it, I don't know, a bar. So it will have type IO unit.}
+{\pard  \line \par}
+{So what do I do? I do a get line to read the first string and I bind it to a function and now I will use Lambda expression. So I call the first elem... write an element S. And now, I format it a bit special, but in Haskell you have a lot of freedom when you format your code. So now I bind this to a second get line. And now I bind the third action.}
+{\pard  \line \par}
+{So let's call the result of this second get line T. And now after I have this S and T I'll do a put string line of S concatenated with T.}
+{\pard  \line \par}
+{I go back to the repl. Okay. I just get the warning that it's defined, but not used. So for example, I can, if I want to get rid of that warning, I can use bar here in main. Okay, and now if I execute this new executable now with bar. So now it waits for the first input. So let's say one, now it waits for the second input, let's say two. And it returns, it doesn't return anything, but it writes the concatenation of the two to the console, one two. So you see that using these handful of combinators, basically just the bind and the return I can write arbitrarily complex IO actions. And this is enough for us now for our purposes, because we won't really need the IO monad. Maybe much later in the course when we talk about actually deploying Plutus contracts to the Testnet. But everything else, for everything else, we won't need IO. But it's an important example of a monad. So I wanted to start with this. }
+{\pard  \line \par}
+{Now for a while, let's completely forget about IO. Let's just write pure functional Haskell using the maybe type. The maybe type for those that don't know it's one of the most useful types in Haskell.}
+{\pard  \line \par}
+{So it's a type constructor that takes one type argument and maybe A is often called something like optional in other programming languages. So it's an optional A, so there are two constructors for this type, nothing and just taking an A. So a maybe A can either contain A with a just constructor or nothing.}
+{\pard  \line \par}
+{And let's import text read, sorry, read. Yeah, text read. Read maybe.}
+{\pard  \line \par}
+{Right, in Haskell if you want to parse a string to a value that has a read instance that is normally done with the read function. So I can, for example, do read 42 and tell the compiler I expect an int and it gives me, it parses the string 42 into the int 42. But read is a bit unpleasant because if I have something that can't be parsed as a string, then I get an error and that's not very nice.}
+{\pard  \line \par}
+{So that's why importing this read maybe, read maybe it's very similar to read, but in the case where parse is not possible, it will return a nothing. So if we replace this read with read maybe, and now the return type is maybe int, we get just 42. But if we again try that with something that can't be parsed as an int, then we won't get an exception, we get a nothing. I created a new Haskell module called maybe. Let's say I want to implement a function, doesn't matter, let's call it foo, that takes three strings and return some maybe int. And the idea is, that the function should try to parse all three strings as ints. And if that's successful, so if all can be successfully parsed as Ints, then I want to add those three Ints and return the sum. And if one of the parses fails, I want to return nothing. So, one way to do that, and I mean, this is just plain elementary Haskell. So I try read maybe, I apply it to the first string and now there are two cases it could fail. So if I already can't parse the first string, then I can immediately stop. Then I do even have to look at the other two. But if that succeeds, let's say, that's K, I called K, so it K is now the integer that's parsed from X.}
+{\pard  \line \par}
+{I can try do parse the second one. And again, I have two cases. This can fail in which case the whole computation should return nothing or there can be a successful parse. So I parse it as a just L and now I can look at the third string and again, two cases, nothing, in which case I failed or success. Let's call the result M and now I have successfully parsed all three int... strings as integers. And now I can join just K plus L plus M. I can try whether that works. So if I have foo one, two, three. I get just six. So this is parse this one, this is two, this is three all three parsings succeed. So I can add one plus two plus three and get six. }
+{\pard  \line \par}
+{But if one of those copy past, then I get nothing. And of course, if, sorry, I get nothing. Okay. But if we look at this code, we see that we repeat the same pattern three times and it's always very similar. So we have something that is a maybe, this read maybe X, read maybe Y, read maybe Z. And then depending on the result, we always have to consider the two cases that it's nothing or just, and in the nothing case, we always fail with nothing. And in the just case, we carry on with the rest of the computation. And as Haskell us, we hate repetition like that, lot of noise. So I mean, the thing we want to do is very simply, we want to parse the three strings and add the result. But with all these cases and the always having to take care of the nothing case, makes it very noisy and very ugly.}
+{\pard  \line \par}
+{So as a Haskell or the natural tendency is to try to abstract the way the pattern we have here. And one way to do that would be to define something like bind maybe given a maybe A and the function from A to maybe B, we get a maybe B. And how would we implement this bind maybe? Well, if it's nothing then we don't even care about the function, we immediately say nothing. But if it's just X and we have the function F then we apply F to our X.}
+{\pard  \line \par}
+{And this is exactly what we did three times here. So to demonstrate the usefulness of this bind maybe operator, we can now write the same function again, now foo, but now using this bind maybe.}
+{\pard  \line \par}
+{Okay, so first we, we apply to read maybe X, and now we use bind maybe and I write that in inline style to make it, the pattern nicer. And if we successfully, so in the nothing case nothing, this is now encoded here in this bind maybe, but if we succeed, let's call this K.}
+{\pard  \line \par}
+{So then I can do read maybe Y, use my new bind maybe again. And if it succeeds I call the result L and a third time, call the result M. And in that case, I just do just K plus L plus M.}
+{\pard  \line \par}
+{Okay, and now I can try the same things I tried before with foo prime and I should get exactly the same results. So in the case where all three parses succeed, I get the sum, but if one of the three can't be parsed, I get nothing.}
+{\pard  \line \par}
+{So we see that by introducing this bind maybe, we capture this pattern, this very common pattern that you often encounter when you use optional values of type maybe, that if you, if it's nothing you want to immediately stop, it doesn't make sense to continue. But if it's just something, then using the value of this something you can continue.}
+{\pard  \line \par}
+{And this is captured in this bind maybe function. And we see that using this, we can write the original foo function much nicer in a much nicer form. So we don't have this dangling case statements any longer and all this noise with the nothings, because this is now encapsulated abstracted the way in this bind maybe function.}
+{\pard  \line \par}
+{This does exactly the same as the foo did, but it's much more compact and the business logic is much clearer, we see we try to read these three strings parse them as Ints. And if everything succeeds will return the sum. So there's far less noise now by using this bind maybe function. And what the bind maybe does is it encapsulates the idea that we have something of a maybe type and if that's something is nothing, the overall result of the computation is nothing.}
+{\pard  \line \par}
+{And if it's just, then we continue with the value of this just. And if you think about it, that's a bit like exceptions in other programming language. If you think of nothing as an exception, then the normal behavior of exceptions and other languages is that as soon as an exception is thrown, you immediately stop with the computation and return the exception, bubble the exception up. And this here now behaves very similarly, as soon as we accounted nothing, we immediately stopped with nothing. And if not, we carry on. And this pattern, this idea, this exception like behavior is captured in this bind maybe function. And using that, we can write the original logic very compactly.}
+{\pard  \line \par}
+{Another very useful type in Haskell is the either type that takes two parameters, two type parameters, A and B. So, if I ask for information for either, then we see it has two constructors, like maybe, but both carry a value. So an either A B can either carry an A, or it can carry a B and the two constructors are left and right. }
+{\pard  \line \par}
+{So for example, I can have left haskell, it can be of type either string int, but I can also have right seven of the same type. I created another module called either where basically just copied what we had for maybe. And if we take this exception analogy a little bit further, then one issue with maybe is that if we do nothing, if we return nothing, in an analogy to throwing an exception, then there is no error message.}
+{\pard  \line \par}
+{It's just nothing, it just fails without any indication of why. So if you want something like that, then we can replace maybe with an either type where right corresponds to just and left corresponds to an error like nothing did. But now we, depending on what type we choose for the first type parameter A, we can have a type of error messages, for example, we can use string. And the read maybe returns a maybe, and not an either.}
+{\pard  \line \par}
+{So let's first define something, let's call it read either. So read maybe has type read A string to maybe A. There would be the type of read maybe, but now let's replace this with an either string A and we can implement this in terms of read maybe. So given a string, we just check what read maybe tells us about this string.}
+{\pard  \line \par}
+{So if parsing is not possible and if we get a nothing, we can now return a left and pick some error message. This is now, it doesn't matter what we say, but I can say something like can't parse and just append the string, the given string. And if we can successfully parse to an A, then we return right A.}
+{\pard  \line \par}
+{So we can try this out, read either 42, either string int that succeeds and we get right 42 where before with read maybe we got just 42. And if we pick something that can't be parsed, then instead of just nothing, now we get a more informative error message "can't parse this". Okay, and using that we can now rewrite our foo in terms of either string int.}
+{\pard  \line \par}
+{So when we replaced all the read maybe's with read either's. Now, of course the cases change. Now, instead of nothing and}
+{\pard  \line \par}
+{just we get left or right. So if we get left error message well we just stop with the same error message. And if we get right K, we continue. Same here, left error message, left error. And if it's a right we continue and once more left error, left error. If we get a right we continue with right. }
+{\pard  \line \par}
+{This... would compile, but okay. Let's see, so let's try this out. So foo, for example, one two three, we get right six. But now if we, if one of the arguments can't be parsed, then... okay. Now maybe I should, I mean, it's correct, but we don't see much so if I write something, then now it doesn't simply fail, I get a nice error message. And if I have an error in one of the, or something that can't be parsed an int in one of the other arguments, it works accordingly. And of course, we have the same problem again, that we had with maybe, that we have these dangling case statements and a lot of repetition, a lot of boilerplate. }
+{\pard  \line \par}
+{Because we always follow the same pattern, we always pattern match on the either and in the left case, we simply return again the same left with the same error message that we got. So we immediately stop don't continue and instead return the error we got. And in the right case, we continue with the rest of the computation. And there's a similar solution again, to what we did before.}
+{\pard  \line \par}
+{So let's call, define a similar helper function that we called bind either. Then we replace each maybe with either string and now try to abstract a way this pattern that we repeated three times here. So if we get left of an error message, we simply return left of the same error message. }
+{\pard  \line \par}
+{And if we got a right X, then we simply continue plugging X into the continuation of our computation. And now in the same way as before I can rewrite this foo in a much nicer form. I just have to replace each bind maybe with bind either.}
+{\pard  \line \par}
+{And of course here I have to use read either instead of read maybe and here right.}
+{\pard  \line \par}
+{And now the same foo again work if we use foo prime. So if all goes well, we get right. And if something can't be parsed as an integer, I get a nice error message. And the same I said before is again true. So by introducing this little combinator, I abstract the pattern in a way that we repetitively use here and the business logic becomes much clearer.}
+{\pard  \line \par}
+{And to code incidentally is very similar to what we had for maybe, it's almost the same, except that instead of bind either bind maybe I'm not using bind either instead of read maybe I'm not using read either. }
+{\pard  \line \par}
+{So far, we've looked at three examples. IO A, maybe A and either E A or either string A. And IO A represents plans that can involve side-effects. And when executed produce an A, and maybe A an either string A represent computations that can produce an A, but can also fail and the difference between maybe and either it's just that maybe doesn't carry any error message whereas either does. Now let's look at a completely different example, that kept us the idea of computations that can also produce log output.}
+{\pard  \line \par}
+{And we can represent that with the type, let's call it writer A. And let's just say it's a constructor that takes two arguments, an A which is our result, but also a list of log messages for simplicity. Let's do it like this. Okay, and let's actually, we can deriving show.}
+{\pard  \line \par}
+{And as an example, can define a function number from int to writer int.}
+{\pard  \line \par}
+{And give a number N.... we just produce that number and as log output we just, it doesn't matter, but we can, for example, just say number and then show N. I can try that out in the repl, So number 42 is, so we have the 42, the result and this log message. And, now let's do something similar as before, this foo function. So say we have three logging computations that each produce an int and we want to compute those three computations to one that, adds the three Ints. So foo X Y Z, or let's pattern match, writer K X, writer L Y and writer M Z. What can we do? we.... So the overall result is K plus L plus M. And what should the log message be? Well, so we know each of the X the Y and the Z is a list of strings. So I probably should rather following the Haskell convention for list call it Xs Ys and Zs. And I can, for example, just concatenate those three lists.}
+{\pard  \line \par}
+{Okay.}
+{\pard  \line \par}
+{And I can try this out also out, let's say foo number one, number two, number three, and I get the expected results. So I get the sum as result and I get these three log messages. Let's write another useful function. Let's call it tell And it should just get a list of log messages and produce a writer unit.}
+{\pard  \line \par}
+{So one that doesn't have useful result and just cares about the log messages. And I can just define that like so. }
+{\pard  \line \par}
+{Right. Compiler helps me I can write it simpler like this as well. And, so I could make that this example a bit more interesting. I could add another log message. So let's say let S equals K plus L plus M and writer us equals tell sum show S. And now I can actually do it like this.}
+{\pard  \line \par}
+{And if I run the same example again, now we have an additional log message here that tells us the sum is six. And we again we have the result. So the idea is we see, we can again combine computations, several writer computations into a bigger computation. And the idea here is that, we have to concatenate the log message from each computation in order to get the overall log message. And as before we can write the function bind writer.}
+{\pard  \line \par}
+{So given a writer that produces an A and the function from A to writer B, we can combine those to a writer B. What do we do? Again I can pattern match against the first one.}
+{\pard  \line \par}
+{Okay, and how do I do that? Well, now I have the result A of the first computation, so I can, plug this A into the function F to get a writer B, so I can say writer B Ys equals F A. And now I can produce the result. So the result of the computation is B. And what are the log messages? Well, the Xs from the first one plus the Ys.}
+{\pard  \line \par}
+{And now using that, I can rewrite my foo using this bind writer.}
+{\pard  \line \par}
+{And make it much nicer.}
+{\pard  \line \par}
+{So I start with X bind writer. Call the result K. And Y bind writer, call the result L. }
+{\pard  \line \par}
+{Z bind writer call the result M.}
+{\pard  \line \par}
+{Now, tell sum K plus A plus M. Actually, I should also, I can also use a let here. So let S equals K plus L plus M in tell sum is show S.}
+{\pard  \line \par}
+{Bind writer. And here I don't care about the result because tell doesn't produce a nice result. Now, writer sum a new log message. Move the rest here.}
+{\pard  \line \par}
+{Okay. And now what we did with foo before we can do with foo prime and we get the same result. And admittedly it's even longer now than it was before. So, or at least not much shorter, but I think that it still is much nicer than the foo version. We don't have to do this pattern matching to extract the log messages from the three input computations.}
+{\pard  \line \par}
+{We don't have to explicitly combine the last log messages where we could make a mistake and forget one or get the order wrong. Instead we basically abstract all of that away and can just concentrate on the business logic. And a part from this part here we have ever used as additional tell. This is also very similar to, if you remember what we did, with maybe and either. So the code looks very much the same. }
+{\pard  \line \par}
+{So as before we have this business logic, we have three computations. And we that somehow result in int and we form the sum and return the sum. But note that the, like the special aspect of these computations is completely different in the, maybe and either case, we captured the notion of failure that something going go wrong.}
+{\pard  \line \par}
+{Whereas here in the writer case, there is no failure, but we have additional output, these log messages that we combine. So the bind maybe, and bind either encapsulated the logic that, if you want to combine two computations that might fail. And the first one fails, then the overall computation fails. Whereas if the first one succeeds, you can take the result to continue with the second computation. Here, the bind writer captures a different logic of sequencing computations, namely the logic that if you want to sequence to log output producing computations, we simply combine the individual log outputs.}
+{\pard  \line \par}
+{Now, I think we are in a position to explain what a monad is. So going back at the four examples, what did they have in common? Where we had a type constructor with one type parameter in any every case, IO for real world side-effects. Maybe for computations that can fail, either string for computations that can fail with an error message. And writer for computations that can produce lists of string as log output.}
+{\pard  \line \par}
+{And for all four of these examples, we had to bind function. So in the case of IO, it was this operator token IO A and something A to IO B. And you can combine the two to an IO B. And we had a very similar functions that we called bind maybe, bind either and bind writer for other three examples, and they always had the same shape.}
+{\pard  \line \par}
+{You would take computation of the type of computations you're considering results in A and then a function from a to another such computation that results in a B, and you can bind the two together to a computation that results in B. And how this bind works? Depends on the case. In the case of IO it's built in metric, but you can think of it as just combining the two plans that describe the IO actions to take during execution.}
+{\pard  \line \par}
+{And in the bind maybe and bind either case the logic is that if the first computation fails, then the combination also fails, but if the first computation succeeds, you continue with the second one. And in the bind writer example, the logic of bind was to just combine the list of log messages from the two parts of the computation.}
+{\pard  \line \par}
+{And that is the main idea of monads, it's a concept of computation. With some additional side-effect, it can be real world side-effects, it can be failure or failure with error messages, it can be producing log outputs and there are various other examples that I didn't mention. And the possibility to bind two such computations together. }
+{\pard  \line \par}
+{And how the bind works? Depends on the computation you're considering. There's another aspect that I briefly mentioned in the case of IO, but not for the other examples. Another thing that we can always do whenever we have such a concept of computation with side-effect, we also always have the possibility to produce a computation of this type that doesn't have any side-effects. So I talked about return in the IO case. So given an A, you can turn it into an IO A, and that is simply the computation that immediately returns an A and has no side-effects, no real world side-effects. In the case of maybe we have to just constructor of maybe. So given an A, just A is soft type maybe A, and it doesn't fail because it's not nothing.}
+{\pard  \line \par}
+{So it doesn't make use of the special possibility to fail, it doesn't fail. Same for the either case if we use the right constructor. So either string represents computations that can fail with a string error message. And if we use the right constructor, we have such a computation, but it doesn't fail.}
+{\pard  \line \par}
+{No error message, it has an A result.}
+{\pard  \line \par}
+{Finally for writer. there's no short way to write it down. We could, for example, define a function, return writer or something, but I just wrote it down here as a Lambda term. So given an A, we just produce writer A with an empty list of log messages. So given an A, we can produce a log message producing computation of type A that doesn't make use of this possibility to produce log messages and simply doesn't log and immediately returns the result. And the combination of these two features, the possibility to bind two computations together. And the possibility to construct a computation from a pure value without making use of any of the potential side-effects. This is what defines a monad. So if we look in the repl and ask for monad, then we see the bind here.}
+{\pard  \line \par}
+{So in the monad class we have this bind, so monad is now type constructor M. So we have seen various examples, IO, maybe either string writer. And here we have this bind operator. So taking a computation that results in A and a way to turn A into a computation that results in a B combine those two parts to a computation that results in a B. And the return that takes a pure value of type A and turns it into a side-effect in computation where the intuition obvious is that the M allows potential side-effects, but in the return case, it doesn't make use of this and just reps this pure value into such a computation. }
+{\pard  \line \par}
+{We see here that we also have this operator that I explained in the case of IO, but that can easily be defined in terms of the bind. So it's just a given for convenience. And what it does is, it just throws away the result of the first computation when it considers the second.}
+{\pard  \line \par}
+{So in other words, you can easily define it from bind by using the constant function here, the function that completely ignores its argument and, always returns a fix and B in order to once we have bind, you also get this sequence operator. }
+{\pard  \line \par}
+{There's another technical computation, we see that monad actually has a superclass applicative. So every monad is applicative. And if we ask what the applicative is, we see it has a bunch of functions, but actually you only need the first two. And we see pure actually as the same signature type signature as return. And then there's this one, which looks a bit more complicated, but the fact is once we have return and bind in a monad, we can easily define pure and this operator that's called... pronounced ap. }
+{\pard  \line \par}
+{So pure is just return and ap it's actually a library function that automatically given a monad implements this. When we see that applicative in turn also is a superclass functor. And I mentioned that before also in the context of IO. Functor has this F map class, method.}
+{\pard  \line \par}
+{So given a function from A to B, we can turn an F A into an F B. The prototypical example for function is lists, and then F map put just B map. So given the function from A to B and a list of As, you can turn it into a list of Bs by simply applying the given function to each element in the list.}
+{\pard  \line \par}
+{And we saw that we also have F map for IO. And again, once we have return and bind, it's easy to define F map in turn, in terms of return and bind. So there is a general patterns, so basically you never, if you want to define a monad you always defer and return and binds and just to make the compiler happy and to also give instance for functor and applicative, there's always a standard way of doing that. }
+{\pard  \line \par}
+{So we can do this in the example of writer. So if I want to define a monad instance for my writer type, I need functor, applicative and monad, but in almost all cases, you never do that explicitly. So I leave it open for now.}
+{\pard  \line \par}
+{So all you normally do, is you... define return and bind.}
+{\pard  \line \par}
+{So, bind is just our bind writer and return is the, what I wrote there in the comment earlier. So we return by simply return the A and giving empty list of log messages. Right. And given this, the standard way to implement functor and applicative is to use helper functions from the prelude, from control monad. And there something like lift M, that always, so that basically makes use of return and bind to implement F map. And for applicative we need this pure, which we can just use return, and then we need this ap operator and there's something in... similar to lift M there is something called ap in control monad that does that. Again, using return and bind, it implements this.}
+{\pard  \line \par}
+{So this is the standard pattern if you implement a monad, you implement return and bind. And then for the functor and the applicative instance, you just use these helper functions, lift M for pure use return and for this ap operator you use ap and that should compile.}
+{\pard  \line \par}
+{Right, so now we have a... by hand implemented a monad. I don't have to do the same for maybe either and IO, because they are all already monads defined in the prelude. So there I don't have to do anything. And now that we have that, we can actually try to understand why this is useful. I mean, first of all, it's always useful in general to identify a common pattern and give it a name, just to name things somehow makes the importance of the concept clearer.}
+{\pard  \line \par}
+{And, so, so it's always a good thing to identify that this is an important concept and important pattern that happens all over the place and then explicitly describes the pattern and give it a name. So that's one advantage. The second advantage is just that, I mean, if we had to came up with all these names, bind writer, bind maybe, bind either.}
+{\pard  \line \par}
+{And now by using the type class, we don't have to remember all these different names for the different examples we can always use return and bind. And finally, maybe the most important advantage is that there are lots of functions that don't care which specific monad instance we are dealing with.}
+{\pard  \line \par}
+{They just work for all monads, so we can write it once and for all monads and then reuse it for specific examples. So, both in the maybe and in the either and in the writer case, I had this thing where I took three computations that represent Integers and then I return the sum of them and I can now, let's call it three Ints, do that for all monads, once and for all. So I get M int and M int and the third M int and turn it into an M int.}
+{\pard  \line \par}
+{And MX MY MZ. And how do I do it? Well, I take the first one, call the result, for example, K. And bind that to the second computation, call the result L, bind it to the third computation call the result M. Now I can define the sum.}
+{\pard  \line \par}
+{And now I can use the return of the monad to return the sum. I mean, I wouldn't need the let here. I could also do that in line, of course, which I basically did in... I can also do it like this. But for reasons that will be came, come in a second, wait a minute. Let me leave the let here. And if we now look, if you go back, for example, to our maybe. We see this is now almost exactly the same code that I wrote here, except that instead of bind maybe, I'm now just using the bind operator that I have for every monad. So we can now rewrite this. if I import this, then I have the three Ints function. }
+{\pard  \line \par}
+{So I can now write a third version of this foo. So now using the three Ints function that I defined in the monad module. I can turn this into a one-liner read maybe X, read maybe Y, read maybe Z. Trying it out. So foo one two three. And again, I get just six and if one of those is not possible, I get nothing. I can do exactly the same for either.}
+{\pard  \line \par}
+{Also import these three Ints function. So in this case, it's three ints. }
+{\pard  \line \par}
+{Read either X, read either Y, read either Z.}
+{\pard  \line \par}
+{Then Again I can try it out. }
+{\pard  \line \par}
+{One, two, three. And we get right six. And if one of them is not possible, I get a error message, appropriate error message. Writer, writer is a little bit... I can't because of this line here because of this additional log it, it's not exactly the same, but I, if I am happy with not doing this log. Here it's then it's even simpler because this is immediately an instance of the three ints. So... ah, I must import the module.}
+{\pard  \line \par}
+{So that would work, but of course that's a bit cheating because now I don't have this, but I can get that as well. So I can simply use bind again as... if I want to do that, I do have to give the arguments X Y Z. Okay, so I get the sum as a result, and now I can do the tell sum show S.}
+{\pard  \line \par}
+{The tell doesn't have an interest in result, so I could write unit here or I can simply ignore it, or I can use the sequence operator which is made for exactly this case where I am not interested in the result and then return S. }
+{\pard  \line \par}
+{And again, if I run foo double prime. Okay, so yeah. I have to do number one, number two, number three. Then again I get the same as before. So we see that now with this three Ints function that we defined once and for all for arbitrary monads, I can write all this specific code that I did for the various cases, just reusing this function.}
+{\pard  \line \par}
+{So that's one of or maybe the biggest advantage of actually having this monad class. There is, if you look into the control monad module in the standard Haskell prelude, there are many useful functions that you can use for all monads. And so you have to write them once and for all in Haskell, and then you can reuse them over and over again.}
+{\pard  \line \par}
+{So lets go back to this monad module one last time. So yeah, I mean, the way I think about monads it's.... }
+{\pard  \line \par}
+{A monad is... is some sort of computation with the side-effect or a special feature or a special power. It's like a super power. And, so in the case of IO the super power would be having real world side-effects. In the case of maybe, the super power would be to be able to fail. The case of either the super power would be to fail with an error message. And in the case of writer, the super power would be to log string log messages. So we have this computation, we have a type that represents computations with some special features, some special power. And what turns this into a monad is the existence of return and bind.}
+{\pard  \line \par}
+{So return says you must have a way to given a pure value A. You must be able to produce a computation of this type with return value A that does not make use of this super power of the special feature. So it's an IO action that doesn't have any real world side-effects or potentially failing computation that doesn't fail or potentially logging computation that doesn't log.}
+{\pard  \line \par}
+{So that's return, returns a pure value into such a value in that type of computations. And bind allows you to chain several computations of this type together. So giving two, I mean, giving, giving one and the way to given a result of the first one produce a second computation, you can use bind to bind those two together to one.}
+{\pard  \line \par}
+{And that is of course crucial if you want to assemble a large complicated computation. So you have like simple primitive ones and using return and bind, you can assemble them into arbitrarily complex computations. And there is this slogan in the Haskell community that Haskell has an overloaded semi-colon.}
+{\pard  \line \par}
+{And the explanation for this is that in many programming languages, in imperative programming languages who write lines of code and at the end of the line you have a semi-colon. And then basically what that does is it executes one after the other. And the different statements are separated by the semi-colon. But what exactly the semi-colon means? Someone depends on the programming language, for example, there could be an exception in which case, computation or execution would stop at the spot where the exception happened and wouldn't continue with the next lines. Or there can be other things there that could potentially happen. And in a sense, this bind is like a semi-colon. So it binds different statements of monadic, of computations together like a semi-colon does in an imperative language.}
+{\pard  \line \par}
+{And the cool thing about Haskell is that it's basically a programmable semi-colon. So we can save what the logic is of binding two computations together, depending on the monad. Again, in the case of failure, the logic is that if the first computation fails, the whole thing fails. In the case of logging of writer, the logic is that you simply combine the list, the individual list of log messages to a long concatenated list of log messages.}
+{\pard  \line \par}
+{So each monad comes with its own semi-colon basically, its own bind that tells you how to combine two computations. One last thing that needs to be mentioned is do notation. Because this is so common and monadic computations are all over the place and we always have this pattern, so we do a bunch of monadic computations and we bind them together and give the result a name. There is special notation for this in Haskell that's called do notation.}
+{\pard  \line \par}
+{It's just syntactic sugar, so it doesn't add any more power to the language. You could write everything simply like this, but actually how it would normally be written in Haskell would be using do notation. So let's write the same function again, but using do notation. And then this would look like that.}
+{\pard  \line \par}
+{So it is do keyword. And then, instead of writing it like this, this would be written like so.}
+{\pard  \line \par}
+{So, which has far less noise than this, but it means exactly the same thing. So the compiler will simply translate this two version into this. So whenever we want to bind and use the result and give a name to the result, we write it like this. So the computations on the right of this arrow from the right to the left and on the left is the name that we give to the result of this computation.}
+{\pard  \line \par}
+{And then we can just, we don't have to explicitly use the bind operator. We can just write a new line. And now in the following lines, the K and the L and the M will be available. So I can use it here for the return. And another thing you can do is let. So, oh yeah. I said earlier that I want to leave it like this.}
+{\pard  \line \par}
+{So, I would do that like this.}
+{\pard  \line \par}
+{So we can also use let statements in a do block. And note that the in keyword that is normally needed in Haskell. So normally in Haskell the let it's let in, but in a do block, you don't need the in. So yeah. So normally you would, in this case, instead of using explicit binds, you would use do notation. }
+{\pard  \line \par}
+{For shorter expressions, it's more less a matter of taste. So you can always use do notation, but you don't have to and often if it's like one or two computations, then people also use explicit binds. But as I said, it's a matter of taste. So if we... once more go back to our writer example. Let me just write this here in do notation instead, this foo double prime.}
+{\pard  \line \par}
+{So S goes here.}
+{\pard  \line \par}
+{Then that's the tell.}
+{\pard  \line \par}
+{Okay.}
+{\pard  \line \par}
+{And If I'm not interested in the result, I just can just write it like this. So I don't need the inverse arrow and the name if I'm not interested in that, in the name and just do it like so. And if I reload and run this again now with the do notation, implemented with do notation, I get exactly the same result.}
+{\pard  \line \par}
+{So this is how I would normally write it. And that's monads for you. So hopefully now you have an idea how monads work, what they mean. And, there would be a lot more to say about monads. For example, if we have now seen examples, how to do failure in pure code and logging and also IO and not in pure code, IO is not pure, but the other examples were all pure code. And how to use the monad instance of these examples to basically handle all of them uniformly choosing, for example, do notation or bind and return explicitly.}
+{\pard  \line \par}
+{But often as so we have these special features like failure with error message, log, logging messages and so on. But often you are in a situation where you need several of these effects. So you want failure and log messages, for example, and that is also possible in Haskell. }
+{\pard  \line \par}
+{And they are variety of approaches how to do that. One is called monad trasnformers. So using so-called monad transformers one can basically build custom monads using these transformers. We can just say "I want failure and I won't log messages". And then you use the monad transformer library to build a custom monad that has exactly the features that you want, but there are other approaches.}
+{\pard  \line \par}
+{One is called effect systems, which has a similar objective. So you basically want to tailor make monads that have exactly the features you want them to have. And that is incidentally what Plutus uses for important monads in particular, the contract monad in the wallet and also the trace monad that is used to test Plutus code. And the good news is that you don't have to understand effect systems to work with these monads. So it's enough. So for example, to work with the contract monad that you use to define Plutus code that runs in the wallet, off-chain code, you must just know that contract is a monad, which for example, tells you that you can use do notation. }
+{\pard  \line \par}
+{And you must know what special super powers, what special features this monad has. So for example, in the writer, monad we have this tell function that's specific to the writer monad. And, in the case of maybe or either we have be can basically fail. So we have something like we can throw exceptions which would be nothing and maybe or left in either. And similar there's a list of things that you can do in the wallet contract monad. }
+{\pard  \line \par}
+{So all you have to know is basically how monads work in general, how you can chain statements or computations together using bind, or do notation. And then for a specific monad like the contract monad, the wallet monad you have to know what specific features this specific monad offers. So that is what we will look at next So we will look at the contract monad and see what this specific monad can do. }
+{\pard  \line \par}
+{\b\fs36 [01:29:00] 0403 The EmulatorTrace monad\b0}
+{\pard  \line \par}
+{Now that we hopefully all have at least basic understanding of monads and how to write monadic code either by using explicit bind and return, or by using do notation. We can look at a very important monad for Plutus namely the contract monad. And maybe you have already seen that in the code examples I provided. So the contract monad defines code that will run in a wallet.}
+{\pard  \line \par}
+{So that defines the off-chain part of Plutus and is equally important to the on-chain part. But before we go into details with this contract monad, I also want to talk about a second monad, so-called emulator trace monad. Because quite a few of you asked me whether we really need the playground to test Plutus contracts and whether there's a like quicker, easier and faster way that doesn't require you to, start this playground server and then obvious manually copy paste over into the editor and so on.}
+{\pard  \line \par}
+{And there is indeed, and, this is done via this emulator trace monad and you can think of a trace in this monad, programming this monad as what we do manually in the simulator tab of the playground. So there are we always defined the initial conditions and then a defined action. So we set a wallet one does this, invokes this endpoint with these parameters, and then we wait.}
+{\pard  \line \par}
+{So and so many slots and then wallet two does this and so on. And things like that, you can also do in this trace monad, so we should look at that first. }
+{\pard  \line \par}
+{Emulator traces are defined in module Plutus dot trace dot emulator in package Plutus minus contract. And we see that emulator trace A is a type abbreviation, type synonym for some very complicated looking effect monad. This is what I mentioned before that the Plutus team used so-called effect system to build case custom tailor monads, including this emulator trace monad. But we don't have to worry about that, what that means.}
+{\pard  \line \par}
+{So before we look at how to define traces, let's first look at how to run them. And the most general way is this run emulator trace. So it takes a emulator config, a fee config. We will look at those two in a minute and the trace with unit result and then produces a triple and note that there's no IO here. So that means this run emulator trace is a pure function.}
+{\pard  \line \par}
+{It's a pure function without any real world sie-effects. And this triple, so it's a list of emulator events, then maybe an emulator error. So if there's no error that's will be nothing and if there is an error, it will be just the error and some emulator state. Okay, so let's look at the configs, so we have the emulator config, which just has one field of type initial chain state.}
+{\pard  \line \par}
+{So let's look at initial chain state, and that is either an initial distribution or TX pool. So look, let's look at initial distribution and that is just a map from wallet to value. So it just specifies key value pairs where the keys are the wallets and the value is the initial value. Value can be ADA, but it can also be native tokens, but we'll get to native tokens in a later lecture.}
+{\pard  \line \par}
+{There's a default distribution we can look at that in the repl and there's also something called default distribution for if you want to specify how many wallets you want to have. The default distribution, I think uses 10 wallets and here you can have a list of those wallets you want. And then you get an initial distribution by specifying the wallets.}
+{\pard  \line \par}
+{So maybe we should look at that in the repl. Let's start the repl. It doesn't really matter, but we can load the trace module and we need to import Plutus contract trace.}
+{\pard  \line \par}
+{We have this initial distribution, yes, it's available. So we can look at the default distribution. Okay, and we see a... entries from wallet one to wallet ten and each wallet gets, I believe 100 ADA. This default distribution for, as I said, takes a list of wallets. So if we, for example, only one wallet one and wallet two, then we don't have wallets three to wallet ten and just wallet one and two, and they to have 100 million ADA.}
+{\pard  \line \par}
+{If we in the repl import Plutus contract trace again and then Plutus dot trace dot emulator and data default and ask for emulator config. Then we see what we saw before in the documentation, but we also see that it is an instance of the default class that I explained in the last lecture. So if we look up the value of the default value for emulator config, we see that we get initial chain state left, recall that was the initial distribution.}
+{\pard  \line \par}
+{And we see, this is exactly the default distribution that we saw just now. So 10 wallets with 100 ADA each. Back in the documentation, so we now played a bit with initial distributions. Of course, if you don't want the default value of 100 million ADA, you can just give an explicit map value specify exactly what values you want.}
+{\pard  \line \par}
+{Let's look at the other option, this was the left option, look at the right option. There's TX pool and we see this as just a type synonym for a list of transactions. And as it says here in the documentation, in the comment, a pool of transactions which have yet to be validated. So instead of providing an initial distribution, you can also provide an initial list of transactions that will be applied.}
+{\pard  \line \par}
+{Okay. So now this was initial change state, which we needed for emulator config. And if you go back to this run emulator trace. So we have looked at the emulator config. So what's the fee config and we see this is a record type with two fields, a field config constant fee and field config scripts fee factor.}
+{\pard  \line \par}
+{So the constant fee per transaction and lovelace. So that's what you will always have to pay and then a factor by which to multiply the size-dependent script fee. So this is just some calibration factor. So the size depends on the memory consumption of this script and the run time, the number of execution steps, and that then gets multiplied by this constant.}
+{\pard  \line \par}
+{If we go to the repl again, load our module again, although that's not necessary and import ledger dot fee. And again, data dot default and ask for fee config. Then we see what we just saw and we see that this type is also an instance of default. So let's look at the default.}
+{\pard  \line \par}
+{So there's a flat rate fee of 10 lovelace, so the total fee will be 10 plus one times whatever the memory consumption and execution steps are. So let's load Plutus trace emulator again. So, recall we were looking at the run emulator trace function. And now we have looked at emulator config and fee config. And we can use def for both so we can use run emulator trace def def.}
+{\pard  \line \par}
+{So the first def will be the default emulator config which gives us 10 wallets with 100 ADA each. The second one will give us the default fee config. So now all that's missing is an actual emulator trace and we haven't looked at how to construct an emulator trace yet. But we know because I told you that emulator traces is a monad.}
+{\pard  \line \par}
+{So without knowing anything else about emulator traces, we know that we have the standard monad operations return and bind available. So in particular return, so the simple, most emulator trace we can possibly write is the one that immediately returns unit. So it doesn't do anything, it doesn't call any contracts, doesn't wait for any slots, it immediately returns. So let's try what this gives us.}
+{\pard  \line \par}
+{And wow, we get a lot of output and that's mostly due to this list of emulator events. So even for a contract for a trace that doesn't do anything, we have many screens full of events, which also demonstrates that this is not very useful for trying out a contract in the repl because there's too much information, but luckily there's also something called run emulator trace IO that just takes an emulator trace, no configurations. So those will just be the default configurations. And it's not a pure function anymore it just write something to the screen. So we can try this with our trivial trace that immediately returns. And we see we get a much more concise output. So we see right in the beginning, a transaction is validated, that will be the Genesis transaction that distributes the initial funds of 100 ADA to the 10 wallets. And we see it waits for slot add 2. And we get the final balances, and because we haven't done anything, those final balances are still the initial balances of 100 ADA. Sometimes of course you do want to specify in different initial condition or you want to have more fine grain control.}
+{\pard  \line \par}
+{And for this, there's a variation of run emulator trace IO, which is called run emulator trace IO prime, and that does take an emulator config and the fee config. And in addition also a trace config, so what's a trace config? That's a record type with two fields, the second one is a handle and in Haskell a handle can be a file, but it can also be the console.}
+{\pard  \line \par}
+{So the default would be that it's the console, but you can also specify a file. So, what we saw right now in run emulator trace IO there the handle is the standard output. And we have a field show event which takes an emulator event prime and returns a maybe string. So here, the idea is we get this list of all the emulator events and we run the run emulator trace function, the one with so much output.}
+{\pard  \line \par}
+{And then for each such event, we can specify either nothing, which means that event will be suppressed or just the string that should be displayed for that event. And this trace config is also an instance of default. So we can use def for the default trace config which will be the one that's used by run emulator trace IO, which shows very few events as we saw. }
+{\pard  \line \par}
+{Now, let's look at the more interesting trace and I copied the contract from last lecture, the vesting contract into the code for this week, and I'm importing it here. And class week we tried it out in the playground, now let's do the same in a trace. So I find a trace and I use do notation. So the first thing we have to do is what the playground does automatically start the contract in all wallets that we are interested in.}
+{\pard  \line \par}
+{So we only need two wallets, so let's start it in wallet one and wallet two. And for that, we have, a function in this emulator trace monad activate contract wallet and it takes a wallet. So wallet one, and it takes the contract we want to activate, which was called endpoints. It's always called endpoints If you want to try it in the playground, of course we could choose another name if we are not worried with the playground. Now this monadic function in emulator trace actually returns a value, it returns a so called handle that we can then use with other functions to refer to this specific instance of this endpoints contract. So we use do notation and this bind so we bind the result the handle to H1. }
+{\pard  \line \par}
+{Now we do the same for wallet two, and now we can actually call endpoints so we can call the endpoint, give on wallet one and that we can do with call endpoint. We have to specify which endpoint and this uses some advanced type level Haskell. So the syntax is at, and now the name of the endpoint, give in our case, now we have to specify the handle.}
+{\pard  \line \par}
+{So on which instance of the contract do will call this. We did that in the UI in the playground as well. I mean, we clicked on wallet one or wallet two depending on where we wanted to do this. So let's, do it on wallet one. And now we must specify the parameters, the values we give to this endpoint. So in the case of give that was the give params data type, and that had, three arguments, the beneficiary, the deadline, and the amount. The beneficiary should be wallet two and must be wallet two's pub key hash.}
+{\pard  \line \par}
+{We can do that with pub key hash a wallet, pub key wallet two, now the deadline. Let's say slot 20 and the amount, let's say 10 ADA.}
+{\pard  \line \par}
+{Okay, so this will call the end line, the endpoint. Now, for wallet two to grab it for that to be successful, the deadline has to be reached. And in the another thing we can do in the trace monad part from activating contracts and calling endpoints is also waiting either for the number of slots or until a specific slot, similar to what we did in the playground as well.}
+{\pard  \line \par}
+{So that is wait until slot. We can say until slot 20, and this will actually return a value namely the slot we have reached. So in this case 20, but we are not interested in that. And in order to avoid the warning, we can use void from data functor, which basically ignores the return value and transit into a unit and then we don't get a warning. }
+{\pard  \line \par}
+{Okay, now we want to call the grab endpoint on wallet two. So that's grab. The handle now is H2 and the parameters to grab endpoint didn't take any interesting parameters, it was just unit. And finally, let's wait another slot to see the effect. And for that we have wait N slots one. In order to test that let's define test IO unit and that's just use this run emulator trace IO with the trace we just defined. }
+{\pard  \line \par}
+{Now in the repl I can invoke test and we see our trace. So we see this is the Genesis transaction, and we see that we started these two instances for wallet one and wallet two. So this is very similar to the trace output you also see in the playground. }
+{\pard  \line \par}
+{So here we invoked our give endpoint and the transaction was submitted and validated.}
+{\pard  \line \par}
+{Here we see a log that comes from the contract, so the log messages that we do inside the contract monad inside the off-chain code are actually well visible in this trace. And now we reached slot 20 and the grab endpoint is called transaction submitted validated we wait until slot 21. And we get the contract log message, collected gifts.}
+{\pard  \line \par}
+{We see that wallet one has 10 ADA and 10 lovelace less. So that's 13 ADA gift and 10 lovelace transaction fees. And wallet two has roughly 10 ADA more, but had to pay more transaction fees because the grab endpoint involves validating a script, which is a bit more expensive. One other thing that we can do in the trace monad is logging.}
+{\pard  \line \par}
+{We saw that we do see the log messages from the contract monad inside the trace, but we can also explicitly log from inside the trace monad itself. So for example, if you want to log the slot we reached here at the end instead of ignoring the result of wait N slot, we can bind it to a name, let's call it S and then we can use extras log info, it takes a string, reached show S in the repl and run the trace again. }
+{\pard  \line \par}
+{The result is almost completely identical, the only difference is this one line here, user log and there we see our message reach slot, slot 21. So the next line as before is from the contract monad. Now let's look at the contract monad. The first thing you notice is that the type contract takes four type parameters.}
+{\pard  \line \par}
+{\b\fs36 [01:51:53] 0404 The Contract monad\b0}
+{\pard  \line \par}
+{W S E and A. So as in all monads the last one is always the result type. So the A is the overall result of the computation. I will get to all three of the others in your time, but I briefly want to go through them now just to give you an idea of what they're for. So the W is like in the writer example I gave you, so it allows a contract to write log messages of type W. So in our example of the writer was just list of strings, but here you can specify some W. And I did say log messages, but the purpose is not really logging, the purpose is to communicate between different contracts. So the written W is visible from the outside, so this is a way for our contract to pass information to other contracts or to the outside world. The S specifies the endpoints, so what endpoints are available in this contract. And the E is the type of error messages.}
+{\pard  \line \par}
+{So similar to our examples of maybe and either, in particular either, we looked at either string, various string error messages. But here is more general, so you can specify the type of error messages, and then you can throw exceptions and also catch them inside the contract monad. So let's do a first example.}
+{\pard  \line \par}
+{Let's call it my contract one, and let's say we don't want to write any state, any log messages so we can pick unit there. Now we also, right now don't need any endpoints and for that there's empty so we can specify the empty type. And that means no endpoints available. For error messages a popular choice is text which is a much more efficient type than string for textual data.}
+{\pard  \line \par}
+{So when you are dealing with large amounts of texts or texts in general, then text is normally a better choice than string. And finally, I don't want interesting results so I can take unit there as well. And the very first thing we can do is simply log a message. And this is not to be confused with making use of this W feature.}
+{\pard  \line \par}
+{This is just really logging as we have seen before so that we can use contract log info. And now I need a string or more general I can use anything that's serializable that has a toJson instance. So let's say hello from the contract. And now the compiler is complaining and it's complaining that it doesn't know what the type of this little string is.}
+{\pard  \line \par}
+{Normally, as I explained before, in Haskell, if you have a string literal, it's a string. But I activated this overloaded strings extension, which as I explained before, allows you to lose literal strings for more general texture types, including text or byte string. So the complainant at this point doesn't know what type this is.}
+{\pard  \line \par}
+{Is it a string? Is it a text? Is it something else? And in order to disambiguate this, I also edit this type applications extension, which allows me to specify for polymorphic function like log info, at which type it is used. So log info it's polimorphic and takes arbitrary serializable types. But I now wanted to use it string and the syntax that is enabled by type applications is like, so, so I can use the at symbol and then the type name.}
+{\pard  \line \par}
+{So that means use this log info for type string. And then it's clear to the compiler that this literal string is indeed a string. Okay, if I want to test it, I also need a trace let's call it my trace. So that's of type emulator trace unit. And all I want to do is I just activate the contract, so I just activate contract wallet.}
+{\pard  \line \par}
+{Now I need to specify the wallet and the contract. So let's say wallet one and my contract one. And finally, in order to test this as before I just use run emulator trace IO my trace one.}
+{\pard  \line \par}
+{Still complaining oh yes, because I'm ignoring the result. So I'm ignoring the handle. So this wouldn't be this activate contract wallet wouldn't result in a unit, it would result in a handle, but I say it should result in the unit. So as before I can throw away the result with void.}
+{\pard  \line \par}
+{Okay. In the repl, let's load this module and let's try test one. And as expected, we see the log message here. One thing I should still point out is I qualified log info with contract here, which tells that it's supposed to use the log info, from Plutus dot contract. And the reason I have to do that is because as we saw before, you can also log from the trace monad and there's also, it's also called log info, but that's define in control dot monad freer extras.}
+{\pard  \line \par}
+{And in order to tell the compiler which version of log info I want to use, I qualified here. So this is the logging from inside the contract monad. So next, let's try to throw an exception. So as I said, we can now have error messages of type text. So let's turn this into a do block and let's throw the exception before I do the logging.}
+{\pard  \line \par}
+{So this throw error allows me to throw an exception and of type E so in our case E is text. So I can specify a text here. I can use literal strings because I have the overloaded strings extension active. So I can use a literate string here, which will then be passed as a text. So for example, I can say, boom.}
+{\pard  \line \par}
+{Okay, and I also have to disambiguate this because in the emulator also have the option so I also have to disambiguate this with it with contract. Okay, and now it's complaining that this also has a result, which I'm ignoring, so let's also do void, fine. And let's try again in the repl. I reload, and do test one again.}
+{\pard  \line \par}
+{Okay, now we see the log message is not displayed anymore, but we see contract stopped with error and we see our error message "boom". So this behaves as expected as you would expect of an exception that execution stops at the moment exception has risen. It's the same as we saw in maybe and in either as soon as we got the left, as soon as something went wrong, the rest of the computation was ignored.}
+{\pard  \line \par}
+{So here, because the exception is thrown here in line 21, we never get to line 22 and we don't see the log message. We can not only throw exceptions, we can also catch or handle them. We could have done that with maybe an either as well, but let's just do it here. So let me just copy this and call it contract two.}
+{\pard  \line \par}
+{And let's now change the error type from text to void. Void is a Haskell type defined in data dot void that has no inhabitants stays no value of type void. This is different to unit unit has exactly one value, which is also called unit void has no value. So what does it mean to have a contract with error type void?}
+{\pard  \line \par}
+{Well, it means this contract can't produce any errors, it can't raise any exceptions because in order to raise an exception, it would need to provide an error message of type void, but there is no value of type void, so this can't happen. So if we have a contract with an error type of void we know this contract won't have any exceptions, it won't raise any exceptions.}
+{\pard  \line \par}
+{So what I want to do is, I want to handle, I just call contract one, but handle the exception and to do that there's contract handle error. And if you look at the type, it takes a contract with error messages of type E and a handle. So if an exception is raisen here in this contract of type E, then we have a handle that takes an E and turns it into a contract with a potentially different exception type E prime.}
+{\pard  \line \par}
+{And the overall result of this handle error construct is then a contract with error type E prime, and the same result type. So what this will do is it will run this inner contract. If there is no exception, the result will be an A, and that would be the result of the overall computation. However, if there is an exception of type E, then the handle would be applied to the E and this contract will be run instead.}
+{\pard  \line \par}
+{So in both cases, whether there's an exception here or not, it gets something of this type. So in our example, the E is text because we will use contract one here and the E prime is void. So we need to specify the handle and the contract we want to run. So the handle, it takes an error message of type text. And now we must write a contract what to do if he received this error message.}
+{\pard  \line \par}
+{So for example, I can simply log it. I can use contract log info again, but I can also just for variety use log error. And, now the error message and I want to use a string, something like caught. Okay, and now I want to use the error message here, but this won't compile because error is of type text and this is of type string.}
+{\pard  \line \par}
+{And, but there's a way to convert from text to string, that's unpack, that's defined in data dot text dot read. So it converts a text to a string. Note that in this case, I don't have to specify which type I'm invoking this as I did here. Here, I had to tell the compiler that this little string is a string and not text or byte string. }
+{\pard  \line \par}
+{Here, the compiler can did use that automatically because of this unpacks with nos unpick, as of type string. So this here must also be of type string otherwise I couldn't concatenate the two, so this is of type string. So it knows I'm invoking log error at type string. Okay, and now I need the second argument, the contract I want to handle errors for, so my contract one. }
+{\pard  \line \par}
+{Now in the repl, if I reload and do test two. I see I don't get an error anymore. So this contract, contract two does not fail, but I do get the expected log message that I caught "the boom" exception. Also note that this is the only log message I get. So I still don't get this one, so what will happen is here in, in contract two when I called handle error, contract one will be run.}
+{\pard  \line \par}
+{It will throw the exception, but this won't lead to an exception in contract two instead the handler kicks in, takes the error message, which is boom in this case, and then simply logs it to the screen. So my contract two will run without an exception because the exception risen in contract one is caught. One other thing I should mention in the context of exceptions is that there are other ways in which they can arise, not just by being explicitly thrown with throw error.}
+{\pard  \line \par}
+{So there are certain operations that you can do related to the blockchain that can result in exception. Of course, maybe internally in the implementation of those operations throw error is used, but that's opaque to the user. So for example, if you try to submit a transaction that can fail and result in an exception, and the reason is that something can be wrong in the way you construct the transaction.}
+{\pard  \line \par}
+{So for example, I mean, the way it works in Plutus off-chain code is, you don't directly give the transaction, instead you specify certain properties that the transaction should have. For example, you can say this transaction should pay 100 ADA to that address. And then the algorithm will try to construct a transaction with this property.}
+{\pard  \line \par}
+{So in particular, in this example, it will look at the UTxOs that belong to you, that are in your wallet and find enough inputs to cover these 100 ADA plus fees. And if your wallet doesn't contain enough funds to pay 100 ADA to that address, then that step will fail. And then when you try to submit a transaction, you will get an exception.}
+{\pard  \line \par}
+{Let's talk about the second type parameter, the S next, which specifies the endpoints. So the way this is normally done is that we define a type synonym call it something with the word schema in it. But of course that's just a convention, so let's call this my schema. And if I want one endpoint that takes an int and is called foo, the type is endpoint then a type level string and the parameter type, so int this case. So this is a type, it's a type and in particular the string is a type. So, that's why I say type level strings, so it's a string used at the type level, so that's some fancy Haskell extension that's enabled by data kinds. Okay, and now I can define my contract three, which is now of type contract unit again for the first, but now no longer empty, but now I can use my schema.}
+{\pard  \line \par}
+{I could, of course not have done this type synonym in it at this point directly written endpoint foo int. Now for error messages lists use text again, and let's say no result type. So what can I do, we have endpoint and that just results in a contract for result type A provided we have this restriction, this constraint on our schema type S that has an endpoint L A. So L is the label, it's the name and A is the result type, so if our schema S has an endpoint with parameter A, then this endpoint computation, monadic computation will give us a contract that results in A, so I have to specify which endpoint.}
+{\pard  \line \par}
+{So that's the same at here again, but now it's specified by its label, by its name. So foo in our case. And so this is a monadic computation that will block contract execution and wait for our value to be provided in our case a value of type int. Once that value is provided from the outside, this results in that provided value and we can bind against it.}
+{\pard  \line \par}
+{So what this will do this contract, it will block until from the outside, this endpoint is invoked and provided with an int. Int because we said it would be an int. And at that point it will continue and N will be bound against the provided int, so to try it out, we can use contract log info again N, N is serializable so we can just use N there and the compiler knows it's an int, so we don't have to tell it. So in order to test this.}
+{\pard  \line \par}
+{Now it's no longer enough to simply start the contract, because as I said, if it just start it will block and wait for the endpoint call. So this wouldn't do much, so let's also turn this into a do block. And in order to invoke the endpoint from the trace, we need the handle so I can no longer ignore the handle.}
+{\pard  \line \par}
+{I actually need it, so let's call it H and then as we have seen before, I can use call endpoint. I must say which endpoint, so at foo then it takes the handle and I must provide the parameter. So an int in our case, for example, 42 and this should work. If I reload in the repl and call test three, then we do see here, the contract has started, then it would block, but we received this endpoint call from the outside, from our trace monad in this case with 42 as a value.}
+{\pard  \line \par}
+{And then we see that it works. So the contract receives the 42 and then logs it. So what do we do if we want more than one endpoint. In that case, this type here, the schema needs to be more complicated. So we have to specify more endpoints and we do that by chaining them together with this so-called type operator.}
+{\pard  \line \par}
+{So a type operator is an operator that operates on types as the name suggests. So it takes one or more types and combines them to a new type. And in order to do that, we need this type operator extension. So we can now specify another endpoint, let's call it bar, I don't know of type string. And, let's just basically do the same here with bar.}
+{\pard  \line \par}
+{So let's call the string S and log that as well. And in our trace, if we want to try it out, we also have to call the second endpoint. So in this execution, the contract will run, will block here. Then when this endpoint call comes, this will unblock and go to here and then block again. So if it was second endpoint call.}
+{\pard  \line \par}
+{And now we need the string Haskell then this should work out. Let's try it.}
+{\pard  \line \par}
+{And indeed, we get two log messages now. Here is the contract log with 42 and here is the contract log Haskell. I have no idea why we get the three stars here and not here, but nevertheless, it seems to work. So here was the endpoint call on foo with 42, and we get the log message. And here is the second endpoint call now on bar with the value Haskell.}
+{\pard  \line \par}
+{And we also get the second log message. Finally, let's look at the first type parameter, the writer. And, so this W can't be an arbitrary type. It must be an instance of the type class monoid. This is a very important, very common class in Haskell and, it has mempty and mappend. Mempty is something like the neutral element and mappend combines two elements of this type to a new element.}
+{\pard  \line \par}
+{The prime example of a monoid is lists where mempty is the empty list and mappend is concatenation. So for example, I can say mempty list of ints will be the empty list, and I can use mappend 1 2 3 4 5 6 and it will combined them, but there are lots and lots of other instances of this monoid type and we'll probably see other instances in this course, but for now let's with lists.}
+{\pard  \line \par}
+{So let's try this. So my contract four... one first argument, and it must be a monoid so let's use lists of ints. We don't want any endpoints so we can just use empty let's use text result. }
+{\pard  \line \par}
+{Okay, so we let's start with a wait of N slots, 10 slots. We are not interested in the result. So now the way we write to the state to this log is with tell.}
+{\pard  \line \par}
+{That comes from the monad writer class and contract is an instance of it. So now we need some list of ints. So for example, the list just contains one. Now let's wait for another 10 slots and do another tell, let's say the list it just contains two and let's wait for the final 10 slots. Now for our trace that exercises this contract.}
+{\pard  \line \par}
+{It start as before by starting the contract, now let's wait for five slots. Now the way we read the state of a running contract is by observable state. And as argument that just takes a handle which we called H. And the result would be the state at that time, let's call it xs and let's log that from the trace monad.}
+{\pard  \line \par}
+{Okay. And let's do that two more times, the second time let's wait now for 10 slots let's call the result ys and log those and the final time again 10 slots, let's call the resul result zs and log those. So this should be like right here we wait five slots, that's before the first tell happens here.}
+{\pard  \line \par}
+{So this should be after the first tell has happened, but before the second tell has happened and this should be after the second tell has happened, but while this is still waiting here. }
+{\pard  \line \par}
+{Oh yeah, I get the warnings because I should ignore the result here of the wait. Finally, again, we... have a test four.}
+{\pard  \line \par}
+{And test it. And let's check what we get. So the trace waited for five slots. So this is the first time we call this observable state and we get the empty list, so before we use tell the state will be the mempty of the monoid. And as I explained, in the case of lists, the mempty is the empty list. So before there has been any tell the state that we observed with observable state will be the mempty, the empty list.}
+{\pard  \line \par}
+{So now by slot 10, the first tell happened where we wrote the list that contains just one. So if by slot 15, we observed the state again. Now we get the list just containing one. Wait another 10 slots here in the middle the second tell happened, the list just containing two and now we get the list containing one and two.}
+{\pard  \line \par}
+{So what happens is each tell uses mappend of the monoid that we are using as W to mappend the thing to what's already there. So it starts with the empty list, then this is concatenated with the list just containing one, which of course is still just containing one. And then after the second tell the list just containing two, that is concatenated with what we had until then, the list just containing one and we get the list containing one and two.}
+{\pard  \line \par}
+{So this is how this works. So how the contract can communicate information to the outside world that can then be observed with observable state. }
+{\pard  \line \par}
+{\b\fs36 [02:19:23] 0405 Homework\b0}
+{\pard  \line \par}
+{For homework. I created a model week four dot homework in which I define this type pay params which has two fields, a pub key hash and an integer. Then I defined a schema that has one endpoint called pay with those parameters.}
+{\pard  \line \par}
+{And I define a contract that has trivial state, observable state, uses this schema text error messages. And how does it work? Well, I use endpoint to wait for somebody from the outside, invoke that endpoint. So, this will block until the endpoint is invoked, then PP will be bound to the pay params. Then I specify transaction by giving the must pay to pub key constraint.}
+{\pard  \line \par}
+{As the name suggests that, it's the constraint that this transaction should pay to a pub key. So the pub key is the first argument, I extract that from the first field of the provided endpoint parameters. And then the value is the second argument and so I extract this integer from the second field of the parameters and use a function called lovelace value of, that will return an integer into a value given in lovelace. In line 31, I construct and submit the transaction.}
+{\pard  \line \par}
+{So what that will do is it will look at these constraints and then try to construct a transaction that satisfies those constraints. So in particular, it must find an input in the wallet that is large enough to cover this payment and the fees. And it might also need to a construct to change output going back to the wallet.}
+{\pard  \line \par}
+{And once the transaction is constructed it will submit it to the blockchain, and then I recursively call the contract again, which means that you can call this endpoint over and over. So, what I would like you to do. First is implement this paid trace, so the idea of that is it takes two integer arguments and then returns an emulator trace, and the behavior should be in this trace.}
+{\pard  \line \par}
+{First start the contract in wallet one, and then do two endpoint calls to the pay endpoint where the recipient in both cases is wallet two. And the amounts to be paid are given by these two parameters. So first parameter first endpoint call, second parameter, second endpoint call. And after each of the endpoint calls please wait for one slot.}
+{\pard  \line \par}
+{So that's the first task you should do. And then, I provide these two tests where I try this trace with different values for the arguments. 1 ADA and 2 ADA in the first case. 1000 ADA and 2 ADA in the second case. If we try the first one, we see it works. So here we have the two endpoint calls.}
+{\pard  \line \par}
+{And if we look at the final balances, we see that wallet two indeed has 3 ADA more. One from the first payment, two from the second payment. If however we tried to pay test two, there would be an exception in line 31, because wallet one only has 100 ADA, I'm using the default configuration and we learned that that means 100 ADA each wallet has 100 ADA, so it doesn't have 1000 ADA so it can't construct a transaction that can pay a thousand ADA. }
+{\pard  \line \par}
+{So once it reaches this line 31 for the first time, there will be an exception and this contract will stop. So in particular, the second endpoint call from the trace will never do anything because the contract has already crashed at that point.}
+{\pard  \line \par}
+{So the second thing I would like you to do is modify the pay contract, so that this exception gets handled. So instead of crashing, it should be caught and then just logged. So just produce a log message that shows the exception. And once you have done that, when you invoke pay test two, this should something like that.}
+{\pard  \line \par}
+{So up on the first endpoint call, we... It doesn't crash, we just get a log message caught error, and then the error. So in this case, it will be an insufficient funds error. And the second endpoint call will then still proceed and in the result we see that wallet two has 2 ADA more. So the first one with the 1000 ADA failed, but the contract kept running, second endpoint called successfully transfers 2 ADA to wallet two.}
+}

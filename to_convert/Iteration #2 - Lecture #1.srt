@@ -1,0 +1,3081 @@
+1
+00:00:06,740 --> 00:00:09,320
+Welcome to the Plutus Pioneer Program.
+
+2
+00:00:09,470 --> 00:00:11,960
+We are very excited to have you all here.
+
+3
+00:00:13,395 --> 00:00:15,885
+So, let me first talk about the schedule.
+
+4
+00:00:15,885 --> 00:00:20,855
+So the idea is that there will
+be lectures on every Thursday and
+
+5
+00:00:20,955 --> 00:00:23,174
+Q & A sessions on every Tuesday.
+
+6
+00:00:23,505 --> 00:00:28,455
+And in some weeks we might have
+additional lectures, for example, guest
+
+7
+00:00:28,455 --> 00:00:33,165
+lectures or some topics that are not
+so relevant for the main curriculum.
+
+8
+00:00:34,035 --> 00:00:39,135
+And because there are so many of you,
+it's unfortunately not possible to
+
+9
+00:00:39,585 --> 00:00:42,435
+be as interactive as I like it to be.
+
+10
+00:00:42,975 --> 00:00:48,335
+So it would be great if all of you could
+use the discord server to help each other,
+
+11
+00:00:48,895 --> 00:00:51,915
+answer questions and solve problems.
+
+12
+00:00:52,125 --> 00:00:57,745
+I mean, we will do what we can, my colleagues
+and myself to answer questions and help.
+
+13
+00:00:57,745 --> 00:01:02,325
+But with the sheer number of participants,
+it's just not possible to pay as much
+
+14
+00:01:02,325 --> 00:01:05,114
+attention to every individual as we would like.
+
+15
+00:01:05,474 --> 00:01:07,744
+So thank you for helping out.
+
+16
+00:01:10,485 --> 00:01:15,054
+As for the content, so the idea is to
+really give a thorough introduction to
+
+17
+00:01:15,054 --> 00:01:22,605
+Plutus, explain the underlying concepts,
+look at various types of contracts.
+
+18
+00:01:22,605 --> 00:01:28,675
+Look at how we can test contracts in
+the playground or also offline, locally.
+
+19
+00:01:30,845 --> 00:01:37,405
+Talk about native tokens, how to control
+minting and burning of naked tokens in Plutus.
+
+20
+00:01:38,205 --> 00:01:44,535
+And we also look at how to deploy a Plutus
+contract and write a back-end for Plutus contract.
+
+21
+00:01:46,705 --> 00:01:49,590
+Plutus learning is not easy unfortunately.
+
+22
+00:01:49,759 --> 00:01:56,009
+So, you have to be aware that the
+cost probably won't be easy and there
+
+23
+00:01:56,009 --> 00:01:57,960
+are a variety of reasons for that.
+
+24
+00:01:58,649 --> 00:02:04,140
+So one is that Plutus uses
+the so-called UTxO model.
+
+25
+00:02:04,410 --> 00:02:10,289
+I'll explain in much more detail what
+that means later in this lecture, and that
+
+26
+00:02:10,289 --> 00:02:17,790
+is different and less intuitive than the
+Ethereum method for doing smart contracts.
+
+27
+00:02:18,150 --> 00:02:24,630
+It has a lot of advantages the UTxO
+model, but it also requires a new way
+
+28
+00:02:24,630 --> 00:02:26,459
+of thinking about smart contracts.
+
+29
+00:02:26,700 --> 00:02:30,630
+So that's one thing, and that's before
+we even start with the language itself.
+
+30
+00:02:32,400 --> 00:02:36,720
+Then of course Plutus has brand new
+and still under rapid development.
+
+31
+00:02:36,900 --> 00:02:42,720
+So probably during the time of the
+course there will be significant changes.
+
+32
+00:02:42,870 --> 00:02:48,420
+So we often have to update the
+dependencies on the main Plutus repository.
+
+33
+00:02:48,810 --> 00:02:54,860
+And it might be that contracts that compile at the
+beginning of the course won't compile any longer
+
+34
+00:02:54,860 --> 00:03:00,150
+at the end of towards the end of the course,
+because there have been some syntax changes.
+
+35
+00:03:01,680 --> 00:03:05,250
+In addition to that tooling is not ideal yet.
+
+36
+00:03:05,950 --> 00:03:14,810
+So those of you who have experienced with
+Haskell and know about the Haskell tooling,
+
+37
+00:03:15,480 --> 00:03:20,910
+we noticed that in the presence of Plutus,
+some of the tooling is not as pleasant as
+
+38
+00:03:20,940 --> 00:03:24,170
+you maybe use to being from doing Haskell.
+
+39
+00:03:25,620 --> 00:03:33,380
+So, sometimes it's a bit painful, so it's not
+as easy to get access to a syntax of functions
+
+40
+00:03:33,380 --> 00:03:37,799
+or to documentation from the repl, for example.
+
+41
+00:03:38,700 --> 00:03:43,049
+And it's not even very easy to
+build Plutus in the first place.
+
+42
+00:03:43,170 --> 00:03:45,690
+So your best bet is probably using nix.
+
+43
+00:03:46,200 --> 00:03:51,579
+You can also try cabal and Stack or
+Docker, actually the Plutus team will
+
+44
+00:03:51,600 --> 00:03:55,530
+provide a nice Docker image at some point.
+
+45
+00:03:55,649 --> 00:04:02,070
+So maybe that will then be the easiest
+option, but yeah, it's not totally trivial
+
+46
+00:04:02,070 --> 00:04:05,010
+to get Plutus to compile in the first place.
+
+47
+00:04:07,170 --> 00:04:12,060
+Then, of course, Plutus is Haskell more or less.
+
+48
+00:04:12,570 --> 00:04:19,380
+So on top of the other problems, you first
+have to have a firm grip on a Haskell in
+
+49
+00:04:19,380 --> 00:04:27,960
+order to do Plutus and obviously in the eight
+weeks, of course time, I won't have time to
+
+50
+00:04:28,440 --> 00:04:31,370
+first do a proper thorough Haskell course.
+
+51
+00:04:32,230 --> 00:04:36,470
+The Haskell course that I did in
+Greece on Barbados in Ethiopia.
+
+52
+00:04:36,470 --> 00:04:42,110
+And then last year, virtually in
+Mongolia were full-time courses, 10
+
+53
+00:04:42,110 --> 00:04:44,660
+week full-time courses, 40 hours a week.
+
+54
+00:04:45,530 --> 00:04:51,200
+And even in those courses, we didn't cover
+everything that you will need to fully
+
+55
+00:04:51,200 --> 00:04:56,100
+understand Plutus, of course we also covered
+things that are irrelevant for Plutus.
+
+56
+00:04:56,120 --> 00:05:01,480
+So it's not as bad as it sounds, but nevertheless,
+there is a quite some Haskell that you need.
+
+57
+00:05:02,060 --> 00:05:04,970
+And I won't have time to
+thoroughly explain everything.
+
+58
+00:05:05,010 --> 00:05:10,400
+I'll try to explain the special concepts
+that you need for Plutus obviously, and
+
+59
+00:05:10,400 --> 00:05:15,260
+whenever there is a especially need, when
+I see that a lot of you are struggling with
+
+60
+00:05:15,260 --> 00:05:21,800
+something, then obviously I'll take the
+time to explain that topic in more detail.
+
+61
+00:05:22,560 --> 00:05:27,570
+So, unfortunately I won't be able to spend
+as much time teaching Haskell as I'd like to,
+
+62
+00:05:27,580 --> 00:05:36,840
+because obviously I mostly want to do Plutus,
+but we did recoat our Mongolia Haskell course.
+
+63
+00:05:37,229 --> 00:05:41,969
+And we have started editing the videos
+and making them nicer and more concise.
+
+64
+00:05:42,750 --> 00:05:50,969
+And what we have, we'll publish here for you on
+the discord server, so that, if you are struggling
+
+65
+00:05:50,969 --> 00:05:57,270
+with Haskell and would like an introduction,
+that's much slower, much slower pace, then you
+
+66
+00:05:57,270 --> 00:06:04,239
+can give those videos a try, and maybe they
+help with the Haskell problems you might have.
+
+67
+00:06:05,270 --> 00:06:10,604
+Another problem is that Plutus is brand
+new, which of course is also very exciting,
+
+68
+00:06:10,905 --> 00:06:17,145
+but it also means that you and I and the
+Plutus team are the first people ever in the
+
+69
+00:06:17,145 --> 00:06:20,954
+history of humanity that write Plutus code.
+
+70
+00:06:21,195 --> 00:06:26,835
+So if you learn another programming language and
+you get stuck or have a problem, then normally
+
+71
+00:06:26,835 --> 00:06:32,354
+you can just go to stack overflow or Google,
+and often you will be lucky and find an answer.
+
+72
+00:06:32,775 --> 00:06:36,885
+So, because we are the first
+you won't have that option.
+
+73
+00:06:37,724 --> 00:06:40,455
+So we have to figure it out while we go along.
+
+74
+00:06:44,534 --> 00:06:49,485
+One of the most important things you need
+to understand in order to write Plutus smart
+
+75
+00:06:50,085 --> 00:06:54,345
+contracts is the counting model that Cardano uses.
+
+76
+00:06:54,765 --> 00:07:01,335
+And that is the so-called (E)UTxO model,
+which is an abbreviation for extended
+
+77
+00:07:01,425 --> 00:07:04,245
+unspent transaction output model.
+
+78
+00:07:05,355 --> 00:07:11,295
+The UTxO model without being extended is
+the one that has been introduced by Bitcoin.
+
+79
+00:07:11,895 --> 00:07:13,275
+But there are other models.
+
+80
+00:07:13,405 --> 00:07:18,945
+Ethereum, for example, uses a so-called
+account-based model, which is what you're used
+
+81
+00:07:18,974 --> 00:07:25,875
+do from a normal bank, where everybody has
+an account and each account has a balance.
+
+82
+00:07:26,385 --> 00:07:31,215
+And if you transfer money from one
+account to another, then the balances
+
+83
+00:07:31,245 --> 00:07:36,675
+get updated accordingly, but that
+does not how the UTxO model works.
+
+84
+00:07:40,425 --> 00:07:44,375
+Unspent transaction outputs
+are exactly what the name says.
+
+85
+00:07:44,645 --> 00:07:50,465
+They are transaction outputs that is outputs
+from previous transactions that happened on
+
+86
+00:07:50,465 --> 00:07:53,285
+the blockchain that have not yet been spent.
+
+87
+00:07:53,495 --> 00:08:01,865
+So let's look at an example where we have
+two such UTxOs, one belonging to Alice, 100
+
+88
+00:08:01,915 --> 00:08:05,975
+ADA and another one belonging to Bob, 50 ADA.
+
+89
+00:08:06,455 --> 00:08:10,455
+And as an example, let's assume that
+Alice wants to send 10 ADA to Bob.
+
+90
+00:08:11,405 --> 00:08:16,055
+So she creates a transaction and the
+transaction is something that has inputs
+
+91
+00:08:16,085 --> 00:08:21,365
+and outputs, can be an arbitrary number of
+inputs and an arbitrary number of outputs.
+
+92
+00:08:22,625 --> 00:08:31,225
+And an important thing is that you can
+always only use complete UTxOs as input.
+
+93
+00:08:31,680 --> 00:08:36,270
+So, if she wants to send 10 ADA
+to Bob, she can't simply split her
+
+94
+00:08:36,270 --> 00:08:40,140
+existing 100 ADA into a 90 to 10 piece.
+
+95
+00:08:40,140 --> 00:08:43,950
+She has to use the full 100 ADA as input.
+
+96
+00:08:44,220 --> 00:08:49,530
+So by using the UTxO 100 ADA
+as input to a transaction.
+
+97
+00:08:49,930 --> 00:08:55,730
+Alice has no spent that UTxO,
+so it's no longer an UTxO.
+
+98
+00:08:55,730 --> 00:08:57,990
+It's no longer unspent it's been spent.
+
+99
+00:09:00,390 --> 00:09:05,295
+And now she can create outputs for a transaction.
+
+100
+00:09:05,444 --> 00:09:07,745
+So she wants to pay 10 ADA to Bob.
+
+101
+00:09:07,905 --> 00:09:12,824
+So one output will be 10 ADA to Bob,
+and then she wants her change back.
+
+102
+00:09:12,824 --> 00:09:16,275
+So she creates a second
+output of 90 ADA to herself.
+
+103
+00:09:17,474 --> 00:09:22,985
+And so this is how, even though
+you always have to consume complete
+
+104
+00:09:22,985 --> 00:09:26,834
+UTxOs, you can get your change back.
+
+105
+00:09:26,895 --> 00:09:34,635
+So you consume the complete UTxO, but then
+you create an output for the change and note
+
+106
+00:09:34,635 --> 00:09:40,275
+that in a transaction, the sum of the input
+values must equal the sum of the output values.
+
+107
+00:09:40,275 --> 00:09:45,194
+So in this case, 100 ADA go
+in and 10 plus 90 ADA go out.
+
+108
+00:09:45,974 --> 00:09:48,015
+This is strictly speaking, not true.
+
+109
+00:09:48,194 --> 00:09:51,694
+There are two exceptions, the first
+exception is transaction fees.
+
+110
+00:09:51,905 --> 00:09:56,925
+So in the real blockchain for each
+transaction, you have to pay fees.
+
+111
+00:09:57,464 --> 00:10:04,455
+So that means that the, some of input values
+have to, has to be slightly higher than the sum
+
+112
+00:10:04,455 --> 00:10:07,035
+of output values to accommodate for the fees.
+
+113
+00:10:07,665 --> 00:10:11,775
+And the second exception is the
+native tokens that we have on Cardano.
+
+114
+00:10:12,165 --> 00:10:15,675
+So it's possible for transactions
+to create new tokens.
+
+115
+00:10:15,675 --> 00:10:20,835
+In which case the outputs will be higher than
+the inputs or to burn tokens, in which case
+
+116
+00:10:20,835 --> 00:10:23,325
+the inputs will be higher than the outputs.
+
+117
+00:10:23,865 --> 00:10:27,795
+But that is a somewhat advanced
+topic, how to handle minting and
+
+118
+00:10:27,795 --> 00:10:29,515
+burning of native tokens in Plutus.
+
+119
+00:10:29,835 --> 00:10:31,845
+And we'll come back to that later in the course.
+
+120
+00:10:32,595 --> 00:10:36,195
+So for now we only look at transactions
+where there's some of the input values
+
+121
+00:10:36,195 --> 00:10:38,555
+equals the sum of the output values.
+
+122
+00:10:39,420 --> 00:10:44,579
+So this is a first example of a simple
+transaction, and we see that the effect
+
+123
+00:10:44,579 --> 00:10:49,949
+of a transaction is to consume and spend
+transaction output and to produce new ones.
+
+124
+00:10:50,339 --> 00:10:56,819
+So in this example, one UTxO has been
+consumed, Alice original 100 ADA UTxO,
+
+125
+00:10:57,240 --> 00:10:59,069
+and two new ones have been created.
+
+126
+00:10:59,459 --> 00:11:05,939
+One 90 ADA UTxO belong to Alice and
+another 10 ADA UTxO belonging to Bob.
+
+127
+00:11:06,510 --> 00:11:12,989
+It's important to note that this is the only
+thing that happens on an UTxO blockchain.
+
+128
+00:11:13,589 --> 00:11:19,469
+The only thing that happens when a new transaction
+is added to the blockchain is that some
+
+129
+00:11:19,739 --> 00:11:24,089
+form a UTxOs becomes spent and UTxOs appear.
+
+130
+00:11:24,630 --> 00:11:32,150
+So in particular, nothing is ever changed,
+no value or any other data associated with
+
+131
+00:11:32,160 --> 00:11:34,079
+the transaction output is ever changed.
+
+132
+00:11:34,290 --> 00:11:40,020
+The only thing that changes by a new transaction
+is that some of the formerly unspent transaction
+
+133
+00:11:40,109 --> 00:11:47,190
+outputs disappear and others are created,
+but the outputs themselves never change.
+
+134
+00:11:47,400 --> 00:11:50,580
+The only thing that changes is
+whether they are unspent or not.
+
+135
+00:11:51,480 --> 00:11:58,110
+Let's do one other example, a slightly
+more complicated one where Alice and Bob
+
+136
+00:11:58,260 --> 00:12:02,580
+together want to pay 55 ADA each to Charlie.
+
+137
+00:12:03,480 --> 00:12:06,120
+So they create a transaction together.
+
+138
+00:12:07,110 --> 00:12:13,170
+And as inputs, Alice has no choice, she
+only has one UTxO, so she uses that one.
+
+139
+00:12:13,590 --> 00:12:18,630
+And Bob also doesn't have a choice
+because neither of his two UTxOs
+
+140
+00:12:19,050 --> 00:12:21,510
+is a large enough to cover 55 ADA.
+
+141
+00:12:21,690 --> 00:12:25,710
+So Bob has to use both his UTxO as input.
+
+142
+00:12:29,790 --> 00:12:37,875
+This time we need three outputs, one the
+55 plus 55 equals 110 ADA for Charlie,
+
+143
+00:12:38,595 --> 00:12:43,305
+and then two change outputs, one for
+Alice's change and one for Bob's change.
+
+144
+00:12:43,845 --> 00:12:49,665
+So Alice paid 90, so she should
+get 35 change and Bob paid 60.
+
+145
+00:12:49,725 --> 00:12:51,525
+So he should get five change.
+
+146
+00:12:54,585 --> 00:13:01,515
+One thing, I haven't yet explained is under which
+conditions a transaction can spend a given UTxO.
+
+147
+00:13:02,145 --> 00:13:06,645
+Obviously it wouldn't be a good idea if
+any transaction could spend arbitrary
+
+148
+00:13:06,645 --> 00:13:12,645
+UTxOs, if that was the case, then Bob could
+spend Alice's money without her consent.
+
+149
+00:13:13,995 --> 00:13:20,205
+So the way it works is by adding signatures
+to transactions, so for our first example,
+
+150
+00:13:20,235 --> 00:13:26,925
+our transaction one, because that consumes
+an UTxO belong to Allice as input.
+
+151
+00:13:28,135 --> 00:13:31,334
+Alice's signature has to be
+added to the transaction.
+
+152
+00:13:31,964 --> 00:13:35,864
+And in the second example, because there
+are inputs belonging to both Alice and
+
+153
+00:13:35,864 --> 00:13:40,875
+Bob, both Alice and Bob have to sign
+that transaction, which incidentally
+
+154
+00:13:40,875 --> 00:13:43,485
+is something you can't do in Daedalus.
+
+155
+00:13:43,995 --> 00:13:49,905
+So you would have to use the Cardano
+CLI for complex transactions like that.
+
+156
+00:13:51,165 --> 00:13:58,755
+Everything I've explained so far is just about
+the UTxO model, not the extended UTxO model.
+
+157
+00:13:59,334 --> 00:14:02,655
+So this is all just a simple UTxO model.
+
+158
+00:14:03,795 --> 00:14:08,385
+And the extended part comes in
+when we talk about smart contracts.
+
+159
+00:14:09,285 --> 00:14:13,994
+So in order to understand that,
+let's just concentrate on one
+
+160
+00:14:14,515 --> 00:14:18,365
+consumption offer a UTxO buy an input.
+
+161
+00:14:18,974 --> 00:14:25,545
+And as I just explained, the validation
+that decides whether the transaction.
+
+162
+00:14:26,280 --> 00:14:31,830
+This input belongs to is allowed to
+consume that you take so in the simple
+
+163
+00:14:31,830 --> 00:14:35,610
+UTxO model relies on digital signatures.
+
+164
+00:14:35,670 --> 00:14:41,520
+So in this case, Alice has to sign the transaction
+for this consumption of the UTxO to be valid.
+
+165
+00:14:42,840 --> 00:14:48,270
+And now the idea of the extended UTxO
+model is to make this more general.
+
+166
+00:14:48,689 --> 00:14:53,460
+So instead of just having one condition,
+namely that the appropriate signatures
+
+167
+00:14:53,870 --> 00:14:55,439
+is present in the transaction.
+
+168
+00:14:56,010 --> 00:15:01,860
+We replace this by arbitrary logic,
+and this is where Plutus comes in.
+
+169
+00:15:02,700 --> 00:15:08,010
+So instead of just having an address that
+corresponds to a public key, and that can
+
+170
+00:15:08,010 --> 00:15:15,060
+be verified by a signature that is added
+to the transaction, instead we have more
+
+171
+00:15:15,060 --> 00:15:20,729
+general addresses that are not based on
+public keys or the hashes of public keys,
+
+172
+00:15:21,089 --> 00:15:26,310
+but instead contain arbitrary logic that
+can decide under which condition this
+
+173
+00:15:26,310 --> 00:15:29,760
+specific UTxO can be spent by a transaction.
+
+174
+00:15:30,540 --> 00:15:34,439
+So instead of an address going to a
+public key, like Alice's public key in
+
+175
+00:15:34,439 --> 00:15:40,680
+this example, there will be an arbitrary
+script, a script containing arbitrary logic.
+
+176
+00:15:41,250 --> 00:15:49,709
+And instead of the signature in the transaction,
+the input will justify that it is allowed
+
+177
+00:15:49,709 --> 00:15:55,890
+to consume this output with some arbitrary
+piece of data that we call the redeemer.
+
+178
+00:15:56,969 --> 00:16:04,339
+So we replace the public key address,
+Alice in our example by a script, and we
+
+179
+00:16:04,339 --> 00:16:10,760
+replace a digital signature by a redeemer
+which is an arbitrary piece of data.
+
+180
+00:16:12,060 --> 00:16:14,985
+Now, the next question is,
+what exactly does that mean?
+
+181
+00:16:15,015 --> 00:16:17,025
+What do we mean by arbitrary logic?
+
+182
+00:16:17,235 --> 00:16:20,564
+And in particular it's important
+to consider what information?
+
+183
+00:16:20,564 --> 00:16:22,605
+What context this script has?
+
+184
+00:16:23,535 --> 00:16:25,035
+So there are several options.
+
+185
+00:16:25,395 --> 00:16:32,295
+And the one indicated in this diagram is
+that all the script sees is the redeemer.
+
+186
+00:16:32,355 --> 00:16:36,885
+So all the information the script has
+in order to decide whether it's okay
+
+187
+00:16:36,885 --> 00:16:42,105
+for the transaction to consume this
+UTxO or not is looking at the redeemer.
+
+188
+00:16:42,825 --> 00:16:48,525
+And that is the thing that
+Bitcoin incidentally does.
+
+189
+00:16:48,725 --> 00:16:53,954
+So, in Bitcoin, there are smart
+contracts, they are just not very smart.
+
+190
+00:16:54,015 --> 00:16:58,724
+They are called Bitcoin script and
+Bitcoin script works exactly like this.
+
+191
+00:16:59,265 --> 00:17:05,685
+So there's a script on the UTxO site and to
+redeemer on the input side and the script gets
+
+192
+00:17:05,685 --> 00:17:12,905
+the redeemer and can use the redeemer to decide
+whether it's okay to consume the UTxO or not.
+
+193
+00:17:13,554 --> 00:17:18,254
+But that's not the only option, we can decide
+to give more information to the script.
+
+194
+00:17:19,185 --> 00:17:23,385
+So, Ethereum uses a different concept.
+
+195
+00:17:23,744 --> 00:17:27,675
+In Ethereum the script basically can
+see everything, the whole blockchain,
+
+196
+00:17:27,675 --> 00:17:29,175
+the whole state of the blockchain.
+
+197
+00:17:30,465 --> 00:17:33,315
+So that's like the opposite extreme of Bitcoin.
+
+198
+00:17:33,405 --> 00:17:38,505
+Bitcoin the script has very little context,
+all it can see is the redeemer in Ethereum
+
+199
+00:17:38,865 --> 00:17:46,965
+the script, the solidity scripts in Ethereum
+can see the complete state of the blockchain.
+
+200
+00:17:48,389 --> 00:17:54,030
+So that enables Ethereum's scripts to be
+much more powerful so they can do basically
+
+201
+00:17:54,030 --> 00:18:00,689
+everything, but it also comes with problems
+because the scripts are so powerful, it's also
+
+202
+00:18:00,689 --> 00:18:05,729
+very difficult to predict what a given script
+will do and that opens the door to all sorts
+
+203
+00:18:05,729 --> 00:18:12,300
+of security issues and dangerous, because it's
+very hard to predict for the developers of
+
+204
+00:18:12,300 --> 00:18:18,810
+an Ethereum smart contract what can possibly
+happen because there are so many possibilities.
+
+205
+00:18:20,530 --> 00:18:26,239
+So what Cardano does is something in
+the middle, so it doesn't offer such
+
+206
+00:18:26,239 --> 00:18:31,340
+a restricted view as Bitcoin, but also
+not such a, not such a global view as
+
+207
+00:18:31,340 --> 00:18:34,340
+Etherebut, but instead chooses a middle way.
+
+208
+00:18:35,149 --> 00:18:41,759
+So the script can see the whole blockchain, can
+see the state of the word blockchain, but it can't
+
+209
+00:18:41,780 --> 00:18:45,060
+see the whole transaction that is being validated.
+
+210
+00:18:45,720 --> 00:18:51,284
+So, in contrast to Bitcoin it can just see
+this one input, the redeem of this one input,
+
+211
+00:18:51,735 --> 00:18:56,925
+but it can see that and all the other inputs
+of the transaction and also all the outputs of
+
+212
+00:18:56,925 --> 00:19:03,584
+the transaction and the transaction itself, and
+the Plutus script can use that information to
+
+213
+00:19:03,584 --> 00:19:06,735
+decide whether it's okay to consume this output.
+
+214
+00:19:07,514 --> 00:19:13,215
+Now, in this example, there's only one input, but
+if this transaction had more than one input, then
+
+215
+00:19:13,215 --> 00:19:15,675
+the script would be able to see those as well.
+
+216
+00:19:17,264 --> 00:19:23,730
+There's one last ingredient that Plutus
+scripts need in order to be as powerful
+
+217
+00:19:23,730 --> 00:19:25,860
+as expressive as Ethereum scripts.
+
+218
+00:19:26,430 --> 00:19:33,150
+And that is a so-called datum which is
+a piece of data that can be associated
+
+219
+00:19:33,150 --> 00:19:35,700
+with a UTxO an addition to the value.
+
+220
+00:19:36,300 --> 00:19:41,700
+So at a script address, like in this
+example, in addition to this 100 ADA
+
+221
+00:19:41,760 --> 00:19:47,430
+value, that can be an arbitrary piece
+of data attached, which we call datum.
+
+222
+00:19:49,090 --> 00:19:56,750
+And with this, we can actually mathematically
+prove that Plutus is at least as powerful
+
+223
+00:19:56,840 --> 00:20:01,130
+as Ethereum, so everything, every logic
+you can express in Ethereum you can also
+
+224
+00:20:01,130 --> 00:20:09,320
+express in this extended UTxO model that
+Cardano uses, but it has a lot of important
+
+225
+00:20:09,320 --> 00:20:12,440
+advantages in comparison to the Ethereum model.
+
+226
+00:20:13,010 --> 00:20:20,560
+So for example, in Plutus, it is possible to
+check whether a transaction will validate in
+
+227
+00:20:20,560 --> 00:20:23,115
+your wallet before you ever sent it to the chain.
+
+228
+00:20:24,555 --> 00:20:30,215
+So something can still go wrong, so for
+example, your transaction can consume an
+
+229
+00:20:30,245 --> 00:20:36,335
+output and then when it gets to the chain,
+somebody else has already consumed that output.
+
+230
+00:20:36,845 --> 00:20:39,725
+This output has already been
+consumed by another transaction.
+
+231
+00:20:39,725 --> 00:20:44,615
+You can't prevent that, but in that
+case, your transaction will simply fail
+
+232
+00:20:44,825 --> 00:20:47,075
+without you having to pay any fees.
+
+233
+00:20:47,465 --> 00:20:51,750
+But if all the inputs are still
+there, that your transaction expects.
+
+234
+00:20:52,050 --> 00:20:57,450
+Then you can be sure that the transaction will
+be validate and that it will have the effect that
+
+235
+00:20:57,450 --> 00:21:00,270
+you predicted when you ran it in your wallet.
+
+236
+00:21:01,260 --> 00:21:08,250
+And this is definitely not the case in Ethereum,
+in Ethereum in the time between you constructing
+
+237
+00:21:08,250 --> 00:21:13,230
+the transaction and it being incorporated
+into the blockchain, a lot of stuff can happen
+
+238
+00:21:13,350 --> 00:21:18,420
+concurrently and that's unpredictable, and that
+can have unpredictable effects on what will
+
+239
+00:21:18,420 --> 00:21:21,120
+happen when your script eventually executes.
+
+240
+00:21:21,510 --> 00:21:25,740
+So that means in Ethereum it's always
+possible that you have to pay guest fees
+
+241
+00:21:25,980 --> 00:21:31,440
+for a transaction, although the transaction
+eventually fails with an error, and that
+
+242
+00:21:31,440 --> 00:21:33,690
+is guaranteed not to happen in Cardano.
+
+243
+00:21:34,500 --> 00:21:41,350
+In addition to that, it's also easier to
+analyze a Plutus script and to check or
+
+244
+00:21:41,370 --> 00:21:47,010
+even proof that it is secure because you
+don't have to consider the whole state
+
+245
+00:21:47,010 --> 00:21:48,750
+of the blockchain, which is unknowable.
+
+246
+00:21:49,230 --> 00:21:55,409
+You can concentrate on this context that
+just consists of the spending transaction.
+
+247
+00:21:56,070 --> 00:22:01,949
+So you have a much more limited scope and
+that makes it much easier to understand what a
+
+248
+00:22:02,040 --> 00:22:06,389
+script is actually doing and what can possibly
+happen or what could possibly go wrong.
+
+249
+00:22:08,129 --> 00:22:12,210
+So this is it, that's the extended
+UTxO model that Plutus uses.
+
+250
+00:22:12,659 --> 00:22:23,120
+So to recapitulate in extending the normal
+UTxO model, we replace public key addresses
+
+251
+00:22:23,120 --> 00:22:32,985
+from the normal UTxO model with scripts,
+Plutus scripts, and instead of legitimizing the
+
+252
+00:22:32,985 --> 00:22:40,905
+consumption of new UTxO by digital signatures,
+as in the simple UTxO model, arbitrary data
+
+253
+00:22:40,995 --> 00:22:43,535
+it's called redeemer is used on the input side.
+
+254
+00:22:44,355 --> 00:22:48,395
+And we also add arbitrary
+custom data on the output side.
+
+255
+00:22:49,575 --> 00:22:55,815
+And the script as context when it
+runs, sees the spending transaction,
+
+256
+00:22:55,975 --> 00:22:58,515
+the transaction one, in this example.
+
+257
+00:22:59,355 --> 00:23:04,965
+So given the redeemer and the datum and
+the transaction with its other inputs
+
+258
+00:23:04,965 --> 00:23:10,485
+and outputs, the script can run arbitrary
+logic to decide whether it's okay for this
+
+259
+00:23:10,485 --> 00:23:12,465
+transaction to consume the output or not.
+
+260
+00:23:13,125 --> 00:23:15,425
+And that is how Plutus works.
+
+261
+00:23:17,195 --> 00:23:23,585
+One thing I haven't mentioned yet is who is
+responsible for providing datum, redeemer
+
+262
+00:23:23,705 --> 00:23:30,365
+and the validator, the script that validates
+whether a transaction can consume an input.
+
+263
+00:23:30,975 --> 00:23:36,915
+And the rule in Plutus is that the spending
+transaction has to do that whereas the producing
+
+264
+00:23:36,915 --> 00:23:40,004
+transaction only has to provide hashes.
+
+265
+00:23:40,395 --> 00:23:48,375
+So that means if I produce an output that sits at
+a script address, then this producing transaction
+
+266
+00:23:48,375 --> 00:23:55,245
+only has to include the hash of the script and
+the hash of the datum that belongs to this output.
+
+267
+00:23:55,635 --> 00:24:02,264
+But optionally, it can include the datum and the
+script as well, fully, but that's only optional.
+
+268
+00:24:02,985 --> 00:24:08,185
+And if a transaction wants to consume such
+a script output, then that transaction,
+
+269
+00:24:08,185 --> 00:24:14,145
+the spending transaction has to include
+the datum and the redeemer and the script.
+
+270
+00:24:14,655 --> 00:24:19,245
+So that's the rule, how it works in Plutus,
+which of course means that in order to
+
+271
+00:24:19,245 --> 00:24:26,504
+be able to spend a given input, you need
+to know the datum because only the hash
+
+272
+00:24:26,564 --> 00:24:28,784
+is publicly visible on the blockchain.
+
+273
+00:24:30,270 --> 00:24:34,080
+Which is sometimes a problem and not
+what you want and that's where this
+
+274
+00:24:34,140 --> 00:24:39,030
+optional possibility comes into to also
+include it in the producing transaction.
+
+275
+00:24:40,170 --> 00:24:45,930
+Otherwise only people that know the datum by
+some other means not by looking at the blockchain
+
+276
+00:24:45,930 --> 00:24:48,150
+would be able to ever spend such an output.
+
+277
+00:24:49,830 --> 00:24:55,350
+So this is the UTxO model, the extended
+unspent transaction output model.
+
+278
+00:24:55,980 --> 00:25:00,060
+And that is of course not tied to
+a specific programming language.
+
+279
+00:25:00,180 --> 00:25:05,730
+I mean, what we have is Plutus, which is based
+on Haskell, but in principle, you could use
+
+280
+00:25:05,730 --> 00:25:11,280
+the same concept, the same UTxO model with
+a completely different programming language.
+
+281
+00:25:11,850 --> 00:25:19,500
+And we also plan to write compilers from other
+programming languages to Plutus script which is
+
+282
+00:25:19,530 --> 00:25:22,260
+sort of the assembly language and aligned Plutus.
+
+283
+00:25:23,040 --> 00:25:29,745
+So there's an extended UTxO model is different
+from the specific programming language we use.
+
+284
+00:25:30,495 --> 00:25:36,975
+In this course, we will use Plutus obviously,
+but the understanding the UTxO model is
+
+285
+00:25:36,975 --> 00:25:41,835
+independently valid from understanding
+Plutus or learning the Plutus, Plutus syntax.
+
+286
+00:25:48,455 --> 00:25:54,935
+And I planned this lecture and the course,
+I first thought I, I should do it the
+
+287
+00:25:54,935 --> 00:26:01,264
+traditional way of starting very simple
+and maybe give a crash introduction into a
+
+288
+00:26:01,264 --> 00:26:07,685
+Haskell, then do some simple Plutus contracts
+and slowly add more complicated stuff.
+
+289
+00:26:08,135 --> 00:26:12,155
+But then I decided it would be more
+interesting, especially for the first lecture
+
+290
+00:26:12,665 --> 00:26:18,725
+to showcase a more interesting contract
+and just demonstrate what Plutus can do.
+
+291
+00:26:19,235 --> 00:26:25,594
+And then use that to look at certain concepts
+in more detail and explain them in more detail.
+
+292
+00:26:27,024 --> 00:26:35,295
+So the code for this course we'll be in this
+GitHub repository it's at input-outpu-hk,
+
+293
+00:26:35,875 --> 00:26:37,784
+and then plutus-pioneer-program.
+
+294
+00:26:37,885 --> 00:26:40,655
+So I have a local clone of this repository.
+
+295
+00:26:41,695 --> 00:26:47,430
+And the code for week one is in
+the sub folder code slash week one.
+
+296
+00:26:48,990 --> 00:26:53,040
+And in order to build this, the
+most reliable way is to use nix.
+
+297
+00:26:54,390 --> 00:26:58,980
+And for that, we need the right
+dependency of the Plutus repository.
+
+298
+00:26:59,520 --> 00:27:02,790
+And that one is mentioned
+in the cabal project file.
+
+299
+00:27:02,970 --> 00:27:14,510
+So we see here in this folder, there's this cabal
+project file and if we look at that, then here,
+
+300
+00:27:15,170 --> 00:27:22,180
+this is the reference to the Plutus repository,
+here you also can see the address on GitHub.
+
+301
+00:27:22,210 --> 00:27:25,470
+So it's input-output-hk/plutus.
+
+302
+00:27:26,350 --> 00:27:30,550
+And this is the tag we're
+using for the code this week.
+
+303
+00:27:30,820 --> 00:27:35,290
+So this will change during the duration of the
+course because Plutus is still under development.
+
+304
+00:27:35,290 --> 00:27:42,495
+So, stuffs has permanently changed and I'll try
+to keep the lectures as up to date as possible.
+
+305
+00:27:42,495 --> 00:27:46,725
+So probably every week I
+will change this dependency.
+
+306
+00:27:47,415 --> 00:27:55,695
+So once we have this, we can go to the
+Plutus folder so I also have that locally,
+
+307
+00:27:56,145 --> 00:28:03,465
+clone of the Plutus repository and there we
+must make sure that we have the right hash
+
+308
+00:28:03,495 --> 00:28:11,235
+so we can, for example, do a git log and
+then this commit hash here must be the one
+
+309
+00:28:11,235 --> 00:28:12,915
+that's mentioned in the cabal project file.
+
+310
+00:28:13,245 --> 00:28:20,535
+If not, we have to use, git checkout with
+that hash from the cabal project file.
+
+311
+00:28:22,455 --> 00:28:29,850
+And then we start the nix shell, I already
+did this, so I won't execute this now.
+
+312
+00:28:29,880 --> 00:28:35,590
+So I'm already in a nix shell, but in this Plutus
+repository folder we have to start a nix shell.
+
+313
+00:28:35,940 --> 00:28:40,410
+And when you do that for the first time,
+it can take, take quite a while, and you
+
+314
+00:28:40,410 --> 00:28:45,720
+should also consult the readme of the Plutus
+repository, how to configure nix, because you
+
+315
+00:28:45,720 --> 00:28:51,000
+have to use the appropriate caches so that you
+don't have to build everything by yourself,
+
+316
+00:28:51,300 --> 00:28:56,460
+but can reuse the cache content then it's
+much faster, otherwise it might take hours.
+
+317
+00:28:57,240 --> 00:29:03,920
+So once you have this nix shell, you
+can then go back to the Plutus Pioneer
+
+318
+00:29:03,920 --> 00:29:12,480
+Program repo for the appropriate week,
+and then build the code with cabal build.
+
+319
+00:29:14,675 --> 00:29:19,415
+And this will also take a while the first
+time you do it, I did it before, so in
+
+320
+00:29:19,415 --> 00:29:24,125
+that case it's instantaneous, but the
+first time will take quite some time.
+
+321
+00:29:24,275 --> 00:29:30,625
+So you need some patients, but that's the
+most reliable way to do it and to build
+
+322
+00:29:30,625 --> 00:29:33,305
+the code that's accompanying this course.
+
+323
+00:29:35,895 --> 00:29:40,245
+As my introductory example, I
+pick the example of an auction.
+
+324
+00:29:41,055 --> 00:29:46,605
+So the idea is somebody wants to
+auction an NFT, a non fungible token.
+
+325
+00:29:47,175 --> 00:29:56,985
+That is a native token on Cardano that only exists
+exactly once and NFT itself can represent some
+
+326
+00:29:57,195 --> 00:30:00,455
+digital art or maybe also some real world asset.
+
+327
+00:30:02,054 --> 00:30:04,965
+And the owner of the token
+wants to auction it away.
+
+328
+00:30:05,864 --> 00:30:11,385
+And the idea is that this auction is
+parameterized by the owner of the token
+
+329
+00:30:11,385 --> 00:30:14,665
+and the token itself, then a minimal bid.
+
+330
+00:30:14,864 --> 00:30:19,905
+So no bid below that minimum will
+be accepted and the deadline.
+
+331
+00:30:19,965 --> 00:30:23,294
+So all the bids have to
+arrive before the deadline.
+
+332
+00:30:24,885 --> 00:30:29,445
+So let's say that Alice has an
+NFT and wants to auction it.
+
+333
+00:30:29,925 --> 00:30:37,215
+So she creates a UTxO at the script output
+where the script is the auction script.
+
+334
+00:30:37,665 --> 00:30:44,015
+We will look at the code later, but first I
+just want to explain the idea in the UTxO model.
+
+335
+00:30:45,175 --> 00:30:53,879
+And the value of that UTxO is just the NFT, and
+the datum at the moment is nothing, later it
+
+336
+00:30:53,879 --> 00:30:57,010
+will be the highest bidder and the highest bid.
+
+337
+00:30:57,600 --> 00:31:01,649
+But right now there hasn't
+been a bid, so it's nothing.
+
+338
+00:31:03,510 --> 00:31:08,669
+In the real blockchain you can't have a
+UTxO that just contains native tokens.
+
+339
+00:31:09,000 --> 00:31:14,669
+They always have to be accompanied by some
+ADA, but I'm ignoring this for simplicity here.
+
+340
+00:31:15,750 --> 00:31:21,989
+Now let's say that Bob wants to bid
+100 ADA, maybe that's the minimal bit.
+
+341
+00:31:23,070 --> 00:31:29,070
+So in order to do this, Bob creates a
+transaction with two inputs and one output.
+
+342
+00:31:29,850 --> 00:31:34,110
+And the first input is the auction UTxO.
+
+343
+00:31:34,500 --> 00:31:42,629
+The second input is Bob's bid, 100 ADA, and
+the output is again at the auction script,
+
+344
+00:31:42,989 --> 00:31:46,260
+but now the value and the datum has changed.
+
+345
+00:31:47,115 --> 00:31:51,825
+So before the datum was just nothing,
+because there hadn't been a bid yet.
+
+346
+00:31:52,215 --> 00:31:55,095
+Now it's just Bob and a hundred.
+
+347
+00:31:55,695 --> 00:32:01,005
+So it requires the highest bidder,
+Bob and how high the bid was, 100.
+
+348
+00:32:01,965 --> 00:32:07,185
+The value has changed because now
+there's not only the NFT contained in
+
+349
+00:32:07,185 --> 00:32:11,334
+this UTxO, but also the 100 ADA bid.
+
+350
+00:32:12,795 --> 00:32:22,635
+And as a redeemer in order to unlock the original
+auction UTxO, we use something called bid.
+
+351
+00:32:23,085 --> 00:32:28,350
+So that's just an algebraic data type, there
+would be other values as well but one of those
+
+352
+00:32:28,350 --> 00:32:35,610
+is bid and the script, the auction script will
+check that all the conditions are satisfied.
+
+353
+00:32:35,760 --> 00:32:42,540
+So in this case, the script has to check that
+the bid happens before the deadline, that the bid
+
+354
+00:32:42,600 --> 00:32:49,080
+is high enough higher than the minimal bid and
+that the correct inputs and outputs are there.
+
+355
+00:32:49,290 --> 00:32:57,780
+So the auction is an input and also an output
+that again contains the NFT and contains
+
+356
+00:32:57,780 --> 00:33:03,000
+the correct highest bid in addition to that,
+and that the datum is updated correctly.
+
+357
+00:33:03,600 --> 00:33:09,690
+Next let's assume that Charlie
+wants to outbid Bob and bid 200 ADA.
+
+358
+00:33:10,410 --> 00:33:13,140
+So Charlie will create another transaction.
+
+359
+00:33:13,830 --> 00:33:16,890
+This time one with two inputs and two outputs.
+
+360
+00:33:17,490 --> 00:33:24,195
+So, as in the first case, the two
+inputs are Charlie's bid, the 200 ADA
+
+361
+00:33:24,705 --> 00:33:32,325
+and the auction UTxO and one of the
+outputs is the updated auction UTxO.
+
+362
+00:33:32,925 --> 00:33:36,765
+So when I say updated, recall that
+I earlier said nothing ever changes.
+
+363
+00:33:37,215 --> 00:33:44,415
+So the old auction UTxO is consumed is spent
+and the new one is created, but it has this
+
+364
+00:33:44,415 --> 00:33:48,735
+feel of updating the state of the auction UTxO.
+
+365
+00:33:49,665 --> 00:33:52,725
+Anyway, so that gets updated.
+
+366
+00:33:52,725 --> 00:33:59,445
+So instead of NFT and 100 ADA will now contain
+NFT and 200 ADA, then use higgest bid and also
+
+367
+00:33:59,445 --> 00:34:04,845
+the datum will reflect that now the highest
+bidder is Charlie and the highest bid is 200.
+
+368
+00:34:05,745 --> 00:34:10,995
+And that will be an additional output
+namely Bob will get his bid back.
+
+369
+00:34:11,895 --> 00:34:16,199
+And that's also the reason, one of the
+reasons we have to recall the highest
+
+370
+00:34:16,199 --> 00:34:22,169
+bidder and the highest bid so that we know
+who will get the old highest bid back.
+
+371
+00:34:23,279 --> 00:34:31,529
+And in this case we again use the bid
+redeemer, but now the script has to check as
+
+372
+00:34:31,529 --> 00:34:37,500
+before that the deadline has not been reached
+test to check that the new highest bid is
+
+373
+00:34:37,529 --> 00:34:39,449
+actually higher than the old highest bid.
+
+374
+00:34:40,409 --> 00:34:45,779
+It has to check that the new
+auction UTxO is correctly updated.
+
+375
+00:34:46,500 --> 00:34:49,960
+And it also has to make sure that
+the original highest bidder, Bob
+
+376
+00:34:49,980 --> 00:34:52,290
+in this case gets his bid back.
+
+377
+00:34:53,100 --> 00:34:59,190
+Finally, let's assume that there won't
+be another bid, so once the deadline has
+
+378
+00:34:59,190 --> 00:35:02,040
+been reached, the auction can be closed.
+
+379
+00:35:02,940 --> 00:35:09,670
+In order to do that, somebody has to create
+yet another transaction, that could be Alice
+
+380
+00:35:09,720 --> 00:35:15,690
+who wants her bid or it could also be Charlie
+who wants the NFT, it doesn't matter, it
+
+381
+00:35:15,690 --> 00:35:20,280
+can be anybody, but those two actually have
+an incentive to create this transaction.
+
+382
+00:35:21,510 --> 00:35:29,340
+So this transaction will have one input,
+just the auction UTxO with redeemer close,
+
+383
+00:35:29,640 --> 00:35:32,670
+not bid in this case and two outputs.
+
+384
+00:35:33,180 --> 00:35:39,720
+And one of the outputs is the highest bidder,
+Charlie, and he gets the NFT, he won the auction.
+
+385
+00:35:39,720 --> 00:35:45,390
+So he gets what was auctioned away
+and Alice, the owner of the auction,
+
+386
+00:35:45,390 --> 00:35:47,190
+the original owner of the NFT.
+
+387
+00:35:47,520 --> 00:35:54,980
+She gets the highest bid and that closes
+the auction and finished this scenario.
+
+388
+00:35:55,640 --> 00:36:00,980
+And the script in the close case has to
+check that the deadline has been reached
+
+389
+00:36:01,550 --> 00:36:07,160
+and that the highest bidder gets the NFT and
+that the auction owner gets the highest bid.
+
+390
+00:36:08,880 --> 00:36:14,560
+There's one more scenario for us to
+consider namely that nobody made any bid.
+
+391
+00:36:15,330 --> 00:36:19,480
+So, Alice starts the auction,
+but then nobody creates a bid.
+
+392
+00:36:21,210 --> 00:36:26,609
+And in this case, there must be a
+mechanism for Alice to retrieve her NFT.
+
+393
+00:36:27,240 --> 00:36:30,720
+So for that, she creates a transaction
+again with the close redeemer.
+
+394
+00:36:31,259 --> 00:36:36,390
+But now, because there is no bidder,
+the NFT doesn't go to the highest
+
+395
+00:36:36,390 --> 00:36:40,650
+bidder because there is no highest
+bidder, but simply goes back to herself.
+
+396
+00:36:41,100 --> 00:36:46,950
+So the logic in this case, if there's no highest
+bidder is likely different for the close redeemer,
+
+397
+00:36:47,660 --> 00:36:52,149
+it must check that the NFT goes back to Alice.
+
+398
+00:36:52,890 --> 00:36:57,160
+Actually, it doesn't have to check anything
+because I mean, this will be triggered by Alice.
+
+399
+00:36:57,160 --> 00:36:58,920
+Alice will create this transaction.
+
+400
+00:36:59,250 --> 00:37:02,009
+And of course she could send
+the NFT wherever she wants.
+
+401
+00:37:03,745 --> 00:37:07,435
+Let's have a brief look at the code,
+but don't worry, I don't expect
+
+402
+00:37:07,435 --> 00:37:09,295
+you to understand it at this point.
+
+403
+00:37:10,995 --> 00:37:16,485
+It's an important thing to realize about Plutus
+is that there's on-chain and off-chain code.
+
+404
+00:37:17,385 --> 00:37:23,225
+On-chain code is this script we were
+discussing in the script from the UTxO model.
+
+405
+00:37:23,435 --> 00:37:30,365
+So in addition to public key addresses,
+we have script addresses and outputs
+
+406
+00:37:30,395 --> 00:37:32,165
+can sit at such a script address.
+
+407
+00:37:32,195 --> 00:37:39,035
+And if a transaction tries to consume such
+an output, the script is executed and only
+
+408
+00:37:39,035 --> 00:37:41,795
+if it succeeds, the transaction is valid.
+
+409
+00:37:42,695 --> 00:37:50,225
+So how it works is if a node receives a new
+transaction, it validates it before accepting
+
+410
+00:37:50,225 --> 00:37:53,585
+it into its mempool and eventually into a block.
+
+411
+00:37:54,335 --> 00:38:00,105
+And for each input of the transaction, if
+that input happens to be a script address, the
+
+412
+00:38:00,105 --> 00:38:04,995
+corresponding script is executed and must succeed.
+
+413
+00:38:05,445 --> 00:38:08,475
+And if it doesn't succeed, then
+the transaction is invalid.
+
+414
+00:38:09,045 --> 00:38:15,525
+So that's the so-called on-chain aspect of
+Plutus and the programming language this
+
+415
+00:38:15,615 --> 00:38:21,795
+script is expressed in as written in is
+called Plutus core, but you never write plutus
+
+416
+00:38:21,795 --> 00:38:27,765
+core by hand, instead you write Haskell and
+then that gets compiled down to Plutus core.
+
+417
+00:38:28,275 --> 00:38:33,045
+And eventually there may also very well be
+other higher level programming languages,
+
+418
+00:38:33,075 --> 00:38:39,765
+like maybe solidity or C or Python that
+can compile it down to Plutus core.
+
+419
+00:38:41,475 --> 00:38:46,845
+So that's the one thing that's the
+script and the task of a script is to say
+
+420
+00:38:46,845 --> 00:38:52,125
+yes or no can this transaction consume
+the output I'm locking, yes or no?
+
+421
+00:38:52,905 --> 00:38:58,005
+But in order to actually use such an output
+that is locked at the script address.
+
+422
+00:38:58,245 --> 00:39:04,025
+So in order to create a transaction that will
+unlock section output and use that input,
+
+423
+00:39:04,605 --> 00:39:10,875
+you of course must be able to construct a
+transaction that will then pass validation.
+
+424
+00:39:11,895 --> 00:39:15,945
+And that is the responsibility
+of the off-chain part of Plutus.
+
+425
+00:39:16,635 --> 00:39:21,435
+So there is a part that runs in the wallet,
+not on the blockchain, and that will
+
+426
+00:39:21,465 --> 00:39:28,575
+construct suitable transactions that are
+then able to unlock a given script output.
+
+427
+00:39:29,310 --> 00:39:34,200
+So that's like a dual role of on-chain and
+off-chain, on chain checks and validates, it
+
+428
+00:39:34,200 --> 00:39:36,300
+doesn't do anything, it just says yes or no.
+
+429
+00:39:36,900 --> 00:39:43,410
+And the off-chain part constructs actively creates
+a transaction that will then pass validation.
+
+430
+00:39:44,640 --> 00:39:49,710
+And the nice thing, or one of the nice things
+about Plutus is that both the on-chain and
+
+431
+00:39:49,710 --> 00:39:52,110
+the off-chain parts are written in Haskell.
+
+432
+00:39:52,320 --> 00:39:56,070
+So one obvious advantage of that
+is that you don't have to learn two
+
+433
+00:39:56,070 --> 00:39:58,930
+programming languages, just one Haskell.
+
+434
+00:39:59,730 --> 00:40:05,250
+And the other advantage is that you can share
+code between on-chain and off-chain part.
+
+435
+00:40:05,730 --> 00:40:10,650
+Later in this course we will talk about state
+machines, then this aspect is even more direct,
+
+436
+00:40:10,650 --> 00:40:18,030
+there you can really use the same, literally the
+same code, both for checking and for construction.
+
+437
+00:40:18,600 --> 00:40:26,430
+But even if you don't use state machines there's
+still a lot of possibility to share code.
+
+438
+00:40:27,000 --> 00:40:31,919
+So if we briefly look at the code, so
+here, for example, it's just a Haskell
+
+439
+00:40:31,919 --> 00:40:34,260
+data type that defines an auction.
+
+440
+00:40:34,260 --> 00:40:39,030
+So it's the seller, the deadline, the minimal
+bid and then the last two define the NFT
+
+441
+00:40:40,720 --> 00:40:49,310
+and various other data types .And here,
+this is the heart of the on-chain code.
+
+442
+00:40:49,430 --> 00:40:54,290
+So this defines the script, the logic
+of the script, that validates where the
+
+443
+00:40:54,350 --> 00:41:00,800
+transaction is allowed to spend a given
+output sitting at this auction contract.
+
+444
+00:41:01,370 --> 00:41:04,650
+So there are various helper
+functions here to do that.
+
+445
+00:41:05,640 --> 00:41:09,500
+And so this is that.
+
+446
+00:41:10,790 --> 00:41:14,840
+And then here, this is where
+the compilation happens.
+
+447
+00:41:14,960 --> 00:41:21,050
+So the, this functionary address shorter it's just
+Haskell, but then here you have something called
+
+448
+00:41:21,380 --> 00:41:28,730
+template Haskell to activate the GHC plug in that
+then compiles, this Haskell code to Plutus core.
+
+449
+00:41:29,830 --> 00:41:37,420
+And here the off-chain part starts,
+which defines various parameters for
+
+450
+00:41:37,730 --> 00:41:40,540
+endpoints that can be then invoked.
+
+451
+00:41:40,810 --> 00:41:46,360
+So we have three endpoints for this example,
+start will be used by the seller to start
+
+452
+00:41:46,360 --> 00:41:53,680
+the auction, to log the NFT into the
+auction contract and then bid and close.
+
+453
+00:41:53,680 --> 00:41:59,830
+So bid obviously will be used by bidders to
+make a bid and close will be used either by
+
+454
+00:41:59,830 --> 00:42:02,470
+the winner of the auction or by the seller.
+
+455
+00:42:04,109 --> 00:42:10,750
+And so here, these operations are
+defined, so this is the start logic.
+
+456
+00:42:11,710 --> 00:42:15,160
+Then we have the bid logic here.
+
+457
+00:42:18,415 --> 00:42:18,835
+Okay.
+
+458
+00:42:19,004 --> 00:42:22,084
+That's a bit further and then
+finally here, the close logic.
+
+459
+00:42:23,555 --> 00:42:29,214
+And then some helper functions and this
+just basically packages everything up.
+
+460
+00:42:29,935 --> 00:42:33,475
+It says, okay, we will have these
+three endpoints start, bid and close.
+
+461
+00:42:34,254 --> 00:42:35,995
+And they are called start, bid and close.
+
+462
+00:42:36,384 --> 00:42:44,194
+And the last lines are just for demo purposes
+or for trying it out in the playground to create
+
+463
+00:42:44,214 --> 00:42:47,785
+an sample NFT that we can use to auction away.
+
+464
+00:42:47,875 --> 00:42:51,145
+So that has nothing to do
+with the actual contract.
+
+465
+00:42:52,435 --> 00:42:58,615
+And what I said about code reuse, for
+example, if you look here at the bid off-chain
+
+466
+00:42:58,615 --> 00:43:02,125
+part that uses a function min bid here.
+
+467
+00:43:04,380 --> 00:43:09,390
+Basically determines giving on the current datum
+on the state of the contract, whether there was
+
+468
+00:43:09,390 --> 00:43:13,990
+already a bid or not, determines the minimal bid.
+
+469
+00:43:14,490 --> 00:43:22,620
+And if we look for that, we
+see that this is defined here.
+
+470
+00:43:24,640 --> 00:43:28,650
+And it's also used here we
+are in the on-chain part.
+
+471
+00:43:29,460 --> 00:43:34,470
+So obviously this script must check if a
+new bid comes in, whether it's high enough.
+
+472
+00:43:34,740 --> 00:43:39,120
+So it's useful to have function that
+computes this minimal bid but also in the
+
+473
+00:43:39,250 --> 00:43:44,550
+off-chain part where I'm back to now, it's
+also useful if the wallet before even bother
+
+474
+00:43:44,550 --> 00:43:48,510
+us constructing a transaction that makes a
+bid, checks whether the bid is high enough.
+
+475
+00:43:48,960 --> 00:43:54,000
+That's not strictly speaking necessary, the
+wallet could just construct the transaction
+
+476
+00:43:54,000 --> 00:43:56,920
+anyway, but then it would be doomed to fail.
+
+477
+00:43:57,220 --> 00:44:01,379
+So it would be stupid to actually
+construct it in the first place.
+
+478
+00:44:01,740 --> 00:44:06,480
+That's why I have this check in here that
+checks whether the bid is actually high enough.
+
+479
+00:44:07,350 --> 00:44:12,629
+But the point I want to make is that this
+min bid helper function can be shared between
+
+480
+00:44:12,629 --> 00:44:16,440
+on-chain and off-chain code because it's
+just a plane Haskell function and can be
+
+481
+00:44:16,440 --> 00:44:19,680
+used in both parts of the Plutus contract.
+
+482
+00:44:21,060 --> 00:44:27,480
+So that's a very nice aspect of Plutus that you
+don't have code duplication between the on-chain
+
+483
+00:44:27,480 --> 00:44:32,400
+part that lives on the blockchain and this
+responsible for validation and the off-chain
+
+484
+00:44:32,400 --> 00:44:40,109
+part that runs in the user's wallet on the user's
+local machine, or later in the user's web browser.
+
+485
+00:44:40,710 --> 00:44:46,690
+And it's used to construct transactions
+that will then pass a validation.
+
+486
+00:44:47,610 --> 00:44:53,280
+So it's important to keep these two uses
+apart and then to realize what they are.
+
+487
+00:44:53,420 --> 00:44:57,560
+And sometimes it's confusing when
+people talk about smart contracts
+
+488
+00:44:57,660 --> 00:44:59,220
+or contracts, what do they mean?
+
+489
+00:44:59,250 --> 00:45:02,250
+do they mean the script, the on-chain script?
+
+490
+00:45:02,640 --> 00:45:07,200
+Or do they mean the off-chain part that
+lives in the wallet and run some wallet?
+
+491
+00:45:07,200 --> 00:45:10,200
+And it's even more confusing because
+the Haskell data type used for the
+
+492
+00:45:10,200 --> 00:45:12,090
+off-chain part is also called contract.
+
+493
+00:45:12,750 --> 00:45:18,660
+So if you talk about contract, do you mean
+this capital C contract, the off-chain contract
+
+494
+00:45:18,660 --> 00:45:21,990
+that's executed in, on the user's machine?
+
+495
+00:45:23,130 --> 00:45:24,720
+Or do we talk about something else?
+
+496
+00:45:24,840 --> 00:45:29,490
+So it's important to be precise about what
+we actually mean when we discuss something.
+
+497
+00:45:30,900 --> 00:45:31,140
+Yes.
+
+498
+00:45:31,140 --> 00:45:36,510
+But just to summarize, so we have on-chain and
+off-chain, on-chain gets compiled down to Plutus
+
+499
+00:45:36,540 --> 00:45:45,855
+core and is living on the blockchain and is
+executed by nodes that validate transactions.
+
+500
+00:45:46,665 --> 00:45:52,245
+And if you have the off-chain code that lives
+on the user's machine and is responsible
+
+501
+00:45:52,245 --> 00:45:57,825
+for constructing transactions and submitting
+transactions, that will then unlog certain
+
+502
+00:45:57,825 --> 00:46:01,225
+script outputs and both are written in Haskell.
+
+503
+00:46:01,245 --> 00:46:07,135
+And that allows us to share code between
+them, which avoids code duplication.
+
+504
+00:46:08,005 --> 00:46:13,865
+So we have a shorter code and basically
+guaranteed that the parts fit together or these
+
+505
+00:46:13,865 --> 00:46:16,245
+it's easier to make the parts fit together.
+
+506
+00:46:17,805 --> 00:46:23,025
+Now, we want to try this in the
+playground and we won't use the publicly
+
+507
+00:46:23,025 --> 00:46:28,425
+available playground because that's
+outdated, that's from February I believe.
+
+508
+00:46:29,085 --> 00:46:34,365
+We want to use one that is in sync with the
+version of Plutus we are using right now.
+
+509
+00:46:35,025 --> 00:46:45,380
+So we go back to the Plutus repository in a nix
+shell to the sub folder plutus-playground-client.
+
+510
+00:46:46,180 --> 00:46:53,910
+And we start plutus-playground-server there.
+
+511
+00:47:00,640 --> 00:47:09,580
+Then we go to a different console, but the
+same folder again in the nix shell and we
+
+512
+00:47:09,640 --> 00:47:14,200
+do npm start to start the playground client.
+
+513
+00:47:20,270 --> 00:47:27,020
+And then we can open this address in a
+browser and find our playground there.
+
+514
+00:47:29,069 --> 00:47:34,049
+So first we would see the editor
+window and we can just take the code
+
+515
+00:47:34,109 --> 00:47:36,120
+we just looked at and paste it in here.
+
+516
+00:47:36,930 --> 00:47:42,390
+And press compile to compile it and if all goes
+well, that should compile without error message.
+
+517
+00:47:45,620 --> 00:47:53,120
+It does, now we can go to simulate and here we
+have simulated wallets and can invoke endpoints.
+
+518
+00:47:53,770 --> 00:47:58,910
+So by default, there are only two wallets, but if
+you want to replay the scenario I showed in the
+
+519
+00:47:58,970 --> 00:48:02,770
+UTxO diagram, you should create a third wallet.
+
+520
+00:48:04,180 --> 00:48:10,090
+And we see that by default, the opening
+balances are just 10 lovelace and 10 of this
+
+521
+00:48:10,120 --> 00:48:13,640
+token, but I want this token to be an NFT.
+
+522
+00:48:14,030 --> 00:48:16,750
+So that doesn't make any sense anyway.
+
+523
+00:48:17,140 --> 00:48:21,190
+So let's say wallet one is Alice, wallet
+two is Bob and wallet three is Charlie.
+
+524
+00:48:21,850 --> 00:48:28,970
+So Alice has the one T and that's the only
+one we have, so for the other say zero and
+
+525
+00:48:28,990 --> 00:48:31,720
+10 lovelace, is of course, ridiculously low.
+
+526
+00:48:31,779 --> 00:48:38,335
+So make that, I don't know, a thousand
+ADA, so one ADA is a million lovelace.
+
+527
+00:48:38,355 --> 00:48:40,905
+So 1, 2, 3, 1, 2, 3.
+
+528
+00:48:41,635 --> 00:48:43,275
+Let's give everybody the same.
+
+529
+00:48:48,315 --> 00:48:50,715
+Okay, so now we can invoke endpoints.
+
+530
+00:48:50,735 --> 00:48:53,745
+So Alice starts the auction.
+
+531
+00:48:54,805 --> 00:48:57,855
+We have to provide parameters,
+the first one is the deadline.
+
+532
+00:48:59,205 --> 00:49:05,175
+Let's say the deadline is slot 10,
+but time is measured in posix time.
+
+533
+00:49:05,175 --> 00:49:11,065
+So in seconds from 1st of January
+1970 I believe, something like that.
+
+534
+00:49:12,015 --> 00:49:16,155
+So it's not so clear what value makes sense there.
+
+535
+00:49:17,235 --> 00:49:25,245
+Luckily in the plutus-ledger
+package in module Ledger.TimeSlot.
+
+536
+00:49:25,605 --> 00:49:29,145
+There's a convenient function slot to posix time.
+
+537
+00:49:29,805 --> 00:49:33,810
+So if we import that in the repl.
+
+538
+00:49:37,859 --> 00:49:47,520
+Now we have this slot to posix time and if
+we need to slot 10, you get this value here.
+
+539
+00:49:49,509 --> 00:49:55,190
+Probably I think the simulation always
+start at the beginning of the Shelley era.
+
+540
+00:49:55,940 --> 00:50:02,760
+So probably if you convert it, it
+will be sometime, some of 2020, but
+
+541
+00:50:02,760 --> 00:50:04,680
+in any case, we can use this value.
+
+542
+00:50:05,580 --> 00:50:07,110
+So let's use the value here.
+
+543
+00:50:08,100 --> 00:50:15,070
+Now the minimum bid, let's say 100 ADA, and now
+we must specify the NFT that's being auctioned.
+
+544
+00:50:15,480 --> 00:50:21,330
+And because of how I set it
+up, this is six, six and T.
+
+545
+00:50:21,750 --> 00:50:23,340
+So don't worry about the 66.
+
+546
+00:50:23,400 --> 00:50:27,210
+That's just how this T was defined.
+
+547
+00:50:28,770 --> 00:50:29,010
+Okay.
+
+548
+00:50:29,010 --> 00:50:31,320
+Now let's wait one block.
+
+549
+00:50:32,705 --> 00:50:35,585
+Now let's Bob make his bit.
+
+550
+00:50:36,585 --> 00:50:41,065
+So this is again, specify the NFT so it's 66 T.
+
+551
+00:50:41,685 --> 00:50:47,825
+Now the bid, 100 ADA, we wait for another block.
+
+552
+00:50:49,215 --> 00:50:55,555
+Now, Charlie outbids Bob, again the 66 and the T.
+
+553
+00:50:59,145 --> 00:51:00,735
+And now 200 ADA.
+
+554
+00:51:04,425 --> 00:51:11,295
+We wait until the deadline has been reached, let's
+wait until just for good measure until slot 11.
+
+555
+00:51:11,475 --> 00:51:13,935
+I'm not sure whether 10 would suffice.
+
+556
+00:51:13,935 --> 00:51:17,415
+It depends how exactly before and
+after the deadline is defined.
+
+557
+00:51:18,985 --> 00:51:25,860
+And then Alice or Bob or Charlie, anybody can
+invoke close, but Bob has no reason to, so it
+
+558
+00:51:25,860 --> 00:51:28,220
+would be Alice or Charlie,  let's say Alice.
+
+559
+00:51:28,290 --> 00:51:40,640
+So she invokes the close endpoint, again 66 T and
+let's wait for one more block and let's evaluate.
+
+560
+00:51:44,980 --> 00:51:49,980
+Okay, and now we see the
+transactions that were simulated.
+
+561
+00:51:50,050 --> 00:51:56,880
+We see there were 1, 2, 3, 4, 5, which at first
+glance is a bit weird because we only have start,
+
+562
+00:51:56,980 --> 00:51:58,890
+two bids and the close, so it should be four.
+
+563
+00:51:59,280 --> 00:52:03,420
+But the first one in slot zero is always there,
+that's the so-called genesis transaction.
+
+564
+00:52:03,810 --> 00:52:09,660
+It's a transaction without input that
+provides the initial funds to the wallets.
+
+565
+00:52:10,020 --> 00:52:15,540
+So we have these three outputs for our
+three wallets and we get what we specified
+
+566
+00:52:16,020 --> 00:52:24,315
+so, Alice gets 1,000 ADA and the token
+and two and three Bob and Charlie only
+
+567
+00:52:24,315 --> 00:52:27,285
+get 1,000 ADA but nothing of the token.
+
+568
+00:52:28,095 --> 00:52:31,515
+So this is the Genesis transaction
+that always happens to kick things
+
+569
+00:52:31,515 --> 00:52:33,345
+off and provide initial funds.
+
+570
+00:52:34,755 --> 00:52:37,725
+So now in slot one, this should
+be the start transaction.
+
+571
+00:52:39,195 --> 00:52:46,235
+So input we see is the only UTxO
+that Alice owns the her 1,000 ADA.
+
+572
+00:52:47,945 --> 00:52:51,885
+And the, it contains 1,000 ADA and the NFT.
+
+573
+00:52:52,575 --> 00:52:54,375
+So this is the start transaction.
+
+574
+00:52:55,095 --> 00:53:01,020
+We see that fees are taken into account
+here in the playground, but not properly.
+
+575
+00:53:01,380 --> 00:53:06,300
+I think there's always at the moment a flat
+rate of 10 lovelace, which is not realistic.
+
+576
+00:53:06,300 --> 00:53:11,820
+So in, in the real blockchain, in the real system,
+the fee will of course depend on the transaction,
+
+577
+00:53:12,370 --> 00:53:17,460
+how big it is and how long the scripts run,
+how many resources they consume and so on.
+
+578
+00:53:17,970 --> 00:53:20,130
+But for now the fees always 10 lovelace.
+
+579
+00:53:21,300 --> 00:53:25,260
+Then the second output here is Alice's change.
+
+580
+00:53:25,530 --> 00:53:29,640
+So she gets her 1,000 ADA back
+minus the 10 lovelace fee.
+
+581
+00:53:30,600 --> 00:53:34,140
+And the third output is the interesting
+one that goes to the auction script.
+
+582
+00:53:34,410 --> 00:53:37,650
+So now the NFT is logged in the auction script.
+
+583
+00:53:38,880 --> 00:53:42,250
+So now if we go to the next
+transaction, that should be Bob's bid.
+
+584
+00:53:43,500 --> 00:53:47,010
+So we have two inputs as in the
+diagram we looked at earlier.
+
+585
+00:53:47,010 --> 00:53:54,060
+So one is the auction script with the
+NFT and one is Bob's original UTxO.
+
+586
+00:53:55,250 --> 00:54:02,365
+And as outputs, so we're gonna have the fees
+or which in this case are not just 10 lovelace.
+
+587
+00:54:02,385 --> 00:54:04,345
+So now we have like a higher fee.
+
+588
+00:54:05,005 --> 00:54:07,995
+So it seems that changed since
+last time we looked at it.
+
+589
+00:54:07,995 --> 00:54:13,945
+So now it's not a flat rate of 10 lovelace
+there is some more sophistication going on.
+
+590
+00:54:15,145 --> 00:54:17,935
+The second output is Bob's change.
+
+591
+00:54:18,325 --> 00:54:25,195
+So it's basically a 1,000 ADA minus the
+130 bids, but then also minus the fee.
+
+592
+00:54:25,825 --> 00:54:28,495
+The third output is the updated script.
+
+593
+00:54:28,735 --> 00:54:33,245
+So the updated script now
+contains the token and Bob's bid.
+
+594
+00:54:35,005 --> 00:54:38,955
+Now let's look at the next
+transaction, the Charlie's bid.
+
+595
+00:54:39,495 --> 00:54:41,925
+So it's similar here on the input side.
+
+596
+00:54:42,345 --> 00:54:47,895
+So the script UTxO goes in, that at the
+moment contains the NFT and Bob's bid.
+
+597
+00:54:48,735 --> 00:54:52,155
+Then Charlie's UTxO is the second input.
+
+598
+00:54:52,515 --> 00:54:56,265
+Now we have one output more
+because Bob gets his bid back.
+
+599
+00:54:56,265 --> 00:55:02,205
+So we have the fees, we
+have the change for Charlie.
+
+600
+00:55:02,505 --> 00:55:07,485
+So he gets roughly 800 ADA change
+because he, his bid was 200.
+
+601
+00:55:08,715 --> 00:55:12,925
+Then we have the script output, so
+the NFT is still there, but now there
+
+602
+00:55:12,985 --> 00:55:15,585
+are 200 ADA in it Charlie's bid.
+
+603
+00:55:16,185 --> 00:55:23,535
+And finally for wallet two for Bob, Bob
+gets his 100 bid back and the last one
+
+604
+00:55:23,535 --> 00:55:25,375
+will be the close, invoked by Alice.
+
+605
+00:55:26,595 --> 00:55:36,075
+So input is just Alice's wallet, this is in order
+to pay for the fees and then the script output.
+
+606
+00:55:37,185 --> 00:55:40,045
+And so we have the fees,
+we have changed for Alice.
+
+607
+00:55:40,065 --> 00:55:44,025
+So it's virtually the same
+that went in minus these fees.
+
+608
+00:55:45,705 --> 00:55:51,945
+Then Alice gets the highest bid
+the 200 ADA and Bob gets the token.
+
+609
+00:55:52,455 --> 00:55:54,585
+So the auction has finished.
+
+610
+00:55:55,845 --> 00:55:59,865
+We could check what happens
+if something goes wrong.
+
+611
+00:55:59,925 --> 00:56:06,355
+Or for example, if Charlie's bid is too
+low, is not higher than, than Bob's bid.
+
+612
+00:56:07,455 --> 00:56:08,235
+So where is it?
+
+613
+00:56:08,235 --> 00:56:12,884
+That was here, the bid was 200, so
+let's say Charlie makes a mistake and
+
+614
+00:56:12,884 --> 00:56:16,395
+only bids instead of 200, only 20 ADA.
+
+615
+00:56:17,645 --> 00:56:19,245
+So if we now evaluate.
+
+616
+00:56:23,665 --> 00:56:27,175
+Okay, then we see we have one transaction less.
+
+617
+00:56:27,865 --> 00:56:35,430
+So, this is still Bob's bid with the 100,
+but now Charlie's transaction was invalid.
+
+618
+00:56:35,490 --> 00:56:41,970
+So that's rejected and the close now looks
+different because now Bob is the highest bidder.
+
+619
+00:56:41,980 --> 00:56:46,530
+So Alice only gets 100 and Bob gets the NFT.
+
+620
+00:56:47,730 --> 00:56:52,120
+Finally, we can try what happens if there
+is no valid bids So, for example, we
+
+621
+00:56:52,120 --> 00:56:59,780
+can just remove the bids all together,
+let's remove Bob's bid and Charlie's bid.
+
+622
+00:57:02,850 --> 00:57:06,960
+And we must just wait until the deadline
+has been reached, so wait until slots
+
+623
+00:57:07,260 --> 00:57:10,530
+11 let's say and see what happens now.
+
+624
+00:57:14,470 --> 00:57:14,830
+Okay.
+
+625
+00:57:14,830 --> 00:57:21,670
+So we have the genesis transaction and
+the opening of the auction and no bids.
+
+626
+00:57:22,120 --> 00:57:32,069
+And now the closing of the auction will
+just return the NFT here to Alice, so
+
+627
+00:57:32,069 --> 00:57:37,410
+in this case, there are two outputs to
+Alice's address, but in any case, she
+
+628
+00:57:37,410 --> 00:57:39,960
+ends up with the NFT back in her hands.
+
+629
+00:57:40,740 --> 00:57:45,899
+So you can see that this is a relatively
+complex contract and one that might actually
+
+630
+00:57:45,899 --> 00:57:51,420
+be useful in practice, and it seems to work
+and we can play with it in the playground.
+
+631
+00:57:54,089 --> 00:57:58,470
+So I hope you enjoyed this walk
+through through the auction contract.
+
+632
+00:57:58,950 --> 00:58:03,930
+And I excited to learn how to do things
+like that, or even more interesting things
+
+633
+00:58:03,990 --> 00:58:06,569
+like that yourself during this course.
+
+634
+00:58:07,509 --> 00:58:10,109
+And that's the end of today's lecture.
+
+635
+00:58:10,290 --> 00:58:12,990
+So all that remains is homework.
+
+636
+00:58:13,080 --> 00:58:19,710
+So I've planned to give you a little bit of
+homework every week so that you can practice
+
+637
+00:58:19,710 --> 00:58:25,480
+because in learning a programming language, it's
+always very important that you try it yourself.
+
+638
+00:58:25,800 --> 00:58:30,790
+Because often, if you listen to a lecture,
+even if you think you understand everything
+
+639
+00:58:31,360 --> 00:58:38,310
+then if you sit down and try it yourself, you
+actually realize if there are certain things
+
+640
+00:58:38,310 --> 00:58:43,230
+you didn't really understand, as well as
+you thought you did when you listened to it.
+
+641
+00:58:44,490 --> 00:58:47,580
+But of course we haven't
+really learned anything yet.
+
+642
+00:58:47,610 --> 00:58:50,520
+So I can't ask you to write
+a simple Plutus contract.
+
+643
+00:58:50,850 --> 00:58:55,620
+So for the first week, I would just
+like to ask you to basically do
+
+644
+00:58:55,620 --> 00:58:57,480
+what I did in this walk through.
+
+645
+00:58:57,690 --> 00:59:07,220
+So clone the Plutus Pioneer Program repository,
+get it to build with cabal build, clone the
+
+646
+00:59:07,220 --> 00:59:14,950
+Plutus repository, check out the right commit,
+get the nix shell working, start the Plutus
+
+647
+00:59:14,970 --> 00:59:21,210
+playground server, start the Plutus playground
+client, then copy paste the code from the
+
+648
+00:59:21,210 --> 00:59:24,510
+Plutus Pioneer Program repo into the playground.
+
+649
+00:59:25,290 --> 00:59:30,149
+And make it compile and then
+simulate some auctions scenarios.
+
+650
+00:59:31,410 --> 00:59:36,270
+So it would be great if, if all of you could
+manage to get that working, because then it means
+
+651
+00:59:36,270 --> 00:59:42,750
+that your environments are properly set up and
+we're ready to take on more interesting things.
+
+652
+00:59:43,709 --> 00:59:45,930
+So that was it for the first week.
+
+653
+00:59:46,290 --> 00:59:51,750
+Thank you very much again, for attending
+the course and talk to you next week.
+
+654
+00:59:52,379 --> 00:59:52,799
+Thank you.
+

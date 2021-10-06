@@ -1,0 +1,302 @@
+{\rtf1\ansi\deff0
+\margl1800\margr1800\margb1440\margt1440\deflang1033\lndscpsxn
+{\colortbl;
+}
+{\fonttbl;
+{\f0 Arial}
+}
+{\pard  \line \par}
+{\b\fs36 [00:00:00] 0501 Start\b0}
+{\pard  \line \par}
+{In this lecture I want to talk about native tokens and how they are supported by Plutus, how you can use Plutus to define a so-called minting policy to determine under which conditions native tokens can be minted and also burned. But before I get to that, I have to explain what value means in Cardano.}
+{\pard  \line \par}
+{When I talked about the extended UTxO model. I explained that each UTxO, each unspent transaction output has an address and the value. And then when it was extended to the extended UTxO model, additionally UTxO also has a datum. And we have seen examples of such datums in previous lectures. But in almost all the examples we have seen so far, the value was always simply an ADA value or lovelace value.}
+{\pard  \line \par}
+{And exception was the first contract I showed you as an example, namely the auction contract, because in that example the item that was auction, the way was a NFT. So this NFT was also a value, which was not ADA. But we just created this NFT out of thin air in the playground. So we just used this playground feature that makes it possible to start with other native tokens, other than ADA that are already in existence. }
+{\pard  \line \par}
+{In the real Cardano blockchain, however, in the beginning, they are only ADA. There are no other native tokens apart from ADA. So you have to do something to create new native tokens or to burn existing ones and in this lecture we'll see how to do that, but let's first talk about values. }
+{\pard  \line \par}
+{\b\fs36 [00:02:05] 0502 Values\b0}
+{\pard  \line \par}
+{The relevant types are defined in package plutus-ledger-api and the modules of interests are Plutus dot V1 dot ledger dot value, and then special support for ADA in Plutus dot V1 dot ledger dot ADA. Let's look at the value module first a value is defined as a map from currency symbols to maps from token names to integers, which sounds a bit weird and complicated. So the first thing to notice that each native token, including ADA is identified by two pieces of data, a currency symbol and the token name. And if we go to the top of the module, we see that a currency symbol is just a newtype wrap around to byte string.}
+{\pard  \line \par}
+{And the same is true for token name, token name is also just a new type wrapper around byte string. So we have these two byte strings that identify a coin or in also called an asset class. We have this newtype asset class, which is a wrapper around a payer consisting of a currency symbol and the token name.}
+{\pard  \line \par}
+{So ADA or lovelace will be one asset class and custom native tokens will be other asset classes. And this map from currency symbol to map token names to integers is equivalent to a map from asset classes to integers, which means that a value just says how many units of each asset class are contained in it.}
+{\pard  \line \par}
+{Let's start the repl and let's import the two relevant modules plutus V1 ledger value, and plutus V1 ledger ADA. Let's also activate the overloaded string extension so that we can end up byte strings as literal strings. Incidentally, both currency symbol and token name also implement the is string class.}
+{\pard  \line \par}
+{That means we can enter both of those as literal strings as well. Now let's look at some values, let's start with lovelace values. In the ledger dot ADA module. There's a function called ADA, ADA symbol and this is of type currency symbol. And that gives us not surprisingly the currency symbol of the ADA asset class.}
+{\pard  \line \par}
+{And that's just the empty byte string and there's similarly a function ADA token, which will give us the token name. And that is also the empty byte string. So taking both symbol, currency symbol and token name as the empty byte string gives us ADA or lovelace. And so how do we construct the value containing just lovelace.}
+{\pard  \line \par}
+{We have seen that before in the examples, there is a function lovelace value of, that given an integer, it gives us a value. So for example, to have 123 lovelace, we can just do this. And we get the value and by the way, you would never construct a value directly by constructing these maps, instead there are always helper functions you can use, one of those being lovelace value of. }
+{\pard  \line \par}
+{So here we see this map, so the outer map, the map where the keys are currency symbols has one key and we don't really see it here, that's because the currency symbol of ADA is just empty currency symbol. Okay, and the value is now a map from token names to integers.}
+{\pard  \line \par}
+{And we see this inner map here, again has just one key, the empty string, that's the token name of lovelace and finally the value is 123, so this value represents 123 lovelace. One thing we can do with values is we can combine them, add them. So in the case of lovelace, so let's take another example lovelace value, I don't know, 10 and how do we combine them?}
+{\pard  \line \par}
+{Wait, turns out that the value class is an instance of monoid, we briefly mentioned monoids in the last lecture when we talked about the writer monad. So monoids are things that you can combine neutral element called mempty, and you can combine two elements to a third element with meppend. }
+{\pard  \line \par}
+{But there's also an operator for that, that's writen like this, that comes from semi-group, which is a superclass of monoid. So doing something like this, I can combine two values. So having the value of that represents 123 lovelace and the value representing 10 lovelace I get a value with 133 lovelace. So how do we create values containing native tokens?}
+{\pard  \line \par}
+{There's a very useful function called singleton, and it's a function that takes three arguments, currency symbol, a token name and an integer. And that will construct a value consisting of just one asset class given by the current symbol and the token name and the integer specifies the amount, how many coins of that asset class are there.}
+{\pard  \line \par}
+{So we can construct a value with the native token, by now first giving a currency symbol and as I mentioned before, because we have the overloaded string extension activated, I can just give the currency symbol as a literal string. However that can't be an arbitrary string, it must be a string presenting a hexadecimal value for reasons I'll explain in a minute.}
+{\pard  \line \par}
+{So for example, we can do something like a8ff, just as an example. So next comes the token name, that can be an arbitrary byte string. And I can just do whatever for example, ABC. Okay, and now I must give the amount, how many coins let's say 7. And indeed get the value, now we see the inner outer map, the map where the keys are currency symbols.}
+{\pard  \line \par}
+{I have one entry, my a8ff and then the value is an inner map given in this case only the one token name ABC and the amount 7. Now of course I can also combine as before with this mappend operator. So for example, I can take this and combine it with lovelace value of 42. And let's say I can combine it with another singleton, maybe using the same currency symbol a8ff but a different token name. }
+{\pard  \line \par}
+{100, let's see. So now we get to somewhat interesting map. So now in the outer map, we have two keys, one as the empty currency symbol, so that's for the lovelace. And then a second entry that has the a8ff currency symbol. In the lovelace case the inner map, there's only the one token name, the lovelace token name with the value 42, but in the a8ff currency, in theinner map there, we have two entries for the two token names we now have ABC and XYZ with amount 7 and 100 respectively. }
+{\pard  \line \par}
+{Let's give this value a name, let's call it V. And another useful function is given a value to extract the amount for a given asset class that is called value of, and that, it takes a value and the currency symbol and the token name and gives us the corresponding amount.}
+{\pard  \line \par}
+{So if we try that with our V, value of V and take currency symbol a8ff and as token name, for example, XYZ, then we get the 100 back if we take ABC, the 7. And if we take a token name, that's not contained in the value, ABC lowercase, we get zero. Another useful function is flatten value, that takes a value and returns a list of triples, currency symbol, token name, integer. So as the name suggests, it's flatten this, this map of maps into a flat list of triples. So if we apply this to our example value V, we just get a list with three entries. The first two are these native tokens, both with the same currency symbol but different token names.}
+{\pard  \line \par}
+{And the last entry here is the lovelace, the 42 lovelace. Now the question of course is why? Why do we both need a currency symbol and the token name? Why don't we just use one identifier for an asset class? And why does the currency symbol have to be built from hexadecimal digits and can't be an arbitrary string? And this is where a so called minting policies come in.}
+{\pard  \line \par}
+{So the rule is that in general, a transaction can't create or delete tokens. So everything that goes in, also comes out. The exception is the fees, so there's always a fee and lovelace that has to be paid for each transaction. Fees depend on the size of the transaction in bites, not in value and on the scripts that need to be run to validate the transaction.}
+{\pard  \line \par}
+{And the script takes more fees if it consumes more memory and if it needs more steps to execute. So, but if that was the whole story, then of course we could never create native tokens. And this is where minting policies come in and where the relevance of the currency symbol comes in. So the reason that the currency symbol, the byte string giving the currency symbol has to consist of hexadecimal numbers is that that is actually the hash of a script.}
+{\pard  \line \par}
+{And this script is called the minting policy and if we have a transaction where we want to create native tokens or burn them, then for each native token that we try to create or burn that currency symbol is locked up, that's the hash of a script. So the corresponding script must also be contained in the transaction.}
+{\pard  \line \par}
+{And that script is executed along with the other validation scripts. And similar to the validation scripts that we have seen so far that validate inputs, the purpose of these minting scripts is to decide whether this transaction has the right to mint or burn tokens. And ADA actually also fits into this scheme because remember the currency symbol of ADA is just an empty string, which is not the hash of any script.}
+{\pard  \line \par}
+{So there is no script that hashes to the empty script. So there is no script that would allow the minting or burning of ADA, which means that ADA can never minted or burned. All the ADA that exists come from the genesis block, the genesis transaction, the very first transaction and the total amount of ADA and the system is fixed, it can never change. }
+{\pard  \line \par}
+{So only these custom native tokens can have custom minting policies and can be created and burned under certain conditions. So we'll look at an example of a minting policy next and see how it works and see that it's very similar to validation scripts, but not identical. }
+{\pard  \line \par}
+{\b\fs36 [00:16:00] 0503 A simple minting policy\b0}
+{\pard  \line \par}
+{Before we write our first modeling policy, our first minting policy, let's briefly recall how validation work that we have seen so far.}
+{\pard  \line \par}
+{So when we don't have a public key address, but a script address and a UTxO that sits at such a script address and a transaction that tries to consume that UTxO as an input, then for each such script input, the corresponding script is run the validation script. And that validation script as input gets the datum which comes from the UTxO, the redeemer, which comes from the input and the context.}
+{\pard  \line \par}
+{And here we can see the context again. Recall that's in package plutus-ledger-api as well in module plutus.V1.ledger.context. And so it's defined here and it has two fields, the Tx info field and the script purpose field. And we saw that for script purpose, everything we have seen until now always had the purpose spending Tx out ref, the Tx out ref is a reference to the UTxO we try to consume. }
+{\pard  \line \par}
+{And this Tx info has all the context information about the transaction that is being validated. Now for monetary policies, for minting policies. This is triggered if the Tx forge field in this one here, Tx info forge of the transaction contains a non zero value, in all the examples we've seen so far, this was always zero, which means in the transactions we've seen so far, we never created or destroyed tokens. But if this is non zero, so we have a value here, then this value, as we have seen just now can contain a bag of asset classes. So different asset classes for different currency symbols and different token names.}
+{\pard  \line \par}
+{So if this is non-zero then for each currency symbol contained in this value that is being forged, the corresponding minting policy script is run. So each currency symbol is the hash of a script, of a policy script, a minting policy script. And for each value that the piece here for each currency symbol that appears in this value in the forge field of the transaction, the corresponding script that belongs to the currency symbol is executed. And where the validation scripts had three inputs, the datum, the redeemer, and the context, these minting policy script only have two inputs, a redeemer, and the context, no datum. That would make sense because datum sits at something that's being spent in the output.}
+{\pard  \line \par}
+{And in this case, there is nothing like that, there's no place where the datum could possibly sit, so the transaction will provide the redeemer as it also provides the redeemer for all script inputs. So, for each currency symbol in this value, with the non-zero amount, the corresponding minting policy script will be run with the redeemer and with the context.}
+{\pard  \line \par}
+{So the context would get as Tx info the transaction that's being validated and as script purpose, it will get minting with the currency symbol that is currently checked, so who's minting or burning is currently checked. So in principle, in this forge field, in the value of the forge, there can be several currency symbols. And then for each of those, the corresponding minting policy would be run and the purpose would change accordingly.}
+{\pard  \line \par}
+{So with the appropriate currency symbol. So let's look at an example of a minting policy and let's start with a very simple one, similar to what we did for validators. I created a module free and as for validators, we first define a Haskell function that represents the policy, and then will compile it to Plutus core.. So a validator takes the datum, the redeemer and the context.}
+{\pard  \line \par}
+{And as I explained, there is no datum for policies so we just have redeemer and context. And for this simple one as redeemer, we can use just unit and then script context as before and again bool, so this is the typed version. So I mentioned before that there's low level Plutus, which just uses data or built-in data for all arguments and then returns unit and failure is indicated by thrown exception.}
+{\pard  \line \par}
+{But we won't bother with that here and immediately use the typed version. And normally for the redeemer I would need is data instance, but unit has one already. So the simple most policy we can write as the one that always returns true. So no matter the script context, we just return true. So this represents a minting policy that allows all sorts of minting and burning for the currency symbol given by this policy, }
+{\pard  \line \par}
+{Recall the currency symbol is the hash of the script. Next, we have to compile this policy to Plutus script and I called the result policy. So it's of type minting policy, and very similar to what we do for validators. There's a function called make minting policy script, and then comes template Haskell.}
+{\pard  \line \par}
+{And again, we use compile and Oxford brackets and he had slightly different to what we do for validators. So we take our policy, our Haskell function, but that still has to be converted to the untype version that just uses built-in data for the arguments and a unit return type. And this is what wrap minting policy does.}
+{\pard  \line \par}
+{So, as before this wouldn't work, because in these Oxford brackets, everything has to be inside them. So we can't have external definitions except if they can be inlined. So again, we have to add this inlinable Pragma. So let's do that, inlinable make policy. And once we have the policy, we can get the currency symbol by using the function script currency symbol, applied to the policy.}
+{\pard  \line \par}
+{I should mention that similar to how we have parameterized validators, we can also have parameterized policies. So there could be additional arguments here in front of that, the parameters of the policy. }
+{\pard  \line \par}
+{So if I start the repl and load that module, then the currency symbol should be available and I can actually look at it.}
+{\pard  \line \par}
+{So this is now the hash of the script that we got from compiling the Haskell function that represents the policy. So that's the first currency symbol, that's not ADA that we see. Going back to the editor, this completes the on-chain part, so we define the policy as a Haskell function, compiled to Plutus script.}
+{\pard  \line \par}
+{And we can also derive the currency symbol from that. But in order to try it out, we also need an off-chain part. So I prepared that already, and the idea is that we will have one endpoint called mint, that takes as parameter the token name and the amount we want to forge respectively burn. So if the amount is positively forged and if it's negative, we will burn.}
+{\pard  \line \par}
+{We only have to specify the token name because the currency symbol is given by the script. So the off-chain function in the contract monad, it takes these parameters, then first we compute the value that we want to forge or burn. So we use the singleton function that we saw before, currency symbol is our shining new currency symbol.}
+{\pard  \line \par}
+{And we extract the token name from the parameters and the amount. And as lookups, we have to specify the minting policy, so the transaction has to contain the actual script, the minting policy, the policy itself for validation to be successful. And the only constraint we put on our transaction is using something called must mint value, which is self explanatory.}
+{\pard  \line \par}
+{So this transaction must mint the value we computed before. Then when we submit, so when we use submit Tx constraints with, with these lookups and that Tx, then the algorithm will automatically take care to find an input in the wallet to cover the fees. And it will automatically transfer the minted value to the wallet if it's positive, if it's negative, it will try to find sufficiently many tokens in the user's wallet that can then be burned. So we wait for confirmation and log a message that we forged this value. So then we define the endpoints as before, so we just call mint and then recursively endpoints again. And mint prime is just using our mint, but using the endpoint function to actually expose an endpoint and then feed the parameters using bind into the mint function. So this is boiler plate so that we could try it out in the playground and additionally, I also defined emulator trace since the last lecture we know how to do that, so we don't have to test it in the playground, we can also just run it from the console using emulator trace. So I define a token symbol, TN token name.}
+{\pard  \line \par}
+{Then I run these endpoints, so the endpoints contract in wallets one and two, so I start them, then I call the endpoint mint on wallet one where I use this token name and I mint 555 coins of that token. Then wallet two mints 444 coins of the token. I wait one slot and then I on wallet one burn 222 tokens.}
+{\pard  \line \par}
+{So in the end wallet, one should have 333 and wallet two should have 444 and I wait another slot. I should still mention that here in the must mint value function, I'm just mentioning the value and not the redeemer. And that is because the case that the redeemer is of type unit is very common, so there are special treatment for that.}
+{\pard  \line \par}
+{Let's try this out in the repl, I have to reload.}
+{\pard  \line \par}
+{Let's try it out.}
+{\pard  \line \par}
+{And we see in the end, indeed, wallet one now has some ADA bit less than before because of transaction fees and indeed 333, this currency symbol, and that token name. And wallet two has 444, so as expected. }
+{\pard  \line \par}
+{Let's now try out the same scenario in the playground. So two wallets and the beginning both mint.}
+{\pard  \line \par}
+{Then we wait for one block and then wallet one means again rather advanced, but of course the endpoint is the same and another wait action.}
+{\pard  \line \par}
+{So token name was ABC and 555, 444 and -222. Ok, let's see.}
+{\pard  \line \par}
+{Okay, so as always the genesis transaction distributing the initial funds, then here we have our two mints. This is the one by wallet two. So the UTxO coming from the genesis block goes in to pay for the fees, which in this case are 8027 lovelace, wallet two gets the change and wallet two gets 444 of this newly minted tokens that didn't come in.}
+{\pard  \line \par}
+{So they have really been forged in this transaction as is also indicated here in this forging block. This is the same for wallet one, exactly the same, except everything is for wallet one and it's 555 instead of 444. And finally, this should be the burning by wallet one. So in go some ADA to cover the fees and the UTxO we got in the previous transaction with the 555 tokens.}
+{\pard  \line \par}
+{Then in the forge field we see the -222. And... so the fees are paid and the change and the rest of the token go back to wallet one. And we also see that wallet one ends up with 333 and wallet two with 444 of those tokens. So the same result that we saw in the emulator trace. So this concludes a complete through of our first monetary policy script.}
+{\pard  \line \par}
+{One that doesn't put any restrictions on minting or burning. And we saw in our simulation and in the emulator trace that indeed wallet one and two can both mint the token. And we also saw that wallet one can burn it again, but of course, wallet two would also be able to. So this is a maximally permissive policy that doesn't impose any restrictions.}
+{\pard  \line \par}
+{Anybody can freely mint and burn. Any transaction can freely mint and burn. }
+{\pard  \line \par}
+{\b\fs36 [00:32:19] 0504 A more realistic minting policy\b0}
+{\pard  \line \par}
+{After the first example where there was no restriction whatsoever on minting or burning a token, let's look at the somewhat more realistic example. And I copied the free module to a new module called signed and want to modify it now.}
+{\pard  \line \par}
+{And the idea for more realistic example is that minting and burning can only happen if the transaction that tries to do that is signed by a specific signature, by the owner of a specific pub key hash. So in order to do that, we need a parameterize minting policy where the parameter is the pub key hash we are checking for.}
+{\pard  \line \par}
+{So let's add that here and then we have additional argument, let's call it PKH. And now we can't ignore the script context any longer. And we can just use the Tx signed by that we have seen before, which takes the Tx info and that we can get by script context Tx info of the context and the public key we are looking for.}
+{\pard  \line \par}
+{Now, of course, these other definitions have to change accordingly to take the parameter into account. So policy is no longer constance, it becomes a function that depends on the parameter.}
+{\pard  \line \par}
+{This is now similar to what we did before, so we have to apply this to the lifted parameter. So this now, because make policy is now also function, so I must compose it with wrap minting policy. Now, again, I can use plutus Tx dot apply code as before, and Plutus Tx lift code PKH.}
+{\pard  \line \par}
+{So finally for the currency symbol, this now also becomes a function that takes the pub key hash as argument. And I can simply compose here. So this is very similar to before now for the off-chain code. We don't have to change very much, for example, the parameters we can leave as they are, we don't have to add the pub key hash here to the parameters, because one of the features of the contract monad is that you can lookup your own pub key and minting calling this mint function only makes sense.}
+{\pard  \line \par}
+{If you actually want to, I mean, the currency that's given by your own pub key because otherwise the minting policy would forbid it anyway. }
+{\pard  \line \par}
+{You should rename this to sign schema. Okey and now here, so we do have to lookup our own pub key, we can do that with contract own pub key, and then we can align here where we compute the pub key hash from that, pub key hash pub key. However that can be shortened, it doesn't have to, I mean, this is perfectly fine, but I would probably combine these two lines to one using the fact that contract is a monad, and hence in particular a functor. So recall functor has this F map function. So if F is functor and we have a function from A to B and an F A, then you can turn that into an F B. Also, remember the prototypical example of functor is lists in which case F map is just a usual map on lists.}
+{\pard  \line \par}
+{So if I have map plus one of the list one, let's say ints 2, 3, then I get the map 2, 3, 4. So that's the usual map, but four lists map is the same as F map. So I can just as well do F map. And there's also an operator version of F map. So you can write this identical, like, so using this dollar in angular brackets, which is often nicer and reads nicer and particular the dollar looks similar to the usual dollar which is just function application. So that somehow shows that this F map is a bit like function application just lifted into a functor. So I want to apply that to F being contract and this F A being own pub key. So we have something of type contract pub key, and we have the function pub key hash, which goes from pub key to pub key hash.}
+{\pard  \line \par}
+{So using F map it gets something from contract pub key to contract pub key hash. So I can immediately get the pub key hash here if I F map pub key hash over this own pub key. And then after all I don't need this line anymore. Okay, now that I have the pub key hash, I can apply it to the currency symbol function to get the actual currency symbol.}
+{\pard  \line \par}
+{That depends on this parameter and I can do the same for policy here, which now also is a function that takes the pub key hash. The rest should be fine, here I just have to rename to signed schema, here as well.}
+{\pard  \line \par}
+{And I believe the trace is still perfectly fine. One thing I forgot is here, I also have to rename to signed schema. Let's try the trace.}
+{\pard  \line \par}
+{So everything seems to work, we get the three forges where the last one is actually a burning cause it's negative amount. And we get the same amounts again, so 333 in the end on wallet one, 444 in wallet two. However, note that now these are different tokens. They have the same token name ABC in both cases, but the currency symbol is different.}
+{\pard  \line \par}
+{And that is because now we had the parameterize minting policy and each wallet applies its own pub key hash to it. So the parameter is different, so the resulting script will be different. So the hash of the resulting script will be different, which is the currency symbol, so we get different tokens. Wallet one can only mint this token and wallet two can only mint this token. Because wallet one can only sign for this one and wallet two can only sign for that one, the wallet only has its own signature to use, to sign transactions.}
+{\pard  \line \par}
+{So this is more realistic example, which might actually be useful in practice. It's a bit like a central bank where the pub key hash identifies the central bank. So it's similar to fiat currencies like USD, Euro, or Yen where supply is determined by a central bank. The central bank can decide to mint more money or take money out of circulation to control the total supply.}
+{\pard  \line \par}
+{And this is somewhat similar, this parameterized minting policy that we have seen here. So, wallet one is in control of this currency. And can mint then burn and freely, but nobody else can and wallet two is in control of this currency and can mint and burn it freely, but nobody else can. So it's a bit analogous to, I mean, this being something like USD and wallet one is the us central bank.}
+{\pard  \line \par}
+{And so this is like the Euro, this currency in wallet two is the central bank for the Euro. }
+{\pard  \line \par}
+{\b\fs36 [00:41:11] 0505 NFT's\b0}
+{\pard  \line \par}
+{Let's talk about NFTs next non fungible tokens. That is tokens that can only exist once where there's only one coin in existence. The examples of native tokens that we have studied so far are definitely not NFTs because we could easily mint as many as we wanted of those. Both in the first example, the minting was totally uncontrolled, but also in the second, as long as you are the owner of the specified public key hash, you can mint as many tokens as you like. Now in order to produce an NFT, maybe the first naive idea would be to actually, in the policy, look at the forge field, which we haven't done so far.}
+{\pard  \line \par}
+{All we did look at in the last example was the signatories of the transaction. But if you actually look at the forge field, we could add a condition to the policy that the forge value has an amount of one. But that wouldn't help us, that would only mean that during one transaction, you can only mint one token, but nobody could stop us from submitting as many of these transactions as we like.}
+{\pard  \line \par}
+{And then again, mint arbitrarily many tokens. So that won't do, that won´t enable us to guarantee that the given token can only exists once. A second option, that is actually been used already on the Cardano blockchain because native tokens are available since Mary, which predates Plutus is to use deadlines.}
+{\pard  \line \par}
+{So we saw in previous examples and previous lectures, how time can be incorporated into Plutus script, and we can do the same, of course, in policy scripts. So the idea here would be to, to have a deadline that only allows minting before the deadline has passed. Then if you want to do an NFT, you mint one coin before the deadline has passed and then allow the deadline to pass.}
+{\pard  \line \par}
+{And then it's guaranteed that after the deadline, no new tokens will ever be minted. But in order to check that before the deadline, you only minted one, you need something like a blockchain explorer. You must check on the blockchain that only one of these tokens was ever minted before the deadline. You are guaranteed that after the deadline, no new ones can be minted, but in order to make sure that only one was minted before the deadline, you actually have to check with the blockchain explorer.}
+{\pard  \line \par}
+{So in that sense, the NFTs that are on Cardano right now, are not true NFTs in the sense that the currency symbol by itself guarantees that they are NFTs. In order to check that only one exists, you have to look on the blockchain. Now using Plutus, it's actually possible to mint true NFTs, where if you know the policy script that corresponds to the currency symbol, you can be sure that only one such coin can be in existence without having to resort to something like a blockchain explorer.}
+{\pard  \line \par}
+{And if you think about how to do that, you must prevent from there ever being more than one minting transaction for the token in question. So, whatever you write in your policy script, it must only result in true for one transaction. And it must be impossible to do the same again in another transaction. And at first, that sounds impossible. Because why can't you simply do the same transaction again later, and then validation should again succeed and it should be possible to mint token again. At least if you do it in the same slot, I mean, we mentioned deadlines before, so of course times plays a role, but why can't you simply at one slot issue, the same transaction several times?}
+{\pard  \line \par}
+{And the key here is that we need something that's unique. We need something on the Cardano blockchain that we can refer to in our minting policy that is unique, that can only exist in one transaction and never again. And that is a very important trick, something to keep in mind. And the idea is to use UTxOs. Because for the reason how a UTxO works, UTxOs can only exist once, every UTxO is unique. You can never have the same UTxO again, a UTxO is there and at some point it may be consumed as input to a transaction and there can never ever be the same UTxO again later in the life of the blockchain. Of course, there could be another UTxO that goes to the same address and has the same value and has the same datum.}
+{\pard  \line \par}
+{But that will still not be the same UTxO in the sense that will have a different ID. So what is the ID of a UTxO? Well, a UTxO is the output of a transaction, so in order to pinpoint a specific UTxO, you must pinpoint the transaction it came from. Via its transaction ID, and you must say which output of that transaction it was.}
+{\pard  \line \par}
+{The outputs of a transaction are ordered. So by specifying the transaction that produced it and saying which item it was in the list of outputs, you can uniquely identify an UTxO. And transactions are unique, that can never be the same transaction again. And because transaction and index determine the UTxO, this implies that UTxOs are also unique.}
+{\pard  \line \par}
+{So now of course you can ask why are transactions unique? And that is a bit subtle because they wouldn't be unique necessarily if it wasn't for fees. If it wasn't for fees, you could have a transaction that has zero inputs and only outputs without value. So, transactions with no inputs and outputs where each output doesn't have a value.}
+{\pard  \line \par}
+{Such a transaction could exist several times, you could have the exact same transaction and it would have the exact same hash enhanced the except same transaction ID. But in a system with fees like Cardano, you can't have such a transaction because you always need an input that provides the fees to pay the transaction fees for the transaction.}
+{\pard  \line \par}
+{And as soon as you have an input, that input must come from somewhere, it must come from a previous UTxO. So basically by a simple induction argument, you see that as soon as you have fees, transactions can never be repeated, you can never have two identical transactions in the sense that they have that same transaction ID. }
+{\pard  \line \par}
+{Because they must spend fees and these fees, because double spending is impossible, must be different UTxOs for different transactions and the inputs are incorporated into the transaction hash. So if you have two transactions with different inputs, those two transactions also will have different transaction IDs. So that means that every transaction in the history of the blockchain is unique, has a unique ID.}
+{\pard  \line \par}
+{And that implies that also every UTxO in the blockchain has a different ID, a different combination of transaction ID and index. And this is a very important fact and that is a fact that we can use in order to create true NFTs. So the idea here is to name a specific UTxO as parameter to our minting policy.}
+{\pard  \line \par}
+{And then in the policy check that the transaction that does the minting consumes this specific UTxO. And because of what we just said once a UTxO has been consumed in this transaction, it can never exist again. So there can't be another transaction that consumes the same UTxO, and this guarantees, this strategy guarantees that with a minting policy like that, there can only ever be one transaction that consumes this UTxO.}
+{\pard  \line \par}
+{And that is what we want to achieve in order to guarantee that we have a true NFT that can only be minted once. }
+{\pard  \line \par}
+{In order to demonstrate the idea, I created the module NFT. And in the make policy function, I now have two parameters, one of type Tx out ref, one of type token name. So Tx out ref as the name suggests references Tx out, so transaction output UTxO, and token name will be the token name of the NFT. There would be various other choices, for example, I could turn those two pieces into one parameter, but I also wanted to demonstrate how to have scripts with more than one parameter. So how does it work? So all ref is the reference to the output we want to consume in this transaction.}
+{\pard  \line \par}
+{To make sure that this can only happen once in one transaction and TN is the token name. Again, we don't use the redeemer and the context. So we have to check two things, that the UTxO specifies by oref is indeed consumed. So that's the first condition here that I delegate to has UTxO, the helper function and the second condition is that we indeed only mint the token once, exactly once. }
+{\pard  \line \par}
+{So let's look at the helper functions, first just the Tx info, because I need that in both helper functions, in both checks, now the has UTxO. If you look at the documentation for Tx info again, this is now the first time that we don't just use global field that applies to the transaction as a whole, but have to actually look at the inputs at individual inputs, because we have to make sure that this transaction, this minting transaction indeed consumes the specified UTxO. So we will use this Tx info inputs field, which a list of type Tx in info.}
+{\pard  \line \par}
+{And if we check this, we see that a Tx in info has two fields and one is called tx in info out ref and is indeed of the right type of Tx out ref. So as you recall, an input consumes an output from a previous transaction and this specifies which output. So going back to the code, any is a standard Haskell function that checks whether any, that is at least one element of a list, satisfies a condition. }
+{\pard  \line \par}
+{So for example, I can check any even 2, 3, 5. That will be true because two is even, but if I changed it into a one, it will be false. Okay, so we check that any of these and this we just looked at, so that as an input of the transaction, so I is now the input and we use this function we looked at in the documentation just now.}
+{\pard  \line \par}
+{So this is now the output reference that this input I consumes and we check whether this equals that given UTxO. So this line checks, whether there's any input that consumes this output. So that's the first condition and the second condition, we actually look at the Tx info forge field, which tells us which value has been forged.}
+{\pard  \line \par}
+{Use the flatten value function I explained earlier, which will turn the nested map of the value into a flat list of triples, currency symbol, token name amount. And we expect that there's exactly one such triple. So in this transaction, only this one NFT should be forged, nothing else. So in all other cases, if we don't forge anything, or if we forge more than one token, we immediately return true.}
+{\pard  \line \par}
+{But if there's exactly one triple, then we want to check that this is, the currency symbol is the currency symbol we are currently validating. The token name is the given token name and the amount should be one. So now there is a slight chicken and egg problem because in order to check that the CS, the currency symbol is the currency symbol we are currently validating, how are we supposed to do that? Because what is this currency symbol we are currently validating, well it will be computed from first taking this Haskell function, compiling it to Plutus script and then taking the hash. That will be the currency symbol, but we are in the process of writing this Haskell function.}
+{\pard  \line \par}
+{So how can we possibly inside this function already know what the result of hashing the script, which is compiling this function will be. And for this purpose, there is a special function that works on the context on the script context, and that's called own currency symbol. And this is made for exactly this purpose. So that when we are in the process of checking a minting policy, that we have access to the currency symbol we are currently checking to solve this chicken and egg problem.}
+{\pard  \line \par}
+{So this is the currency symbol that this policy is all about. And we check that the value we are forging indeed uses that currency symbol. And we check that it has the right token name and we check that the amount is exactly one. However, even though this is very useful in general to have this own currency symbol. In this case, it's actually not necessary because we made sure that there's only exactly one currency symbol in the value that is being forged.}
+{\pard  \line \par}
+{Otherwise we would run into this other case in line 48. So we know we are in the situation where there's exactly one currency symbol being forged. So we know without even looking at it, that the policy we are running right now, will be for this symbol. So we can actually simplify this and don't even look at it and just skip this condition because that's automatically true.}
+{\pard  \line \par}
+{But only because we are in this special case where we know there's exactly one currency symbol in the forge value. So that completes this function, the make policy function. Now we need to compile it to a policy, so given the two parameters, the Tx out ref and the token name, we must compute the minting policy by compiling this function.}
+{\pard  \line \par}
+{This is more or less as before, the only difference is that now for the first time we have something with two parameters. But that just means we have to apply code twice. So giving this we have for function with two parameters, we apply the first argument here, the lifted reference to the UTxO. So we are left with the function with one parameter, the token name, and then we apply the lifted token name, and we are left with something of the right type, type redeemer to script context to bool.}
+{\pard  \line \par}
+{So once we have our current, our policy, we can can compute the currency symbol also as before. So given the two parameters, we use the policy function we just defined and then get the policy and then can apply script currency symbol to it. So that concludes the on-chain part, the policy itself.}
+{\pard  \line \par}
+{Now, in order to try it out, let's write a off-chain code contract that can actually mint an NFT. So let's define a schema with one endpoint mint, which just takes one parameter, the token name. And now we define the contract that mints given the token name. So, first we lookup our own public key. Now we must find a suitable UTxO that we can consume, that we can pass as parameter to the policy, and that will then be consumed in the minting policy.}
+{\pard  \line \par}
+{So we use a function that's available in the contract monad called UTxO at and that takes an address. In our case, we are interested in UTxOs that belong to us that sits in our wallet, and there's a function pub key address that takes a public key and then computes the corresponding public key address. So using UTxO at that address, we now have all UTxOs, list of all UTxOs that are in our wallet. And I simply take the first one. Maybe there could be some optimization to take one that's large enough to also cover the fees so that we only need one input, but I ignore this. So, if there is no UTxO in our wallet, then we can't proceed, so I log an error. }
+{\pard  \line \par}
+{If there is one, at least one, I just take the first one, the head of the lists, ignore the rest, and now I can proceed. So this first UTxO that I find in my wallet will be the one I'm using in the policy as a parameter for the NFT. So first I compute the value that I want to forge.}
+{\pard  \line \par}
+{So I use the singleton function again. Now I need the currency symbol, for that I have my cur symbol function. And now I have both parameters, the UTxO and the token name. Token name will be the token name and amount will be one. Now for lookups, I need two, first the minting policy which I provide here again with these two parameters.}
+{\pard  \line \par}
+{And secondly, I also need to lookup for the UTxO. So I indicate that I want to use unspent output, make the algorithm that balances the transaction aware of this and spend output and I just use all of them. It wouldn't be necessary, it would be enough to just provide this one, the oref one, but it doesn't matter to provide more. }
+{\pard  \line \par}
+{Finally the constraints from my transaction. So I want to mint this value val, and I insist that the UTxO I have picked, the first one in my wallet must be spent. So that can be done with my spent pub key outputs. Then as before I can submit the transaction, wait for confirmation and log a message.}
+{\pard  \line \par}
+{Now the usual thing to define endpoints, where I use the endpoint function and then call the function I just defined, the mint function, then the usual boiler plate for the playground. And finally, a simple emulator trace to test this. So as token name I use ABC again and now I activate the endpoints contract for wallets one and two with handles H1 and H2. And call the mint endpoint on both of them, on both wallets and wait for one slot and see what happens. }
+{\pard  \line \par}
+{If I reload and run test. I do see that both wallets end up with a token, token name ABC, but the currency symbol is different. And that is because those two wallets necessarily have to use different UTxOs specified as parameter for the currency symbol, for the policy. So wallet one will use a UTxO it finds in his wallet.}
+{\pard  \line \par}
+{And wallet two will have to find another one, in wallet two as wallet. So, both are NFTs, but they are different NFTs because the currency symbols are different. And we also get the expected log messages. So just as a recap, the idea of the NFTs, the idea to enforce that only one transaction can mint, is to use a UTxO as input to insist in the policy, in the minting policy, that the minting transaction uses a specific UTxO as input.}
+{\pard  \line \par}
+{And because UTxOs can never exist again, once they've been consumed, the same UTxO will never exist again, this would guarantee that such a transaction can only happen once. And if in addition, we enforce that in this transaction that can only happen once a value of exactly one coin is minted.}
+{\pard  \line \par}
+{Then we get a policy that guarantees that we have a proper NFT, where there's only one coin in existence. }
+{\pard  \line \par}
+{\b\fs36 [01:04:19] 0506 Homework\b0}
+{\pard  \line \par}
+{For homework, first I want you to look at the homework one module, and there, I want you to implement a Mary era style monetary policy, minting policy. So in Mary, it's already possible to use native tokens, even though we don't have Plutus and you can specify minting policies, but only of a relatively simple type.}
+{\pard  \line \par}
+{And what you can do, is you can specify signatures that have to be present in the minting transaction, and you can specify deadlines. So you can say that minting must not happen after the deadline has passed. And there's more you can do, you can also combine several such policies with logical end or.}
+{\pard  \line \par}
+{What I want you to do here in the homework is to implement a minting policy that has two parameters, a pub key hash and a POSIX time. And the idea is that minting should only succeed if the transaction is signed by the corresponding signature, and if the deadline has not yet passed. Then you have to implement the depending things like the policy and currency symbol accordingly.}
+{\pard  \line \par}
+{Now for the off-chain code, I already implemented that. So as parameters for minting, you must provide the token name, the deadline and the amount you want to mint. And then in the mint contract, I first lookup my own public key hash as I explained before, then I use current time to lookup as the name suggests the current POSIX time.}
+{\pard  \line \par}
+{I lookup the deadline from the parameters and if the deadline has already passed, then I just look an error message. So I don't even bother submitting a transaction because I know it will fail any way during validation. However, if the deadline has not yet been passed, I compute the value I want to mint, so just using the currency symbol, the token name and the amount. Then in the lookups I must specify the minting policy. And finally, in transaction, I need two constraints that I combine, so that I want to mint the value in this transaction and the validity interval. And recall, normally the rule of thumb is to make it as large as possible, but not too large, of course.}
+{\pard  \line \par}
+{So, because in the validation it will be checked that the deadline has not yet passed. The largest interval I can basically use is to deadline. And then I submit the transaction, wait for confirmation and log a message that I forged the value. Then the usual, I define the endpoints in terms of this mint contract to the playground boiler plate.}
+{\pard  \line \par}
+{And then I also provide an emulator trace, token name ABC, deadline beginning of slot 10. I only need one wallet, I start the endpoint on wallet one and I immediately call mint 555 tokens. And then I wait until slot 15 or four 15 slots. So now the deadline wich is slot 10 should have passed. So the second minting should fail and I wait another slot to see the effect.}
+{\pard  \line \par}
+{However, when I try this trace in the repl and check, then I get an error for the first minting, and this is not coming from the log message, but it's really coming from validation. So we see evaluation, error, deadline missed, which is the error message that I use in validation, so I was puzzled a bit by that.}
+{\pard  \line \par}
+{And then I finally understood what the problem is, so the off-chain code is wrong and the reason is the switch from using slots to measure time, to using POSIX time to measure time in Plutus. So recall that validation works by checking that the validity interval is contained in the two deadline interval. So that's what it means, we must check that the deadline has not yet passed, no matter what the current time is, we don't know for sure we just know it's somewhere in the validity interval. So the whole validity interval must be before the deadline, which means it must be contained in the two deadline interval. And that's why here, when I set the validity interval, I use two deadline and I thought that's obviously correct because obviously two deadline will be contained in two deadline.}
+{\pard  \line \par}
+{However, what I forgot for us that the underlying transactions, the Cardano transactions still use slots. So even though Plutus switched to POSIX time, the transactions still use slots. So for example, if the deadline is the beginning of slot 10, somewhere in the beginning of slot 10 or the very beginning of slot 10.}
+{\pard  \line \par}
+{Then this here, this interval to beginning of slot 10 in the real transaction must be translated into a slot interval. And that will be the interval that goes to slot 10 inclusive. So all of slot 10 will be in the validity interval of the actual transaction. So now during validation that is again Plutus, this validity interval will be translated back into a POSIX time interval, but now because the slot base interval includes all of slot 10 and that's converted back into POSIX time, will get the end of slot 10 as the POSIX time, not the beginning. And that means validation will fail because now suddenly the validity interval is larger than the two deadline interval, because the two deadline interval stops at the beginning of slot 10, but the validity interval now only stops at the end of slot 10.}
+{\pard  \line \par}
+{So that's a bit unfortunate and might lead to subtle errors. So one really has to be aware of that, that this conversion happens. So Plutus works in POSIX time, transactions are based on slots. So when we go from off-chain to on-chain code, this conversion happens twice, the POSIX time gets translated into slots in the transaction, and then during validation get translated back end because lots are of course much coarser grain than POSIX time,, this conversion is not perfect, so it's lossy. So that means if we start with a POSIX time convert slot and then back, we won't necessarily get the original POSIX time back. So that's what I overlooked. And let's try to fix that.}
+{\pard  \line \par}
+{I honestly don't know what the best way is. One way is instead of using two deadline to just use a time, that's a bit in the future from now, and then hope that we are not too close to the deadline. So that, that goes past the deadline. So for example, what I could do is I use now and add, I don't know, two seconds, something like this.}
+{\pard  \line \par}
+{So this gives the transaction two seconds to get to the validating nodes, which should be enough, I think. Maybe we could make it five seconds, I don't know actually, how long it would take and the larger we make it the higher, the risk that if you're close to the deadline, then there's now plus 5,000 just after the deadline.}
+{\pard  \line \par}
+{But the smaller we make it, the faster the transaction has to be distributed to all the nodes. So I'm not exactly sure what the best number here is. Of course not for now, if we just simulate it, it doesn't matter because there is no delay, no network delay, so we could use this. So I made the same change in my sample solution.}
+{\pard  \line \par}
+{And if I run the emulator trace in the repl again, then I get the desired result. So here in slot one, I mint and it works. And when I try and slot 15, It doesn't, but the transaction doesn't even get submitted, I just get the log message from my mint contract that the deadline has already passed. But now, because I used five seconds, slack basically, if I tried minting too close to slot 10, when the deadline passes, for example, in slot eight, it would also fail, it would fail you in validation. }
+{\pard  \line \par}
+{But of course, in a realistic scenario, the deadline wouldn't just be 10 seconds in the future. It would be, I don't know, a day in the future, so to give you enough time to mint what you want to mint before the deadline passes. }
+{\pard  \line \par}
+{As second homework, I want you to slightly modify the NFT contract that I demonstrated by making the token name fix and just fixing it to the empty byte string. So we don't need the token name as parameter any longer, we just need the UTxO that's supposed to be consumed. So I want you to implement this and also the corresponding minting contract, which you can just adapt from the one we had in the NFT module, or also provide a test emulator trace where I just activate the contract for wallets one and two, and then call the mint endpoint.}
+{\pard  \line \par}
+{The advantage of this way fixing the token name is that you don't need any arguments for the mint endpoint, because the only argument we had before was the token name, so now it's just unit. And if you try this out in the repl, It works as expected. So we get the two minting transactions and wallet one and wallet two end up with a shiny new NFT, but it's a different one.}
+{\pard  \line \par}
+{The two are distinct because the currency symbols are different. And you see the token name in both cases is the empty byte string.}
+}

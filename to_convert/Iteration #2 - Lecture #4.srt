@@ -1,0 +1,7898 @@
+1
+00:00:03,150 --> 00:00:11,389
+We have spent the last two lectures
+talking about the on-chain part of Plutus,
+
+2
+00:00:11,529 --> 00:00:17,090
+the validation logic that is compiled
+to Plutus script and actually lives
+
+3
+00:00:17,109 --> 00:00:22,279
+on the blockchain and then is executed
+by nodes that validate a transaction.
+
+4
+00:00:23,300 --> 00:00:27,040
+And there's a lot more to
+say about the on-chain part.
+
+5
+00:00:27,759 --> 00:00:32,210
+We haven't looked at more complex
+examples of validation yet that
+
+6
+00:00:33,240 --> 00:00:37,080
+make more sophisticated use of the
+context and actually look at the
+
+7
+00:00:37,100 --> 00:00:39,220
+inputs and outputs of the transaction.
+
+8
+00:00:40,160 --> 00:00:43,510
+And we haven't seen how
+native tokens work yet.
+
+9
+00:00:43,820 --> 00:00:49,170
+So Plutus script is also used to validate
+the minting and burning of native tokens.
+
+10
+00:00:49,679 --> 00:00:53,460
+And we'll definitely have to talk about
+those topics and come back to that.
+
+11
+00:00:54,049 --> 00:00:58,699
+However, before we go into too
+many sophisticated topics of
+
+12
+00:00:58,750 --> 00:01:03,399
+on-chain validation, I don't want
+to neglect the off-chain part
+
+13
+00:01:03,960 --> 00:01:05,830
+because that's equally important.
+
+14
+00:01:06,679 --> 00:01:11,199
+The on-chain part takes care of
+validation but in order to, for there
+
+15
+00:01:11,199 --> 00:01:14,760
+to be something to be validated,
+we must build these transactions
+
+16
+00:01:14,760 --> 00:01:15,620
+and submit them to the blockchain.
+
+17
+00:01:16,650 --> 00:01:19,270
+And that's what the off-chain part does.
+
+18
+00:01:19,710 --> 00:01:23,519
+So I want to start talking
+about how to write off-chain
+
+19
+00:01:23,520 --> 00:01:25,340
+Plutus code in this lecture.
+
+20
+00:01:27,380 --> 00:01:31,070
+And unfortunately there is
+a slight problem concerning
+
+21
+00:01:31,070 --> 00:01:32,490
+the Haskell features needed.
+
+22
+00:01:33,030 --> 00:01:40,509
+So the on-chain part that we have seen so
+far is somewhat alien and need some time
+
+23
+00:01:40,510 --> 00:01:45,200
+to get used to due to the fact that we
+have this compilation to Plutus script,
+
+24
+00:01:46,100 --> 00:01:50,410
+but we don't really have to worry about
+that, if we accept that there's this
+
+25
+00:01:50,410 --> 00:01:55,600
+template Haskell metric, the validation
+function is just a plain Haskell function.
+
+26
+00:01:56,410 --> 00:02:00,436
+And it's actually a very simple Haskell
+function from the technical point of view.
+
+27
+00:02:00,436 --> 00:02:05,100
+We don't use any fancy Haskell
+features to write this function.
+
+28
+00:02:05,730 --> 00:02:10,690
+And one of the reasons for that is
+the way Plutus compilation works.
+
+29
+00:02:11,050 --> 00:02:16,759
+I explained that, in principle, in
+these template Haskell quotes, we need
+
+30
+00:02:16,760 --> 00:02:21,180
+to have everything, all the code inside
+these quotes, and we can get around that
+
+31
+00:02:21,180 --> 00:02:25,275
+using this inline Pragma, but that still
+means that everything we want to use
+
+32
+00:02:25,275 --> 00:02:30,565
+all the helper functions or combinators
+we want to use, must have this inline
+
+33
+00:02:30,750 --> 00:02:36,940
+PragmA and Because the standard Haskell
+libraries don't have it, we have the
+
+34
+00:02:37,620 --> 00:02:42,939
+Plutus prelude, for example, that is like
+a copy or it's similar to the Haskell
+
+35
+00:02:43,390 --> 00:02:51,209
+standard prelude but it adds these inline
+pragmas to all the functions in there so
+
+36
+00:02:51,210 --> 00:02:55,200
+that we can use them in validation code
+that gets compiled to Plutus script.
+
+37
+00:02:56,099 --> 00:02:59,149
+But of course they are hundreds of
+thousands of Haskell libraries out there.
+
+38
+00:02:59,150 --> 00:03:03,140
+And most of them didn't ever
+written with Plutus in mind.
+
+39
+00:03:03,480 --> 00:03:06,170
+So we can't use them inside validation.
+
+40
+00:03:06,820 --> 00:03:12,539
+And that has the effect that the Haskell
+code insight validation will be relatively
+
+41
+00:03:12,559 --> 00:03:14,829
+simple and not have many dependencies.
+
+42
+00:03:15,139 --> 00:03:17,900
+So it's really just a
+plain old Haskell function.
+
+43
+00:03:18,420 --> 00:03:22,440
+It gets these three arguments,
+the datum, the redeemer and the
+
+44
+00:03:22,440 --> 00:03:24,269
+context and returns a boolean.
+
+45
+00:03:24,820 --> 00:03:28,560
+Or maybe a fourth argument if
+you parameterize a contract.
+
+46
+00:03:29,550 --> 00:03:34,390
+And somehow in the off-chain part of
+Plutus, the situation also reversed.
+
+47
+00:03:35,170 --> 00:03:37,930
+We don't have to worry about
+compilation, nothing gets compailed
+
+48
+00:03:37,930 --> 00:03:39,900
+to Plutus script, it's just Haskell.
+
+49
+00:03:40,470 --> 00:03:46,000
+So we just write plain old Haskell in
+the off-chain part, but the flip side
+
+50
+00:03:46,020 --> 00:03:52,369
+is that the way this is implemented,
+the way that works use as much more
+
+51
+00:03:52,369 --> 00:03:55,520
+sophisticated Haskell features,
+quite advanced Haskell features,
+
+52
+00:03:55,620 --> 00:03:58,750
+so-called effect systems and
+streaming and in particular, monads.
+
+53
+00:03:59,989 --> 00:04:06,600
+So, all the wallet code, the
+off-chain code is written in a special
+
+54
+00:04:06,600 --> 00:04:06,660
+monad called the contract monad.
+
+55
+00:04:06,660 --> 00:04:13,830
+And monads are very infamous
+in the Haskell world.
+
+56
+00:04:13,830 --> 00:04:18,039
+They are normally the first
+stumbling block for beginners, for
+
+57
+00:04:18,070 --> 00:04:19,120
+people that are new to Haskell.
+
+58
+00:04:19,120 --> 00:04:24,040
+And there are a lot of tutorials out
+there that try to explain monads.
+
+59
+00:04:25,980 --> 00:04:30,659
+Monads get compared to burritos
+and all sorts of metaphors to
+
+60
+00:04:30,660 --> 00:04:32,720
+try to explain the concept.
+
+61
+00:04:33,960 --> 00:04:38,900
+But I thought I should at least try to
+give a crash course in monad for those
+
+62
+00:04:38,910 --> 00:04:41,740
+of you that, that are new to Haskell.
+
+63
+00:04:42,130 --> 00:04:45,299
+And I do realize that will
+be a bit boring from...
+
+64
+00:04:46,029 --> 00:04:50,479
+for people that are already familiar
+with Haskell, but you can just skip
+
+65
+00:04:50,480 --> 00:04:57,270
+ahead until I get to the actual contract
+monad that is relevant for the wallet.
+
+66
+00:04:58,310 --> 00:05:04,750
+So I want to start with a brief,
+quick introduction to monads.
+
+67
+00:05:05,830 --> 00:05:11,040
+Before I get to general monads,
+I want to start with IO.
+
+68
+00:05:11,200 --> 00:05:14,720
+So how IO side-effects
+are handled in Haskell.
+
+69
+00:05:15,830 --> 00:05:21,169
+And before we get to Haskell,
+let's look at a mainstream language
+
+70
+00:05:21,190 --> 00:05:26,159
+like Java, and imagine we have a
+Java method with this signature.
+
+71
+00:05:27,130 --> 00:05:32,549
+With this signature, a Java
+method foo that doesn't take
+
+72
+00:05:32,559 --> 00:05:35,089
+an Argument and returns an int.
+
+73
+00:05:36,389 --> 00:05:45,679
+And somewhere in the code later
+we use it, maybe we use it twice.
+
+74
+00:05:45,679 --> 00:05:56,210
+So in Java, this call of the first call
+of foo and the second call of foo can
+
+75
+00:05:56,210 --> 00:05:59,420
+very vary result in different Integers.
+
+76
+00:05:59,430 --> 00:06:05,590
+Even though there is no argument, as long
+as we don't know what these "..." do.
+
+77
+00:06:05,590 --> 00:06:10,160
+We have no way of saying that this
+and this will result in the same.
+
+78
+00:06:10,370 --> 00:06:11,009
+And why?
+
+79
+00:06:11,540 --> 00:06:18,280
+Because in Java it's perfectly
+possible that some IO happens here
+
+80
+00:06:18,289 --> 00:06:20,520
+inside the body of the foo method.
+
+81
+00:06:21,140 --> 00:06:27,599
+For example, inside the body
+that could be code that, asks
+
+82
+00:06:27,599 --> 00:06:32,229
+the user to input an integer on
+the console and then returns it.
+
+83
+00:06:32,229 --> 00:06:35,700
+So if you call it here
+and then again here.
+
+84
+00:06:36,010 --> 00:06:41,190
+Maybe at those two occasions, the user
+provides a different integer from the
+
+85
+00:06:41,190 --> 00:06:44,000
+terminal and we get different results.
+
+86
+00:06:45,220 --> 00:06:51,320
+And that also means that we really
+have to look at the code of this
+
+87
+00:06:51,330 --> 00:06:54,830
+function in order to understand
+it, or in order to reason about it.
+
+88
+00:06:56,200 --> 00:06:59,210
+Which makes testing, for
+example, more difficult.
+
+89
+00:06:59,340 --> 00:07:03,419
+And it also means that, I mean,
+if we evaluate it here and for
+
+90
+00:07:03,419 --> 00:07:05,900
+example, get the result 13.
+
+91
+00:07:05,900 --> 00:07:12,399
+We can replace all other occurrences
+of foo, of invocation of foo, with
+
+92
+00:07:12,399 --> 00:07:19,680
+the number 13, because as I said,
+maybe it wouldn't always result in 13.
+
+93
+00:07:20,179 --> 00:07:24,190
+That can be something like console
+input here, or it could carry a
+
+94
+00:07:24,220 --> 00:07:25,933
+website or a database, for example.
+
+95
+00:07:25,933 --> 00:07:29,010
+And that could change between
+different invocations of foo.
+
+96
+00:07:30,299 --> 00:07:34,906
+Now in Haskell the situation is
+very different because Haskell
+
+97
+00:07:34,906 --> 00:07:36,810
+is a pure functional language.
+
+98
+00:07:37,270 --> 00:07:44,190
+So the equivalent signature in Haskell
+would be something like, foo type int.
+
+99
+00:07:50,710 --> 00:08:00,010
+And, if then we have the same situation
+that we encounter foo twice, then...
+
+100
+00:08:00,809 --> 00:08:05,290
+I don't know what the value of
+foo is, but if, for example, I see
+
+101
+00:08:05,290 --> 00:08:10,250
+that here it is 13, then I can be
+sure that here it will also be 13.
+
+102
+00:08:10,250 --> 00:08:14,530
+And I don't have to look at
+the dots in order to know that.
+
+103
+00:08:14,990 --> 00:08:16,460
+I don't care what happens here.
+
+104
+00:08:16,840 --> 00:08:21,530
+I know that if I use the same thing
+twice, it will have the same value.
+
+105
+00:08:22,230 --> 00:08:26,030
+And that's a very important feature
+that's called referential transparency.
+
+106
+00:08:26,460 --> 00:08:27,970
+And that's a feature that Haskell has.
+
+107
+00:08:29,340 --> 00:08:32,570
+Actually I'm lying, there are ways
+there are like escape hatches to get
+
+108
+00:08:32,570 --> 00:08:35,439
+around it, but, we can ignore that.
+
+109
+00:08:35,690 --> 00:08:42,320
+So the vast majority of Haskell programs,
+something like this, we have a fixed
+
+110
+00:08:42,320 --> 00:08:44,159
+value and that value can't never change.
+
+111
+00:08:44,159 --> 00:08:45,900
+And you can rely on that fact.
+
+112
+00:08:46,640 --> 00:08:52,000
+That for example, makes refactoring
+very easy because I can just replace
+
+113
+00:08:52,000 --> 00:09:00,940
+foo everywhere by 13, or I could do
+something like, let X equals foo in
+
+114
+00:09:02,360 --> 00:09:08,629
+and then do the same code as before
+now with this local variable X.
+
+115
+00:09:09,210 --> 00:09:14,219
+And I guarantee that this term in line
+15 and the term in line 14 will have
+
+116
+00:09:14,219 --> 00:09:17,039
+exactly the same behavior semantics value.
+
+117
+00:09:18,779 --> 00:09:22,570
+And that's this referential, transparency.
+
+118
+00:09:23,270 --> 00:09:29,319
+So that's a very nice feature,
+It makes many things, much nicer
+
+119
+00:09:29,320 --> 00:09:30,979
+in Haskell than other languages.
+
+120
+00:09:31,269 --> 00:09:34,559
+Also, for example, testing, because
+it means if I have something like
+
+121
+00:09:34,670 --> 00:09:37,310
+that in order to test it, I must
+just check that the test, the right
+
+122
+00:09:37,340 --> 00:09:39,750
+value, this value can't change.
+
+123
+00:09:40,460 --> 00:09:44,289
+So if I have, I mean, this is, no,
+it doesn't take any arguments, but if
+
+124
+00:09:44,290 --> 00:09:49,910
+I had an Argument, then I just have
+to, I know that if I plug in the, if
+
+125
+00:09:49,910 --> 00:09:52,839
+I call foo with the same argument,
+I will always get the same result.
+
+126
+00:09:53,719 --> 00:09:58,719
+Which is not true in a Java function,
+because side-effects can happen.
+
+127
+00:10:00,660 --> 00:10:03,200
+So that is very nice and all very well.
+
+128
+00:10:03,809 --> 00:10:08,699
+But of course you need side-effects
+to have an effect on the world.
+
+129
+00:10:08,979 --> 00:10:12,579
+Otherwise, all your program
+does is heat up the processor.
+
+130
+00:10:12,579 --> 00:10:15,480
+So you need input and you need output.
+
+131
+00:10:15,810 --> 00:10:20,070
+you must make things happen in the world,
+I mean, must write results on the screen
+
+132
+00:10:20,070 --> 00:10:25,270
+or read input from the terminal or from
+a network connection or from a file.
+
+133
+00:10:26,440 --> 00:10:31,420
+If you can't do that, then,
+your program is useless.
+
+134
+00:10:31,420 --> 00:10:32,410
+It doesn't do anything.
+
+135
+00:10:33,170 --> 00:10:38,010
+There's a famous video by Simon
+Peyton Jones on YouTube, that's
+
+136
+00:10:38,200 --> 00:10:39,620
+called Haskell is useless.
+
+137
+00:10:40,309 --> 00:10:46,310
+And that is about this thing that it's
+beautiful mathematically to have a
+
+138
+00:10:46,400 --> 00:10:50,890
+pure side-effect free language, but
+eventually in the end you do need
+
+139
+00:10:50,890 --> 00:10:53,390
+side-effects to make anything happen.
+
+140
+00:10:53,720 --> 00:10:57,510
+And of course, Haskell has
+way to deal with side-effects.
+
+141
+00:10:58,110 --> 00:11:04,979
+And that is the so-called IO type
+constructor or IO Monad but don't
+
+142
+00:11:04,979 --> 00:11:07,630
+worry about the monad right now.
+
+143
+00:11:10,360 --> 00:11:15,760
+So the equivalent of something like
+that in Java, in Haskell would be
+
+144
+00:11:16,800 --> 00:11:20,420
+foo of type not int, but IO int.
+
+145
+00:11:24,480 --> 00:11:30,100
+So IO is type constructor,
+that takes one argument.
+
+146
+00:11:31,320 --> 00:11:36,469
+Like maybe for example, maybe it's another
+example of type constructor with one
+
+147
+00:11:36,490 --> 00:11:39,740
+argument or list is yet another example.
+
+148
+00:11:40,230 --> 00:11:45,040
+So IO is one of these type constructors
+and IO is special in the sense that you
+
+149
+00:11:45,430 --> 00:11:47,750
+can't implement it in the language itself.
+
+150
+00:11:47,750 --> 00:11:49,520
+So it's a built in primitive.
+
+151
+00:11:50,700 --> 00:11:52,439
+And, what does this mean?
+
+152
+00:11:52,440 --> 00:12:02,200
+What does this type IO int mean, it
+means, this is a action or a recipe.
+
+153
+00:12:02,720 --> 00:12:08,030
+To compute an int and this
+computation can invoke side-effects.
+
+154
+00:12:09,179 --> 00:12:13,479
+So you can think of it like a
+cooking recipe or a baking recipe.
+
+155
+00:12:13,869 --> 00:12:19,710
+So it's like a list of instructions,
+what a computer should do to end up
+
+156
+00:12:19,720 --> 00:12:22,550
+with an int in the end, as a result.
+
+157
+00:12:22,990 --> 00:12:30,859
+So this type IO int is a computation that
+can have side-effects and results in int.
+
+158
+00:12:31,929 --> 00:12:35,570
+However, it's important to notice
+that referential transparency
+
+159
+00:12:35,570 --> 00:12:37,150
+is not broken with this.
+
+160
+00:12:37,160 --> 00:12:37,170
+IO.
+
+161
+00:12:38,040 --> 00:12:43,980
+So it's a recipe to produce an
+int, but when I evaluate this
+
+162
+00:12:45,220 --> 00:12:47,819
+foo, the recipe won't be executed.
+
+163
+00:12:48,379 --> 00:12:52,950
+And the result of the evaluation
+is just a recipe to produce an int,
+
+164
+00:12:53,709 --> 00:12:56,310
+but the no execution is happening.
+
+165
+00:12:56,750 --> 00:13:05,390
+So, referential transparency is still
+maintained and the only way to actually
+
+166
+00:13:05,460 --> 00:13:12,480
+execute such a recipe to execute an
+IO action is in a main program, in the
+
+167
+00:13:13,140 --> 00:13:16,250
+executable, in the main entry point.
+
+168
+00:13:16,270 --> 00:13:21,170
+So if you compile Haskell to an
+executable, if you have an executable,
+
+169
+00:13:21,969 --> 00:13:26,140
+then similar to other languages
+like Java, for example, there is a
+
+170
+00:13:26,140 --> 00:13:32,359
+main function and that actually gets
+executed by the Haskell runtime system.
+
+171
+00:13:33,089 --> 00:13:36,300
+And there's another way, the second
+way you can also do it in the
+
+172
+00:13:36,300 --> 00:13:41,970
+repl, so GHCI also allows you to
+execute IO so-called IO actions.
+
+173
+00:13:43,780 --> 00:13:51,990
+So, the hello world in
+Haskell looks like this.
+
+174
+00:13:52,430 --> 00:13:58,570
+So we need, a module called main
+or in case of the main module you
+
+175
+00:13:58,599 --> 00:14:00,140
+can also skip the module header.
+
+176
+00:14:01,219 --> 00:14:08,319
+And it must contain a function named
+main and the type must be IO unit.
+
+177
+00:14:08,929 --> 00:14:14,960
+So this is a recipe that
+can do some side-effects.
+
+178
+00:14:15,380 --> 00:14:18,200
+And in the end returns a
+unit, which means nothing.
+
+179
+00:14:18,440 --> 00:14:22,840
+I mean, nothing of value because there's
+only exactly one value of type unit.
+
+180
+00:14:22,840 --> 00:14:27,240
+So the only interesting part
+are the side-effects and this
+
+181
+00:14:27,240 --> 00:14:28,750
+would be hello world in Haskell.
+
+182
+00:14:29,290 --> 00:14:35,010
+Put string line, I can ask
+for the type in my repl.
+
+183
+00:14:35,980 --> 00:14:42,709
+So the type of put string line, it is a
+function, it takes a string and returns
+
+184
+00:14:42,740 --> 00:14:45,640
+an IO action with no interesting result.
+
+185
+00:14:46,750 --> 00:14:50,770
+So the type of put string line, sorry.
+
+186
+00:14:51,960 --> 00:14:58,259
+Hello world is IO unit.
+
+187
+00:14:58,469 --> 00:15:00,280
+So it's suitable for a main program.
+
+188
+00:15:01,780 --> 00:15:06,730
+And I can actually execute it
+for example, with cabal run.
+
+189
+00:15:07,380 --> 00:15:12,240
+Now, in my case, I called this hello,
+so that specified in the cabal file.
+
+190
+00:15:12,240 --> 00:15:16,910
+It compiles and then indeed
+has a side-effect and writes
+
+191
+00:15:17,309 --> 00:15:18,759
+hello world to the console.
+
+192
+00:15:20,330 --> 00:15:23,760
+I should briefly show you
+the cabal file as well.
+
+193
+00:15:24,290 --> 00:15:27,130
+So until now I know previous
+examples we only had this one
+
+194
+00:15:27,130 --> 00:15:28,750
+stanza out the library stanza.
+
+195
+00:15:28,750 --> 00:15:32,240
+So we were always just writing
+Haskell libraries without a main
+
+196
+00:15:32,599 --> 00:15:33,959
+program, without an executable.
+
+197
+00:15:34,959 --> 00:15:39,020
+Now I added this stanza
+here, is executable stanza.
+
+198
+00:15:39,540 --> 00:15:44,480
+There just specify the source
+directory and then which file
+
+199
+00:15:44,530 --> 00:15:45,980
+contains the main module.
+
+200
+00:15:46,010 --> 00:15:47,230
+So I called it hello.hs.
+
+201
+00:15:47,480 --> 00:15:54,170
+So here is an exception, normally Haskell
+modules always have to have, I mean,
+
+202
+00:15:54,170 --> 00:15:59,269
+the file name must equal the module
+name, executables are the exception.
+
+203
+00:15:59,290 --> 00:16:03,140
+So the module name is allways main,
+but the file can have a different
+
+204
+00:16:03,140 --> 00:16:04,590
+name like hello in this example.
+
+205
+00:16:06,750 --> 00:16:11,270
+I also mentioned that another
+way to actually execute an IO
+
+206
+00:16:11,270 --> 00:16:14,120
+action is to do it in the repl.
+
+207
+00:16:14,850 --> 00:16:20,770
+So early, I asked for the type of this
+expression, put string line hello world.
+
+208
+00:16:21,370 --> 00:16:27,060
+But if I just enter it like that, then
+it will actually be executed in the repl.
+
+209
+00:16:27,339 --> 00:16:34,320
+So this hello world is the side-effect
+happening by executing this iO action.
+
+210
+00:16:35,340 --> 00:16:38,530
+So we have, one example of, often
+
+211
+00:16:38,530 --> 00:16:43,780
+IO action way to create one, namely
+this put string line, let's look at
+
+212
+00:16:43,809 --> 00:16:46,215
+another one it's called get line.
+
+213
+00:16:47,460 --> 00:16:49,520
+And that is of type IO string.
+
+214
+00:16:49,650 --> 00:16:55,470
+So that means it's a recipe,
+possibly containing side-effects
+
+215
+00:16:55,490 --> 00:17:00,860
+that after having executed the
+side-effects will produce a string.
+
+216
+00:17:01,590 --> 00:17:05,399
+And in the case of get line, the
+side-effects in question is, it will
+
+217
+00:17:06,329 --> 00:17:09,660
+wait for user input from the keyboard.
+
+218
+00:17:10,500 --> 00:17:14,260
+So if I execute get line in the repl.
+
+219
+00:17:16,329 --> 00:17:20,869
+Now, it waits for keyboard input.
+
+220
+00:17:21,009 --> 00:17:28,249
+And if I enter something like Haskell
+and press enter, then I get the result.
+
+221
+00:17:28,420 --> 00:17:31,200
+So the string result, which
+is the string Haskell.
+
+222
+00:17:33,110 --> 00:17:39,590
+And there are of course variety of
+IO actions predefined in Haskell.
+
+223
+00:17:40,040 --> 00:17:43,870
+And we now saw how to write to the
+console and read from the keyboard.
+
+224
+00:17:44,340 --> 00:17:51,470
+And obviously there are many many
+actions to do all sorts of things
+
+225
+00:17:51,470 --> 00:17:57,109
+that you would expect like reading
+files, writing files, opening sockets,
+
+226
+00:17:57,120 --> 00:17:59,580
+reading from sockets and so on.
+
+227
+00:18:01,260 --> 00:18:05,370
+But obviously no matter how many
+predefined actions you have, that
+
+228
+00:18:05,370 --> 00:18:09,530
+will never be enough if you want
+to achieve something complex.
+
+229
+00:18:09,920 --> 00:18:17,080
+So there must be a way to combine these
+primitive provided IO actions, into,
+
+230
+00:18:17,109 --> 00:18:19,440
+into bigger, more complex recipes.
+
+231
+00:18:21,540 --> 00:18:26,684
+One thing we can do is make use
+of the functor instance of IO.
+
+232
+00:18:27,010 --> 00:18:36,119
+So if I ask for IO, information on IO
+we see the dreaded monad instance that
+
+233
+00:18:36,140 --> 00:18:41,080
+I'm explaining now, but we also see
+a functor instance and functor is a
+
+234
+00:18:41,080 --> 00:18:43,900
+very important type class in Haskell.
+
+235
+00:18:44,970 --> 00:18:52,211
+And it in principle only has this one
+method that's important, I mean, this one,
+
+236
+00:18:52,241 --> 00:18:53,951
+the second one is just for convenience.
+
+237
+00:18:54,911 --> 00:19:02,060
+So if we have a functor type constructor,
+then you can turn F A into an F B
+
+238
+00:19:02,160 --> 00:19:03,780
+If you have a function from A to B.
+
+239
+00:19:03,950 --> 00:19:07,419
+So we are now only interested
+in the case for F is IO.
+
+240
+00:19:07,910 --> 00:19:13,850
+so if it's specialized this to IO, we see
+that using F map and given a function from
+
+241
+00:19:13,870 --> 00:19:17,040
+A to B, we can turn IO A into an IO B.
+
+242
+00:19:17,650 --> 00:19:18,740
+And how does that work?
+
+243
+00:19:19,270 --> 00:19:24,639
+When IO A is a recipe
+containing side-effects that
+
+244
+00:19:24,650 --> 00:19:26,379
+in the end produces an A.
+
+245
+00:19:26,860 --> 00:19:29,255
+So how do we get an IO B out of that?
+
+246
+00:19:29,255 --> 00:19:33,470
+Well we take the same recipe with
+the same side-effects, but then
+
+247
+00:19:33,470 --> 00:19:38,360
+before eventually returning the A we
+apply the given function to it, and
+
+248
+00:19:38,360 --> 00:19:42,709
+then return the result of applying
+this function to A to get the B.
+
+249
+00:19:43,210 --> 00:19:51,160
+So, as an example, if we import data dot
+character from the standard libraries, we
+
+250
+00:19:51,170 --> 00:19:59,800
+have the function to upper, which converts
+a character into it's uppercase version.
+
+251
+00:20:00,030 --> 00:20:08,570
+So for example, to upper,
+small Q, sorry, characters, not
+
+252
+00:20:08,610 --> 00:20:09,940
+double quotes, single quotes.
+
+253
+00:20:09,950 --> 00:20:14,169
+So to upper Q, give me
+the character capital Q.
+
+254
+00:20:15,070 --> 00:20:17,889
+Now if I want to apply that to strings.
+
+255
+00:20:17,889 --> 00:20:21,029
+I can use the map function on
+this because strings in Haskell
+
+256
+00:20:21,079 --> 00:20:22,709
+are just list of characters.
+
+257
+00:20:23,059 --> 00:20:28,950
+So if I map that to upper function
+over a string, for example, Haskell.
+
+258
+00:20:28,950 --> 00:20:35,070
+Then it gives me the string when now
+all the characters in this string
+
+259
+00:20:35,080 --> 00:20:36,840
+have been converted to upper case.
+
+260
+00:20:37,440 --> 00:20:43,300
+Okay, so this map to upper function
+is a function from string to string.
+
+261
+00:20:44,430 --> 00:20:48,010
+Remember string is just another name
+in Haskell for a list of character.
+
+262
+00:20:48,990 --> 00:20:53,480
+So that means I can use that
+in combination with F map.
+
+263
+00:20:53,610 --> 00:20:58,899
+So if I have F map and as function
+from A to B, so in this case A and B
+
+264
+00:20:58,900 --> 00:21:03,520
+are both string and as function from
+string to string I use this to upper.
+
+265
+00:21:05,650 --> 00:21:11,480
+And then get line, I again, get
+something of type IO string.
+
+266
+00:21:12,420 --> 00:21:14,220
+So get line was of type IO string.
+
+267
+00:21:14,700 --> 00:21:17,110
+The function I'm F mapping
+is from string to string.
+
+268
+00:21:17,350 --> 00:21:19,990
+So I again get something
+of type IO string.
+
+269
+00:21:19,990 --> 00:21:22,380
+And we can try that out
+and see it in action.
+
+270
+00:21:22,870 --> 00:21:27,830
+So if I execute this in the repl,
+it waits for user input and if I
+
+271
+00:21:27,980 --> 00:21:31,750
+now provide Haskell and press enter.
+
+272
+00:21:32,650 --> 00:21:37,020
+We see that the result is now,
+not just a string I entered, which
+
+273
+00:21:37,020 --> 00:21:38,317
+would be the result of get line.
+
+274
+00:21:38,700 --> 00:21:41,480
+But this function, this map
+to upper has been applied to
+
+275
+00:21:41,480 --> 00:21:42,940
+result before returning it.
+
+276
+00:21:43,330 --> 00:21:45,399
+So we get Haskell all capitals.
+
+277
+00:21:45,940 --> 00:21:49,910
+So that's one way how we can
+take existing IO actions and
+
+278
+00:21:49,910 --> 00:21:51,779
+turn them into new IO actions.
+
+279
+00:21:52,840 --> 00:21:58,850
+The second way is provided
+by the, by this character.
+
+280
+00:21:59,290 --> 00:22:03,360
+I don't actually know how to pronounce
+it, greater than greater than.
+
+281
+00:22:03,880 --> 00:22:08,979
+That just chains two IO actions together
+ignoring the result of the first.
+
+282
+00:22:09,679 --> 00:22:17,050
+So for example, we can do put
+string line hello and then this
+
+283
+00:22:17,070 --> 00:22:21,250
+operator, put string line world.
+
+284
+00:22:22,630 --> 00:22:28,510
+And if we execute this simply both
+actions will be performed in sequence.
+
+285
+00:22:28,639 --> 00:22:30,690
+So I think it's called
+sequence the operator.
+
+286
+00:22:31,730 --> 00:22:35,420
+And in this case, the put string
+line only has a unit result, but of
+
+287
+00:22:35,420 --> 00:22:40,600
+course this first one could also be a
+function that has a non-trivial result,
+
+288
+00:22:40,960 --> 00:22:43,010
+but this operator simply ignores it.
+
+289
+00:22:43,030 --> 00:22:47,639
+So given these two recipes, what
+the sequence operator does, it just
+
+290
+00:22:47,639 --> 00:22:49,310
+basically sticks the recipes together.
+
+291
+00:22:49,320 --> 00:22:54,370
+First performs all the side-effects
+from the first recipe, then
+
+292
+00:22:54,380 --> 00:23:00,600
+throws away the result and then
+just attaches the second recipe.
+
+293
+00:23:01,610 --> 00:23:06,180
+So That's one way, then there is
+a very important operator, which
+
+294
+00:23:06,180 --> 00:23:10,480
+does not ignore the result of the
+first one, and that is called bind.
+
+295
+00:23:10,700 --> 00:23:12,300
+So it's like this.
+
+296
+00:23:12,300 --> 00:23:19,560
+And if we look at the type of bind, we
+see this monad constraint, but we can
+
+297
+00:23:19,560 --> 00:23:22,030
+ignore that for now and just think of IO.
+
+298
+00:23:22,600 --> 00:23:29,209
+So what that says is, if I have a recipe
+that perform side-effects and returns an
+
+299
+00:23:29,220 --> 00:23:36,049
+A, and if I have a function that given
+an A, gives me a recipe that returns a B.
+
+300
+00:23:36,730 --> 00:23:40,939
+Then this can, these two can be
+combined to a recipe that produces a B.
+
+301
+00:23:41,139 --> 00:23:42,180
+And how does that work?
+
+302
+00:23:42,190 --> 00:23:48,860
+Well, if you have this IO A, we have a
+recipe to produce an A, so we can perform
+
+303
+00:23:48,860 --> 00:23:53,889
+these side-effects that will eventually
+give us an A, then once we have this A
+
+304
+00:23:53,889 --> 00:24:01,320
+we apply this function here to that A
+and get a second recipe now of type iO B.
+
+305
+00:24:01,320 --> 00:24:06,060
+And we simply execute that and
+in the end get a B as a result.
+
+306
+00:24:06,300 --> 00:24:12,059
+So as an example, I can apply
+this to get line input string
+
+307
+00:24:12,200 --> 00:24:13,559
+that has exactly the right type.
+
+308
+00:24:13,559 --> 00:24:20,940
+So get line is IO string, and then put
+string line has type string to IO unit.
+
+309
+00:24:21,320 --> 00:24:26,169
+So if I combine these two with this
+operator, I get something of type IO unit.
+
+310
+00:24:26,170 --> 00:24:27,190
+And what does it do?
+
+311
+00:24:27,630 --> 00:24:31,980
+It will first execute the get line,
+which will return a string, then plug
+
+312
+00:24:31,980 --> 00:24:33,300
+that string into put string line.
+
+313
+00:24:33,300 --> 00:24:38,029
+So it will put the string line that
+was just entered out on the console.
+
+314
+00:24:38,300 --> 00:24:43,639
+So to demonstrate, if I do
+this, get line put, sorry, it
+
+315
+00:24:43,640 --> 00:24:46,410
+must be bind, put string line.
+
+316
+00:24:47,469 --> 00:24:50,310
+So now the get line is executed.
+
+317
+00:24:50,759 --> 00:24:57,669
+If I enter Haskell, now this results
+in the string Haskell, which is parsed
+
+318
+00:24:57,669 --> 00:25:01,530
+onto put string line and then put
+string line executes its side-effects
+
+319
+00:25:01,540 --> 00:25:03,520
+and writes Haskell to the console.
+
+320
+00:25:05,320 --> 00:25:11,720
+There's another very important way to
+create IO actions and that is to produce
+
+321
+00:25:12,250 --> 00:25:16,710
+recipes that immediately return a result
+without performing any side-effects.
+
+322
+00:25:17,260 --> 00:25:20,360
+And that is done with a
+function called return.
+
+323
+00:25:21,099 --> 00:25:26,520
+So if I asked for the type of
+return, again, it's general for any
+
+324
+00:25:26,910 --> 00:25:28,060
+monad, but we can just think IO.
+
+325
+00:25:28,790 --> 00:25:31,714
+So will return as type A to IO A.
+
+326
+00:25:32,260 --> 00:25:36,830
+So given an A, it produces a recipe
+that can contain side-effects and
+
+327
+00:25:36,830 --> 00:25:40,850
+eventually produces an A and in
+the case of return, the recipe will
+
+328
+00:25:40,880 --> 00:25:44,899
+simply not perform any side-effects
+and immediately return the given A.
+
+329
+00:25:45,499 --> 00:25:52,030
+So for example, I can do return
+Haskell and now I have to give a
+
+330
+00:25:52,030 --> 00:25:57,570
+type annotation because otherwise,
+I wouldn't know what monad it is.
+
+331
+00:25:57,570 --> 00:26:01,779
+So IO string and immediately
+returns the string Haskell.
+
+332
+00:26:02,650 --> 00:26:07,306
+Returning back to our main program,
+using these operators that I
+
+333
+00:26:07,410 --> 00:26:13,300
+just explained, we can now write
+relatively complex IO actions.
+
+334
+00:26:13,770 --> 00:26:19,500
+For example, I can define an IO action
+that will ask for two strings and
+
+335
+00:26:19,500 --> 00:26:25,159
+then write the result of concatenating
+those two strings to the console.
+
+336
+00:26:25,670 --> 00:26:28,980
+So let's call it, I don't know, a bar.
+
+337
+00:26:30,090 --> 00:26:33,010
+So it will have type IO unit.
+
+338
+00:26:34,929 --> 00:26:36,979
+So what do I do?
+
+339
+00:26:37,549 --> 00:26:43,790
+I do a get line to read the first
+string and I bind it to a function
+
+340
+00:26:44,080 --> 00:26:47,410
+and now I will use Lambda expression.
+
+341
+00:26:48,000 --> 00:26:51,000
+So I call the first elem...
+
+342
+00:26:51,000 --> 00:26:52,530
+write an element S.
+
+343
+00:26:53,870 --> 00:26:58,629
+And now, I format it a bit special,
+but in Haskell you have a lot of
+
+344
+00:26:58,639 --> 00:27:00,350
+freedom when you format your code.
+
+345
+00:27:00,830 --> 00:27:05,430
+So now I bind this to a second get line.
+
+346
+00:27:07,110 --> 00:27:09,550
+And now I bind the third action.
+
+347
+00:27:10,710 --> 00:27:14,370
+So let's call the result
+of this second get line T.
+
+348
+00:27:15,839 --> 00:27:22,330
+And now after I have this S
+and T I'll do a put string
+
+349
+00:27:22,330 --> 00:27:25,500
+line of S concatenated with T.
+
+350
+00:27:29,500 --> 00:27:32,229
+I go back to the repl.
+
+351
+00:27:32,230 --> 00:27:32,540
+Okay.
+
+352
+00:27:32,540 --> 00:27:35,339
+I just get the warning that
+it's defined, but not used.
+
+353
+00:27:36,889 --> 00:27:39,919
+So for example, I can, if I
+want to get rid of that warning,
+
+354
+00:27:39,920 --> 00:27:42,870
+I can use bar here in main.
+
+355
+00:27:45,050 --> 00:27:50,430
+Okay, and now if I execute this
+new executable now with bar.
+
+356
+00:27:51,080 --> 00:27:53,409
+So now it waits for the first input.
+
+357
+00:27:53,510 --> 00:27:59,140
+So let's say one, now it waits for
+the second input, let's say two.
+
+358
+00:28:00,770 --> 00:28:05,389
+And it returns, it doesn't return
+anything, but it writes the concatenation
+
+359
+00:28:06,020 --> 00:28:09,010
+of the two to the console, one two.
+
+360
+00:28:10,330 --> 00:28:17,340
+So you see that using these handful
+of combinators, basically just the
+
+361
+00:28:17,420 --> 00:28:25,100
+bind and the return I can write
+arbitrarily complex IO actions.
+
+362
+00:28:26,080 --> 00:28:30,380
+And this is enough for us now
+for our purposes, because we
+
+363
+00:28:30,380 --> 00:28:33,030
+won't really need the IO monad.
+
+364
+00:28:33,030 --> 00:28:37,320
+Maybe much later in the course when
+we talk about actually deploying
+
+365
+00:28:37,330 --> 00:28:39,620
+Plutus contracts to the Testnet.
+
+366
+00:28:40,700 --> 00:28:44,950
+But everything else, for
+everything else, we won't need IO.
+
+367
+00:28:45,380 --> 00:28:48,610
+But it's an important example of a monad.
+
+368
+00:28:48,620 --> 00:28:50,630
+So I wanted to start with this.
+
+369
+00:28:51,760 --> 00:28:55,100
+Now for a while, let's
+completely forget about IO.
+
+370
+00:28:56,099 --> 00:29:01,970
+Let's just write pure functional
+Haskell using the maybe type.
+
+371
+00:29:02,660 --> 00:29:05,689
+The maybe type for those that
+don't know it's one of the
+
+372
+00:29:05,690 --> 00:29:07,889
+most useful types in Haskell.
+
+373
+00:29:08,110 --> 00:29:14,170
+So it's a type constructor that takes
+one type argument and maybe A is
+
+374
+00:29:14,520 --> 00:29:17,590
+often called something like optional
+in other programming languages.
+
+375
+00:29:17,740 --> 00:29:21,380
+So it's an optional A, so there
+are two constructors for this
+
+376
+00:29:21,410 --> 00:29:23,929
+type, nothing and just taking an A.
+
+377
+00:29:24,430 --> 00:29:29,990
+So a maybe A can either contain A
+with a just constructor or nothing.
+
+378
+00:29:31,170 --> 00:29:36,320
+And let's import text read, sorry, read.
+
+379
+00:29:37,360 --> 00:29:38,080
+Yeah, text read.
+
+380
+00:29:39,950 --> 00:29:40,760
+Read maybe.
+
+381
+00:29:44,129 --> 00:29:48,629
+Right, in Haskell if you want to
+parse a string to a value that has
+
+382
+00:29:48,629 --> 00:29:56,430
+a read instance that is normally
+done with the read function.
+
+383
+00:29:56,950 --> 00:30:02,870
+So I can, for example, do read
+42 and tell the compiler I expect
+
+384
+00:30:02,870 --> 00:30:07,570
+an int and it gives me, it parses
+the string 42 into the int 42.
+
+385
+00:30:08,420 --> 00:30:12,460
+But read is a bit unpleasant because
+if I have something that can't be
+
+386
+00:30:12,460 --> 00:30:18,880
+parsed as a string, then I get an
+error and that's not very nice.
+
+387
+00:30:19,310 --> 00:30:23,280
+So that's why importing this read
+maybe, read maybe it's very similar to
+
+388
+00:30:23,320 --> 00:30:28,510
+read, but in the case where parse is
+not possible, it will return a nothing.
+
+389
+00:30:28,510 --> 00:30:34,730
+So if we replace this read with
+read maybe, and now the return
+
+390
+00:30:34,740 --> 00:30:37,519
+type is maybe int, we get just 42.
+
+391
+00:30:38,740 --> 00:30:44,340
+But if we again try that with something
+that can't be parsed as an int, then we
+
+392
+00:30:44,340 --> 00:30:46,690
+won't get an exception, we get a nothing.
+
+393
+00:30:47,830 --> 00:30:51,870
+I created a new Haskell
+module called maybe.
+
+394
+00:30:52,620 --> 00:30:57,520
+Let's say I want to implement a
+function, doesn't matter, let's
+
+395
+00:30:57,520 --> 00:31:07,159
+call it foo, that takes three
+strings and return some maybe int.
+
+396
+00:31:09,629 --> 00:31:19,080
+And the idea is, that the function should
+try to parse all three strings as ints.
+
+397
+00:31:20,309 --> 00:31:24,470
+And if that's successful, so if
+all can be successfully parsed
+
+398
+00:31:24,470 --> 00:31:29,870
+as Ints, then I want to add those
+three Ints and return the sum.
+
+399
+00:31:30,949 --> 00:31:35,030
+And if one of the parses fails,
+I want to return nothing.
+
+400
+00:31:37,140 --> 00:31:44,050
+So, one way to do that, and I mean,
+this is just plain elementary Haskell.
+
+401
+00:31:45,120 --> 00:31:52,360
+So I try read maybe, I apply it
+to the first string and now there
+
+402
+00:31:52,360 --> 00:31:54,590
+are two cases it could fail.
+
+403
+00:31:55,780 --> 00:32:01,459
+So if I already can't parse the first
+string, then I can immediately stop.
+
+404
+00:32:02,360 --> 00:32:04,050
+Then I do even have to
+look at the other two.
+
+405
+00:32:04,770 --> 00:32:10,523
+But if that succeeds, let's say,
+that's K, I called K, so it K is now
+
+406
+00:32:10,630 --> 00:32:12,940
+the integer that's parsed from X.
+
+407
+00:32:13,440 --> 00:32:15,990
+I can try do parse the second one.
+
+408
+00:32:18,280 --> 00:32:20,690
+And again, I have two cases.
+
+409
+00:32:21,009 --> 00:32:26,940
+This can fail in which case the whole
+computation should return nothing
+
+410
+00:32:27,770 --> 00:32:29,590
+or there can be a successful parse.
+
+411
+00:32:30,670 --> 00:32:37,880
+So I parse it as a just L and now
+I can look at the third string
+
+412
+00:32:39,130 --> 00:32:48,830
+and again, two cases, nothing, in
+which case I failed or success.
+
+413
+00:32:49,000 --> 00:32:57,210
+Let's call the result M and now I have
+successfully parsed all three int...
+
+414
+00:32:57,310 --> 00:32:58,400
+strings as integers.
+
+415
+00:32:58,400 --> 00:33:04,920
+And now I can join just K plus L plus M.
+
+416
+00:33:07,170 --> 00:33:09,949
+I can try whether that works.
+
+417
+00:33:10,510 --> 00:33:15,510
+So if I have foo one, two, three.
+
+418
+00:33:18,779 --> 00:33:20,320
+I get just six.
+
+419
+00:33:20,620 --> 00:33:27,339
+So this is parse this one, this is two,
+this is three all three parsings succeed.
+
+420
+00:33:27,800 --> 00:33:30,240
+So I can add one plus two
+plus three and get six.
+
+421
+00:33:30,849 --> 00:33:39,450
+But if one of those copy
+past, then I get nothing.
+
+422
+00:33:39,450 --> 00:33:44,490
+And of course, if, sorry, I get nothing.
+
+423
+00:33:45,969 --> 00:33:46,379
+Okay.
+
+424
+00:33:48,730 --> 00:33:55,879
+But if we look at this code, we see
+that we repeat the same pattern three
+
+425
+00:33:55,880 --> 00:33:58,909
+times and it's always very similar.
+
+426
+00:33:59,430 --> 00:34:06,929
+So we have something that is a maybe, this
+read maybe X, read maybe Y, read maybe Z.
+
+427
+00:34:08,520 --> 00:34:13,179
+And then depending on the result, we
+always have to consider the two cases
+
+428
+00:34:13,179 --> 00:34:20,440
+that it's nothing or just, and in the
+nothing case, we always fail with nothing.
+
+429
+00:34:21,130 --> 00:34:24,719
+And in the just case, we carry on
+with the rest of the computation.
+
+430
+00:34:25,759 --> 00:34:32,340
+And as Haskell us, we hate
+repetition like that, lot of noise.
+
+431
+00:34:32,750 --> 00:34:35,989
+So I mean, the thing we want to do
+is very simply, we want to parse the
+
+432
+00:34:35,989 --> 00:34:38,600
+three strings and add the result.
+
+433
+00:34:39,290 --> 00:34:43,980
+But with all these cases and the always
+having to take care of the nothing
+
+434
+00:34:43,980 --> 00:34:47,319
+case, makes it very noisy and very ugly.
+
+435
+00:34:47,619 --> 00:34:52,680
+So as a Haskell or the natural
+tendency is to try to abstract
+
+436
+00:34:52,680 --> 00:34:54,300
+the way the pattern we have here.
+
+437
+00:34:55,210 --> 00:35:00,170
+And one way to do that would be to
+define something like bind maybe
+
+438
+00:35:02,700 --> 00:35:12,880
+given a maybe A and the function
+from A to maybe B, we get a maybe B.
+
+439
+00:35:13,930 --> 00:35:17,040
+And how would we
+implement this bind maybe?
+
+440
+00:35:17,960 --> 00:35:23,710
+Well, if it's nothing then we
+don't even care about the function,
+
+441
+00:35:24,190 --> 00:35:26,860
+we immediately say nothing.
+
+442
+00:35:28,410 --> 00:35:39,170
+But if it's just X and we have the
+function F then we apply F to our X.
+
+443
+00:35:42,400 --> 00:35:47,490
+And this is exactly what
+we did three times here.
+
+444
+00:35:47,540 --> 00:35:53,029
+So to demonstrate the usefulness of
+this bind maybe operator, we can now
+
+445
+00:35:53,099 --> 00:35:59,020
+write the same function again, now
+foo, but now using this bind maybe.
+
+446
+00:36:06,819 --> 00:36:16,879
+Okay, so first we, we apply to read
+maybe X, and now we use bind maybe
+
+447
+00:36:17,090 --> 00:36:22,259
+and I write that in inline style
+to make it, the pattern nicer.
+
+448
+00:36:22,940 --> 00:36:27,270
+And if we successfully, so in the
+nothing case nothing, this is now
+
+449
+00:36:27,370 --> 00:36:33,460
+encoded here in this bind maybe, but
+if we succeed, let's call this K.
+
+450
+00:36:39,080 --> 00:36:46,580
+So then I can do read maybe Y,
+use my new bind maybe again.
+
+451
+00:36:47,549 --> 00:37:03,010
+And if it succeeds I call the result
+L and a third time, call the result M.
+
+452
+00:37:06,050 --> 00:37:12,830
+And in that case, I just
+do just K plus L plus M.
+
+453
+00:37:16,650 --> 00:37:22,199
+Okay, and now I can try the same things
+I tried before with foo prime and I
+
+454
+00:37:22,200 --> 00:37:24,364
+should get exactly the same results.
+
+455
+00:37:24,679 --> 00:37:31,799
+So in the case where all three parses
+succeed, I get the sum, but if one of
+
+456
+00:37:31,800 --> 00:37:35,570
+the three can't be parsed, I get nothing.
+
+457
+00:37:39,400 --> 00:37:43,910
+So we see that by introducing this
+bind maybe, we capture this pattern,
+
+458
+00:37:44,200 --> 00:37:48,949
+this very common pattern that you often
+encounter when you use optional values
+
+459
+00:37:50,140 --> 00:37:55,380
+of type maybe, that if you, if it's
+nothing you want to immediately stop,
+
+460
+00:37:55,430 --> 00:37:57,040
+it doesn't make sense to continue.
+
+461
+00:37:57,130 --> 00:38:03,009
+But if it's just something, then using the
+value of this something you can continue.
+
+462
+00:38:03,210 --> 00:38:07,190
+And this is captured in
+this bind maybe function.
+
+463
+00:38:08,720 --> 00:38:14,799
+And we see that using this, we can
+write the original foo function
+
+464
+00:38:15,170 --> 00:38:17,150
+much nicer in a much nicer form.
+
+465
+00:38:17,910 --> 00:38:22,460
+So we don't have this dangling case
+statements any longer and all this
+
+466
+00:38:22,460 --> 00:38:25,555
+noise with the nothings, because
+this is now encapsulated abstracted
+
+467
+00:38:25,850 --> 00:38:27,650
+the way in this bind maybe function.
+
+468
+00:38:28,260 --> 00:38:32,480
+This does exactly the same as the
+foo did, but it's much more compact
+
+469
+00:38:32,480 --> 00:38:37,230
+and the business logic is much
+clearer, we see we try to read these
+
+470
+00:38:37,240 --> 00:38:39,130
+three strings parse them as Ints.
+
+471
+00:38:39,990 --> 00:38:43,940
+And if everything succeeds
+will return the sum.
+
+472
+00:38:44,290 --> 00:38:48,530
+So there's far less noise now by
+using this bind maybe function.
+
+473
+00:38:49,380 --> 00:38:53,530
+And what the bind maybe does is it
+encapsulates the idea that we have
+
+474
+00:38:53,530 --> 00:38:58,069
+something of a maybe type and if that's
+something is nothing, the overall
+
+475
+00:38:58,339 --> 00:38:59,960
+result of the computation is nothing.
+
+476
+00:39:00,730 --> 00:39:06,569
+And if it's just, then we continue
+with the value of this just.
+
+477
+00:39:07,710 --> 00:39:10,590
+And if you think about it,
+that's a bit like exceptions
+
+478
+00:39:10,599 --> 00:39:12,000
+in other programming language.
+
+479
+00:39:12,270 --> 00:39:18,990
+If you think of nothing as an exception,
+then the normal behavior of exceptions
+
+480
+00:39:18,990 --> 00:39:23,120
+and other languages is that as soon as
+an exception is thrown, you immediately
+
+481
+00:39:23,120 --> 00:39:28,600
+stop with the computation and return
+the exception, bubble the exception up.
+
+482
+00:39:29,190 --> 00:39:35,450
+And this here now behaves very similarly,
+as soon as we accounted nothing, we
+
+483
+00:39:35,450 --> 00:39:36,890
+immediately stopped with nothing.
+
+484
+00:39:37,430 --> 00:39:38,850
+And if not, we carry on.
+
+485
+00:39:39,310 --> 00:39:43,759
+And this pattern, this idea, this
+exception like behavior is captured
+
+486
+00:39:43,790 --> 00:39:45,700
+in this bind maybe function.
+
+487
+00:39:46,250 --> 00:39:52,910
+And using that, we can write the
+original logic very compactly.
+
+488
+00:39:52,910 --> 00:39:56,830
+Another very useful type in Haskell
+is the either type that takes two
+
+489
+00:39:56,830 --> 00:39:59,840
+parameters, two type parameters, A and B.
+
+490
+00:40:00,400 --> 00:40:09,010
+So, if I ask for information for either,
+then we see it has two constructors,
+
+491
+00:40:09,020 --> 00:40:13,100
+like maybe, but both carry a value.
+
+492
+00:40:13,150 --> 00:40:18,350
+So an either A B can either carry
+an A, or it can carry a B and the
+
+493
+00:40:18,380 --> 00:40:20,210
+two constructors are left and right.
+
+494
+00:40:22,139 --> 00:40:27,940
+So for example, I can have left
+haskell, it can be of type either
+
+495
+00:40:27,969 --> 00:40:38,160
+string int, but I can also have
+right seven of the same type.
+
+496
+00:40:40,690 --> 00:40:45,499
+I created another module called
+either where basically just
+
+497
+00:40:45,559 --> 00:40:47,199
+copied what we had for maybe.
+
+498
+00:40:47,969 --> 00:40:55,680
+And if we take this exception analogy
+a little bit further, then one
+
+499
+00:40:56,059 --> 00:41:02,680
+issue with maybe is that if we do
+nothing, if we return nothing, in
+
+500
+00:41:02,710 --> 00:41:06,870
+an analogy to throwing an exception,
+then there is no error message.
+
+501
+00:41:06,940 --> 00:41:12,100
+It's just nothing, it just fails
+without any indication of why.
+
+502
+00:41:12,660 --> 00:41:18,520
+So if you want something like that, then
+we can replace maybe with an either type
+
+503
+00:41:18,660 --> 00:41:24,870
+where right corresponds to just and left
+corresponds to an error like nothing did.
+
+504
+00:41:25,289 --> 00:41:30,240
+But now we, depending on what type we
+choose for the first type parameter A,
+
+505
+00:41:30,640 --> 00:41:36,060
+we can have a type of error messages,
+for example, we can use string.
+
+506
+00:41:38,170 --> 00:41:43,730
+And the read maybe returns
+a maybe, and not an either.
+
+507
+00:41:43,780 --> 00:41:49,570
+So let's first define something,
+let's call it read either.
+
+508
+00:41:50,099 --> 00:42:00,110
+So read maybe has type
+read A string to maybe A.
+
+509
+00:42:01,430 --> 00:42:05,480
+There would be the type of read
+maybe, but now let's replace this
+
+510
+00:42:05,490 --> 00:42:14,719
+with an either string A and we can
+implement this in terms of read maybe.
+
+511
+00:42:14,960 --> 00:42:23,530
+So given a string, we just check what
+read maybe tells us about this string.
+
+512
+00:42:23,620 --> 00:42:30,034
+So if parsing is not possible and if
+we get a nothing, we can now return
+
+513
+00:42:30,219 --> 00:42:32,120
+a left and pick some error message.
+
+514
+00:42:32,580 --> 00:42:35,790
+This is now, it doesn't matter what
+we say, but I can say something
+
+515
+00:42:35,790 --> 00:42:43,770
+like can't parse and just append
+the string, the given string.
+
+516
+00:42:44,460 --> 00:42:51,200
+And if we can successfully parse
+to an A, then we return right A.
+
+517
+00:42:52,670 --> 00:43:05,430
+So we can try this out, read either
+42, either string int that succeeds
+
+518
+00:43:05,430 --> 00:43:10,880
+and we get right 42 where before
+with read maybe we got just 42.
+
+519
+00:43:12,020 --> 00:43:17,660
+And if we pick something that can't
+be parsed, then instead of just
+
+520
+00:43:17,680 --> 00:43:22,109
+nothing, now we get a more informative
+error message "can't parse this".
+
+521
+00:43:22,950 --> 00:43:29,829
+Okay, and using that we can now rewrite
+our foo in terms of either string int.
+
+522
+00:43:33,410 --> 00:43:37,780
+So when we replaced all the
+read maybe's with read either's.
+
+523
+00:43:37,780 --> 00:43:42,720
+Now, of course the cases change.
+
+524
+00:43:43,259 --> 00:43:45,189
+Now, instead of nothing and
+
+525
+00:43:45,190 --> 00:43:46,689
+just we get left or right.
+
+526
+00:43:47,170 --> 00:43:53,540
+So if we get left error message well we
+just stop with the same error message.
+
+527
+00:43:54,440 --> 00:43:57,700
+And if we get right K, we continue.
+
+528
+00:43:58,599 --> 00:44:02,570
+Same here, left error message, left error.
+
+529
+00:44:09,770 --> 00:44:18,500
+And if it's a right we continue and
+once more left error, left error.
+
+530
+00:44:18,670 --> 00:44:27,380
+If we get a right we continue with right.
+
+531
+00:44:28,980 --> 00:44:29,220
+This...
+
+532
+00:44:30,610 --> 00:44:32,080
+would compile, but okay.
+
+533
+00:44:32,230 --> 00:44:34,759
+Let's see, so let's try this out.
+
+534
+00:44:34,889 --> 00:44:44,480
+So foo, for example, one
+two three, we get right six.
+
+535
+00:44:44,670 --> 00:44:50,249
+But now if we, if one of the
+arguments can't be parsed, then...
+
+536
+00:44:50,299 --> 00:44:50,609
+okay.
+
+537
+00:44:50,780 --> 00:44:54,230
+Now maybe I should, I mean, it's
+correct, but we don't see much so if
+
+538
+00:44:54,230 --> 00:45:00,460
+I write something, then now it doesn't
+simply fail, I get a nice error message.
+
+539
+00:45:00,460 --> 00:45:06,012
+And if I have an error in one of
+the, or something that can't be
+
+540
+00:45:06,012 --> 00:45:09,820
+parsed an int in one of the other
+arguments, it works accordingly.
+
+541
+00:45:11,010 --> 00:45:17,106
+And of course, we have the same problem
+again, that we had with maybe, that we
+
+542
+00:45:17,106 --> 00:45:21,590
+have these dangling case statements and a
+lot of repetition, a lot of boilerplate.
+
+543
+00:45:21,610 --> 00:45:24,750
+Because we always follow the same
+pattern, we always pattern match on
+
+544
+00:45:24,760 --> 00:45:32,120
+the either and in the left case, we
+simply return again the same left with
+
+545
+00:45:32,120 --> 00:45:35,040
+the same error message that we got.
+
+546
+00:45:35,040 --> 00:45:39,760
+So we immediately stop don't continue
+and instead return the error we got.
+
+547
+00:45:39,760 --> 00:45:43,840
+And in the right case, we continue
+with the rest of the computation.
+
+548
+00:45:44,520 --> 00:45:49,210
+And there's a similar solution
+again, to what we did before.
+
+549
+00:45:49,219 --> 00:45:55,600
+So let's call, define a similar helper
+function that we called bind either.
+
+550
+00:46:03,970 --> 00:46:12,490
+Then we replace each maybe with either
+string and now try to abstract a way this
+
+551
+00:46:12,490 --> 00:46:14,800
+pattern that we repeated three times here.
+
+552
+00:46:15,810 --> 00:46:22,510
+So if we get left of an error
+message, we simply return left
+
+553
+00:46:22,520 --> 00:46:23,800
+of the same error message.
+
+554
+00:46:24,580 --> 00:46:35,509
+And if we got a right X, then we
+simply continue plugging X into the
+
+555
+00:46:35,630 --> 00:46:37,660
+continuation of our computation.
+
+556
+00:46:39,000 --> 00:46:44,530
+And now in the same way as before I can
+rewrite this foo in a much nicer form.
+
+557
+00:46:46,389 --> 00:46:52,440
+I just have to replace each
+bind maybe with bind either.
+
+558
+00:46:56,610 --> 00:47:02,580
+And of course here I have to
+use read either instead of
+
+559
+00:47:02,580 --> 00:47:06,749
+read maybe and here right.
+
+560
+00:47:09,840 --> 00:47:14,410
+And now the same foo again
+work if we use foo prime.
+
+561
+00:47:15,849 --> 00:47:17,930
+So if all goes well, we get right.
+
+562
+00:47:17,930 --> 00:47:24,339
+And if something can't be parsed as an
+integer, I get a nice error message.
+
+563
+00:47:24,829 --> 00:47:27,589
+And the same I said before is again true.
+
+564
+00:47:27,620 --> 00:47:34,280
+So by introducing this little combinator,
+I abstract the pattern in a way that
+
+565
+00:47:34,280 --> 00:47:39,269
+we repetitively use here and the
+business logic becomes much clearer.
+
+566
+00:47:39,429 --> 00:47:43,470
+And to code incidentally is very
+similar to what we had for maybe,
+
+567
+00:47:43,520 --> 00:47:48,130
+it's almost the same, except that
+instead of bind either bind maybe
+
+568
+00:47:48,130 --> 00:47:53,170
+I'm not using bind either instead of
+read maybe I'm not using read either.
+
+569
+00:47:54,280 --> 00:47:56,280
+So far, we've looked at three examples.
+
+570
+00:47:56,280 --> 00:48:00,690
+IO A, maybe A and either
+E A or either string A.
+
+571
+00:48:01,790 --> 00:48:07,110
+And IO A represents plans
+that can involve side-effects.
+
+572
+00:48:07,160 --> 00:48:14,030
+And when executed produce an A, and
+maybe A an either string A represent
+
+573
+00:48:14,309 --> 00:48:18,720
+computations that can produce an A,
+but can also fail and the difference
+
+574
+00:48:18,720 --> 00:48:22,080
+between maybe and either it's
+just that maybe doesn't carry any
+
+575
+00:48:22,080 --> 00:48:24,860
+error message whereas either does.
+
+576
+00:48:24,870 --> 00:48:30,169
+Now let's look at a completely
+different example, that kept us
+
+577
+00:48:30,170 --> 00:48:34,970
+the idea of computations that
+can also produce log output.
+
+578
+00:48:35,919 --> 00:48:41,620
+And we can represent that with
+the type, let's call it writer A.
+
+579
+00:48:43,839 --> 00:48:49,279
+And let's just say it's a constructor
+that takes two arguments, an A
+
+580
+00:48:49,849 --> 00:48:56,649
+which is our result, but also a
+list of log messages for simplicity.
+
+581
+00:48:56,690 --> 00:48:57,690
+Let's do it like this.
+
+582
+00:49:00,120 --> 00:49:04,359
+Okay, and let's actually,
+we can deriving show.
+
+583
+00:49:08,040 --> 00:49:17,140
+And as an example, can define a
+function number from int to writer int.
+
+584
+00:49:21,390 --> 00:49:24,300
+And give a number N....
+
+585
+00:49:25,020 --> 00:49:34,330
+we just produce that number and
+as log output we just, it doesn't
+
+586
+00:49:34,340 --> 00:49:42,130
+matter, but we can, for example,
+just say number and then show N.
+
+587
+00:49:45,179 --> 00:49:54,450
+I can try that out in the repl, So
+number 42 is, so we have the 42,
+
+588
+00:49:54,490 --> 00:49:56,370
+the result and this log message.
+
+589
+00:49:57,610 --> 00:50:08,200
+And, now let's do something similar
+as before, this foo function.
+
+590
+00:50:08,630 --> 00:50:21,380
+So say we have three logging computations
+that each produce an int and we want
+
+591
+00:50:22,100 --> 00:50:28,759
+to compute those three computations
+to one that, adds the three Ints.
+
+592
+00:50:29,310 --> 00:50:47,990
+So foo X Y Z, or let's pattern match,
+writer K X, writer L Y and writer M Z.
+
+593
+00:50:50,780 --> 00:50:51,750
+What can we do?
+
+594
+00:50:51,759 --> 00:50:52,090
+we....
+
+595
+00:50:52,160 --> 00:50:57,109
+So the overall result is K plus L plus M.
+
+596
+00:50:58,479 --> 00:51:00,220
+And what should the log message be?
+
+597
+00:51:01,090 --> 00:51:06,790
+Well, so we know each of the X the
+Y and the Z is a list of strings.
+
+598
+00:51:06,790 --> 00:51:10,110
+So I probably should rather
+following the Haskell convention
+
+599
+00:51:10,110 --> 00:51:14,490
+for list call it Xs Ys and Zs.
+
+600
+00:51:16,270 --> 00:51:21,200
+And I can, for example, just
+concatenate those three lists.
+
+601
+00:51:26,400 --> 00:51:26,880
+Okay.
+
+602
+00:51:30,750 --> 00:51:40,920
+And I can try this out also out, let's
+say foo number one, number two, number
+
+603
+00:51:40,990 --> 00:51:45,610
+three, and I get the expected results.
+
+604
+00:51:45,770 --> 00:51:50,930
+So I get the sum as result and
+I get these three log messages.
+
+605
+00:51:52,490 --> 00:51:54,580
+Let's write another useful function.
+
+606
+00:51:54,590 --> 00:52:00,810
+Let's call it tell And it should
+just get a list of log messages
+
+607
+00:52:01,220 --> 00:52:03,800
+and produce a writer unit.
+
+608
+00:52:03,849 --> 00:52:09,870
+So one that doesn't have useful result
+and just cares about the log messages.
+
+609
+00:52:10,080 --> 00:52:17,640
+And I can just define that like so.
+
+610
+00:52:17,730 --> 00:52:18,040
+Right.
+
+611
+00:52:18,600 --> 00:52:21,789
+Compiler helps me I can write
+it simpler like this as well.
+
+612
+00:52:23,240 --> 00:52:29,549
+And, so I could make that this
+example a bit more interesting.
+
+613
+00:52:29,549 --> 00:52:33,540
+I could add another log message.
+
+614
+00:52:33,580 --> 00:53:03,759
+So let's say let S equals K plus L plus
+M and writer us equals tell sum show S.
+
+615
+00:53:06,029 --> 00:53:18,590
+And now I can actually do it like this.
+
+616
+00:53:22,000 --> 00:53:27,000
+And if I run the same example again,
+now we have an additional log message
+
+617
+00:53:27,000 --> 00:53:29,020
+here that tells us the sum is six.
+
+618
+00:53:29,020 --> 00:53:31,580
+And we again we have the result.
+
+619
+00:53:32,400 --> 00:53:37,630
+So the idea is we see, we can again
+combine computations, several writer
+
+620
+00:53:38,000 --> 00:53:39,399
+computations into a bigger computation.
+
+621
+00:53:40,129 --> 00:53:47,320
+And the idea here is that, we have
+to concatenate the log message
+
+622
+00:53:47,650 --> 00:53:52,310
+from each computation in order
+to get the overall log message.
+
+623
+00:53:53,270 --> 00:53:57,760
+And as before we can write
+the function bind writer.
+
+624
+00:53:59,699 --> 00:54:05,860
+So given a writer that produces an A
+and the function from A to writer B,
+
+625
+00:54:07,340 --> 00:54:09,740
+we can combine those to a writer B.
+
+626
+00:54:13,650 --> 00:54:16,593
+What do we do?
+
+627
+00:54:17,520 --> 00:54:21,050
+Again I can pattern match
+against the first one.
+
+628
+00:54:27,030 --> 00:54:28,969
+Okay, and how do I do that?
+
+629
+00:54:29,869 --> 00:54:35,059
+Well, now I have the result A of the
+first computation, so I can, plug this
+
+630
+00:54:35,129 --> 00:54:44,450
+A into the function F to get a writer
+B, so I can say writer B Ys equals F A.
+
+631
+00:54:46,920 --> 00:54:49,070
+And now I can produce the result.
+
+632
+00:54:49,490 --> 00:54:51,810
+So the result of the computation is B.
+
+633
+00:54:52,299 --> 00:54:53,929
+And what are the log messages?
+
+634
+00:54:54,029 --> 00:54:58,629
+Well, the Xs from the
+first one plus the Ys.
+
+635
+00:54:58,629 --> 00:55:16,520
+And now using that, I can rewrite
+my foo using this bind writer.
+
+636
+00:55:16,720 --> 00:55:17,509
+And make it much nicer.
+
+637
+00:55:24,380 --> 00:55:31,100
+So I start with X bind writer.
+
+638
+00:55:32,980 --> 00:55:34,360
+Call the result K.
+
+639
+00:55:37,290 --> 00:55:44,525
+And Y bind writer, call the result L.
+
+640
+00:55:46,010 --> 00:55:53,879
+Z bind writer call the result M.
+
+641
+00:55:56,849 --> 00:56:10,920
+Now, tell sum K plus A plus M.
+
+642
+00:56:12,420 --> 00:56:15,670
+Actually, I should also,
+I can also use a let here.
+
+643
+00:56:17,090 --> 00:56:32,090
+So let S equals K plus L
+plus M in tell sum is show S.
+
+644
+00:56:36,349 --> 00:56:37,379
+Bind writer.
+
+645
+00:56:41,169 --> 00:56:43,385
+And here I don't care about
+the result because tell
+
+646
+00:56:43,530 --> 00:56:49,129
+doesn't produce a nice result.
+
+647
+00:56:49,129 --> 00:56:55,330
+Now, writer sum a new log message.
+
+648
+00:56:56,790 --> 00:56:58,110
+Move the rest here.
+
+649
+00:57:01,400 --> 00:57:01,480
+Okay.
+
+650
+00:57:01,480 --> 00:57:05,410
+And now what we did with foo
+before we can do with foo prime
+
+651
+00:57:06,770 --> 00:57:07,720
+and we get the same result.
+
+652
+00:57:09,330 --> 00:57:12,400
+And admittedly it's even
+longer now than it was before.
+
+653
+00:57:12,540 --> 00:57:17,669
+So, or at least not much shorter,
+but I think that it still is
+
+654
+00:57:17,670 --> 00:57:19,169
+much nicer than the foo version.
+
+655
+00:57:19,880 --> 00:57:24,290
+We don't have to do this pattern
+matching to extract the log messages
+
+656
+00:57:24,290 --> 00:57:26,760
+from the three input computations.
+
+657
+00:57:27,490 --> 00:57:31,370
+We don't have to explicitly
+combine the last log messages
+
+658
+00:57:31,490 --> 00:57:36,630
+where we could make a mistake and
+forget one or get the order wrong.
+
+659
+00:57:37,110 --> 00:57:43,360
+Instead we basically abstract
+all of that away and can just
+
+660
+00:57:43,610 --> 00:57:45,389
+concentrate on the business logic.
+
+661
+00:57:47,200 --> 00:57:50,590
+And a part from this part here we
+have ever used as additional tell.
+
+662
+00:57:50,590 --> 00:57:54,710
+This is also very similar
+to, if you remember what we
+
+663
+00:57:54,710 --> 00:57:56,439
+did, with maybe and either.
+
+664
+00:57:56,730 --> 00:57:59,549
+So the code looks very much the same.
+
+665
+00:57:59,560 --> 00:58:06,850
+So as before we have this business
+logic, we have three computations.
+
+666
+00:58:07,120 --> 00:58:13,500
+And we that somehow result in int and
+we form the sum and return the sum.
+
+667
+00:58:15,080 --> 00:58:19,570
+But note that the, like the special
+aspect of these computations is
+
+668
+00:58:19,570 --> 00:58:24,680
+completely different in the, maybe and
+either case, we captured the notion of
+
+669
+00:58:24,680 --> 00:58:26,600
+failure that something going go wrong.
+
+670
+00:58:27,280 --> 00:58:32,640
+Whereas here in the writer case, there is
+no failure, but we have additional output,
+
+671
+00:58:32,810 --> 00:58:35,819
+these log messages that we combine.
+
+672
+00:58:36,220 --> 00:58:40,239
+So the bind maybe, and bind
+either encapsulated the logic
+
+673
+00:58:40,250 --> 00:58:45,390
+that, if you want to combine two
+computations that might fail.
+
+674
+00:58:46,570 --> 00:58:50,930
+And the first one fails, then
+the overall computation fails.
+
+675
+00:58:51,580 --> 00:58:55,190
+Whereas if the first one succeeds,
+you can take the result to continue
+
+676
+00:58:55,190 --> 00:58:56,509
+with the second computation.
+
+677
+00:58:57,529 --> 00:59:03,900
+Here, the bind writer captures a different
+logic of sequencing computations, namely
+
+678
+00:59:03,900 --> 00:59:10,060
+the logic that if you want to sequence
+to log output producing computations, we
+
+679
+00:59:10,080 --> 00:59:13,109
+simply combine the individual log outputs.
+
+680
+00:59:14,900 --> 00:59:19,739
+Now, I think we are in a position
+to explain what a monad is.
+
+681
+00:59:20,790 --> 00:59:24,860
+So going back at the four examples,
+what did they have in common?
+
+682
+00:59:25,450 --> 00:59:30,840
+Where we had a type constructor
+with one type parameter in any every
+
+683
+00:59:30,840 --> 00:59:35,700
+case, IO for real world side-effects.
+
+684
+00:59:35,710 --> 00:59:42,189
+Maybe for computations that can
+fail, either string for computations
+
+685
+00:59:42,369 --> 00:59:43,910
+that can fail with an error message.
+
+686
+00:59:43,930 --> 00:59:51,440
+And writer for computations that can
+produce lists of string as log output.
+
+687
+00:59:52,700 --> 00:59:58,070
+And for all four of these
+examples, we had to bind function.
+
+688
+00:59:58,219 --> 01:00:06,010
+So in the case of IO, it was this operator
+token IO A and something A to IO B.
+
+689
+01:00:06,510 --> 01:00:09,040
+And you can combine the two to an IO B.
+
+690
+01:00:09,940 --> 01:00:15,590
+And we had a very similar functions that
+we called bind maybe, bind either and
+
+691
+01:00:15,590 --> 01:00:20,990
+bind writer for other three examples,
+and they always had the same shape.
+
+692
+01:00:21,200 --> 01:00:26,049
+You would take computation of the type
+of computations you're considering
+
+693
+01:00:26,510 --> 01:00:29,060
+results in A and then a function from a
+to another such computation that results
+
+694
+01:00:29,060 --> 01:00:38,500
+in a B, and you can bind the two together
+to a computation that results in B.
+
+695
+01:00:39,180 --> 01:00:40,540
+And how this bind works?
+
+696
+01:00:40,540 --> 01:00:41,569
+Depends on the case.
+
+697
+01:00:41,580 --> 01:00:49,629
+In the case of IO it's built in metric,
+but you can think of it as just combining
+
+698
+01:00:49,860 --> 01:00:54,599
+the two plans that describe the IO
+actions to take during execution.
+
+699
+01:00:55,929 --> 01:01:02,020
+And in the bind maybe and bind either case
+the logic is that if the first computation
+
+700
+01:01:02,660 --> 01:01:07,240
+fails, then the combination also fails,
+but if the first computation succeeds,
+
+701
+01:01:07,240 --> 01:01:08,950
+you continue with the second one.
+
+702
+01:01:09,510 --> 01:01:16,430
+And in the bind writer example, the
+logic of bind was to just combine
+
+703
+01:01:16,440 --> 01:01:20,669
+the list of log messages from
+the two parts of the computation.
+
+704
+01:01:22,529 --> 01:01:28,529
+And that is the main idea of monads,
+it's a concept of computation.
+
+705
+01:01:29,090 --> 01:01:33,330
+With some additional side-effect,
+it can be real world side-effects,
+
+706
+01:01:33,330 --> 01:01:37,320
+it can be failure or failure with
+error messages, it can be producing
+
+707
+01:01:37,350 --> 01:01:40,640
+log outputs and there are various
+other examples that I didn't mention.
+
+708
+01:01:41,679 --> 01:01:47,270
+And the possibility to bind
+two such computations together.
+
+709
+01:01:47,280 --> 01:01:49,790
+And how the bind works?
+
+710
+01:01:49,790 --> 01:01:52,470
+Depends on the computation
+you're considering.
+
+711
+01:01:53,140 --> 01:01:56,579
+There's another aspect that I
+briefly mentioned in the case of
+
+712
+01:01:56,889 --> 01:01:58,640
+IO, but not for the other examples.
+
+713
+01:01:59,529 --> 01:02:03,750
+Another thing that we can always
+do whenever we have such a concept
+
+714
+01:02:03,750 --> 01:02:08,650
+of computation with side-effect, we
+also always have the possibility to
+
+715
+01:02:09,220 --> 01:02:13,060
+produce a computation of this type
+that doesn't have any side-effects.
+
+716
+01:02:13,410 --> 01:02:16,319
+So I talked about return in the IO case.
+
+717
+01:02:16,889 --> 01:02:22,110
+So given an A, you can turn it into an
+IO A, and that is simply the computation
+
+718
+01:02:22,459 --> 01:02:27,180
+that immediately returns an A and has no
+side-effects, no real world side-effects.
+
+719
+01:02:27,180 --> 01:02:31,330
+In the case of maybe we have
+to just constructor of maybe.
+
+720
+01:02:31,650 --> 01:02:35,799
+So given an A, just A is soft
+type maybe A, and it doesn't
+
+721
+01:02:35,800 --> 01:02:37,240
+fail because it's not nothing.
+
+722
+01:02:37,770 --> 01:02:42,399
+So it doesn't make use of the special
+possibility to fail, it doesn't fail.
+
+723
+01:02:43,020 --> 01:02:46,009
+Same for the either case if
+we use the right constructor.
+
+724
+01:02:46,690 --> 01:02:53,709
+So either string represents computations
+that can fail with a string error message.
+
+725
+01:02:53,740 --> 01:02:56,720
+And if we use the right
+constructor, we have such a
+
+726
+01:02:56,770 --> 01:02:58,310
+computation, but it doesn't fail.
+
+727
+01:02:58,510 --> 01:03:00,330
+No error message, it has an A result.
+
+728
+01:03:01,160 --> 01:03:02,180
+Finally for writer.
+
+729
+01:03:02,180 --> 01:03:04,490
+there's no short way to write it down.
+
+730
+01:03:04,740 --> 01:03:09,500
+We could, for example, define a function,
+return writer or something, but I just
+
+731
+01:03:09,500 --> 01:03:12,850
+wrote it down here as a Lambda term.
+
+732
+01:03:13,719 --> 01:03:20,180
+So given an A, we just produce writer
+A with an empty list of log messages.
+
+733
+01:03:20,430 --> 01:03:27,379
+So given an A, we can produce a log
+message producing computation of type A
+
+734
+01:03:28,400 --> 01:03:33,850
+that doesn't make use of this possibility
+to produce log messages and simply doesn't
+
+735
+01:03:34,000 --> 01:03:35,859
+log and immediately returns the result.
+
+736
+01:03:35,859 --> 01:03:41,210
+And the combination of these
+two features, the possibility to
+
+737
+01:03:41,680 --> 01:03:43,799
+bind two computations together.
+
+738
+01:03:44,200 --> 01:03:49,060
+And the possibility to construct
+a computation from a pure value
+
+739
+01:03:49,110 --> 01:03:52,850
+without making use of any of
+the potential side-effects.
+
+740
+01:03:53,449 --> 01:03:56,390
+This is what defines a monad.
+
+741
+01:03:57,090 --> 01:04:06,810
+So if we look in the repl and ask
+for monad, then we see the bind here.
+
+742
+01:04:06,840 --> 01:04:12,980
+So in the monad class we have this bind,
+so monad is now type constructor M.
+
+743
+01:04:13,130 --> 01:04:18,340
+So we have seen various examples,
+IO, maybe either string writer.
+
+744
+01:04:19,600 --> 01:04:21,819
+And here we have this bind operator.
+
+745
+01:04:22,330 --> 01:04:27,410
+So taking a computation that
+results in A and a way to turn A
+
+746
+01:04:27,410 --> 01:04:31,820
+into a computation that results in
+a B combine those two parts to a
+
+747
+01:04:31,820 --> 01:04:33,860
+computation that results in a B.
+
+748
+01:04:34,700 --> 01:04:43,080
+And the return that takes a pure value
+of type A and turns it into a side-effect
+
+749
+01:04:43,080 --> 01:04:48,910
+in computation where the intuition
+obvious is that the M allows potential
+
+750
+01:04:48,930 --> 01:04:54,560
+side-effects, but in the return case, it
+doesn't make use of this and just reps
+
+751
+01:04:54,560 --> 01:04:57,590
+this pure value into such a computation.
+
+752
+01:04:57,590 --> 01:05:03,060
+We see here that we also have this
+operator that I explained in the
+
+753
+01:05:03,060 --> 01:05:08,140
+case of IO, but that can easily
+be defined in terms of the bind.
+
+754
+01:05:08,140 --> 01:05:10,400
+So it's just a given for convenience.
+
+755
+01:05:10,820 --> 01:05:15,069
+And what it does is, it just throws
+away the result of the first computation
+
+756
+01:05:16,399 --> 01:05:17,720
+when it considers the second.
+
+757
+01:05:17,759 --> 01:05:22,570
+So in other words, you can easily
+define it from bind by using the
+
+758
+01:05:22,629 --> 01:05:26,700
+constant function here, the function
+that completely ignores its argument
+
+759
+01:05:26,700 --> 01:05:33,746
+and, always returns a fix and B
+in order to once we have bind, you
+
+760
+01:05:33,746 --> 01:05:35,430
+also get this sequence operator.
+
+761
+01:05:36,540 --> 01:05:39,750
+There's another technical computation,
+we see that monad actually
+
+762
+01:05:39,759 --> 01:05:43,289
+has a superclass applicative.
+
+763
+01:05:43,720 --> 01:05:46,360
+So every monad is applicative.
+
+764
+01:05:46,410 --> 01:05:52,230
+And if we ask what the applicative is,
+we see it has a bunch of functions, but
+
+765
+01:05:52,260 --> 01:05:54,099
+actually you only need the first two.
+
+766
+01:05:54,699 --> 01:06:00,710
+And we see pure actually as the same
+signature type signature as return.
+
+767
+01:06:01,500 --> 01:06:06,944
+And then there's this one, which looks
+a bit more complicated, but the fact
+
+768
+01:06:07,100 --> 01:06:11,930
+is once we have return and bind in
+a monad, we can easily define pure
+
+769
+01:06:11,930 --> 01:06:13,779
+and this operator that's called...
+
+770
+01:06:14,299 --> 01:06:14,830
+pronounced ap.
+
+771
+01:06:15,589 --> 01:06:19,819
+So pure is just return and
+ap it's actually a library
+
+772
+01:06:19,820 --> 01:06:24,360
+function that automatically
+given a monad implements this.
+
+773
+01:06:24,940 --> 01:06:28,569
+When we see that applicative in
+turn also is a superclass functor.
+
+774
+01:06:29,460 --> 01:06:32,069
+And I mentioned that before
+also in the context of IO.
+
+775
+01:06:33,460 --> 01:06:36,390
+Functor has this F map class, method.
+
+776
+01:06:37,340 --> 01:06:42,630
+So given a function from A to B,
+we can turn an F A into an F B.
+
+777
+01:06:42,690 --> 01:06:49,060
+The prototypical example for function
+is lists, and then F map put just B map.
+
+778
+01:06:49,929 --> 01:06:54,529
+So given the function from A to B and
+a list of As, you can turn it into a
+
+779
+01:06:54,530 --> 01:06:58,850
+list of Bs by simply applying the given
+function to each element in the list.
+
+780
+01:06:59,420 --> 01:07:02,130
+And we saw that we also have F map for IO.
+
+781
+01:07:02,130 --> 01:07:08,000
+And again, once we have return and
+bind, it's easy to define F map in
+
+782
+01:07:08,040 --> 01:07:10,950
+turn, in terms of return and bind.
+
+783
+01:07:11,730 --> 01:07:15,460
+So there is a general patterns, so
+basically you never, if you want to
+
+784
+01:07:15,460 --> 01:07:18,900
+define a monad you always defer and
+return and binds and just to make the
+
+785
+01:07:18,900 --> 01:07:23,980
+compiler happy and to also give instance
+for functor and applicative, there's
+
+786
+01:07:23,980 --> 01:07:26,060
+always a standard way of doing that.
+
+787
+01:07:26,099 --> 01:07:31,210
+So we can do this in
+the example of writer.
+
+788
+01:07:33,610 --> 01:07:39,210
+So if I want to define a monad instance
+for my writer type, I need functor,
+
+789
+01:07:40,490 --> 01:07:47,839
+applicative and monad, but in almost
+all cases, you never do that explicitly.
+
+790
+01:07:47,850 --> 01:07:50,210
+So I leave it open for now.
+
+791
+01:07:55,290 --> 01:07:57,949
+So all you normally do, is you...
+
+792
+01:07:58,650 --> 01:08:00,250
+define return and bind.
+
+793
+01:08:03,259 --> 01:08:14,740
+So, bind is just our bind writer
+and return is the, what I wrote
+
+794
+01:08:14,740 --> 01:08:16,079
+there in the comment earlier.
+
+795
+01:08:16,080 --> 01:08:23,449
+So we return by simply return the A
+and giving empty list of log messages.
+
+796
+01:08:24,430 --> 01:08:24,720
+Right.
+
+797
+01:08:25,120 --> 01:08:28,929
+And given this, the standard way to
+implement functor and applicative
+
+798
+01:08:29,759 --> 01:08:34,279
+is to use helper functions from
+the prelude, from control monad.
+
+799
+01:08:36,899 --> 01:08:44,529
+And there something like lift M, that
+always, so that basically makes use
+
+800
+01:08:44,529 --> 01:08:46,540
+of return and bind to implement F map.
+
+801
+01:08:47,100 --> 01:08:51,859
+And for applicative we need this
+pure, which we can just use return,
+
+802
+01:08:53,059 --> 01:08:56,840
+and then we need this ap operator
+and there's something in...
+
+803
+01:08:57,710 --> 01:09:04,240
+similar to lift M there is something
+called ap in control monad that does that.
+
+804
+01:09:04,300 --> 01:09:09,689
+Again, using return and
+bind, it implements this.
+
+805
+01:09:09,929 --> 01:09:13,399
+So this is the standard pattern
+if you implement a monad, you
+
+806
+01:09:13,719 --> 01:09:15,880
+implement return and bind.
+
+807
+01:09:15,939 --> 01:09:20,090
+And then for the functor and the
+applicative instance, you just use
+
+808
+01:09:20,250 --> 01:09:25,130
+these helper functions, lift M for pure
+use return and for this ap operator
+
+809
+01:09:25,130 --> 01:09:28,130
+you use ap and that should compile.
+
+810
+01:09:32,299 --> 01:09:33,740
+Right, so now we have a...
+
+811
+01:09:35,510 --> 01:09:37,130
+by hand implemented a monad.
+
+812
+01:09:37,779 --> 01:09:41,665
+I don't have to do the same for maybe
+either and IO, because they are all
+
+813
+01:09:41,665 --> 01:09:44,560
+already monads defined in the prelude.
+
+814
+01:09:44,689 --> 01:09:46,419
+So there I don't have to do anything.
+
+815
+01:09:49,380 --> 01:09:56,919
+And now that we have that, we can actually
+try to understand why this is useful.
+
+816
+01:09:56,919 --> 01:10:01,940
+I mean, first of all, it's always
+useful in general to identify a
+
+817
+01:10:01,940 --> 01:10:09,409
+common pattern and give it a name,
+just to name things somehow makes the
+
+818
+01:10:09,770 --> 01:10:11,700
+importance of the concept clearer.
+
+819
+01:10:12,490 --> 01:10:17,870
+And, so, so it's always a good thing
+to identify that this is an important
+
+820
+01:10:17,870 --> 01:10:23,050
+concept and important pattern that happens
+all over the place and then explicitly
+
+821
+01:10:23,070 --> 01:10:26,320
+describes the pattern and give it a name.
+
+822
+01:10:27,000 --> 01:10:27,615
+So that's one advantage.
+
+823
+01:10:27,615 --> 01:10:31,770
+The second advantage is just that, I mean,
+if we had to came up with all these names,
+
+824
+01:10:31,770 --> 01:10:34,250
+bind writer, bind maybe, bind either.
+
+825
+01:10:34,830 --> 01:10:40,000
+And now by using the type class, we don't
+have to remember all these different
+
+826
+01:10:40,020 --> 01:10:45,329
+names for the different examples
+we can always use return and bind.
+
+827
+01:10:47,219 --> 01:10:51,790
+And finally, maybe the most important
+advantage is that there are lots of
+
+828
+01:10:51,790 --> 01:10:57,360
+functions that don't care which specific
+monad instance we are dealing with.
+
+829
+01:10:57,400 --> 01:11:03,330
+They just work for all monads, so we
+can write it once and for all monads
+
+830
+01:11:03,820 --> 01:11:07,830
+and then reuse it for specific examples.
+
+831
+01:11:08,550 --> 01:11:18,820
+So, both in the maybe and in the either
+and in the writer case, I had this
+
+832
+01:11:18,840 --> 01:11:23,870
+thing where I took three computations
+that represent Integers and then I
+
+833
+01:11:23,910 --> 01:11:32,570
+return the sum of them and I can now,
+let's call it three Ints, do that
+
+834
+01:11:32,889 --> 01:11:35,349
+for all monads, once and for all.
+
+835
+01:11:36,980 --> 01:11:45,630
+So I get M int and M int and the
+third M int and turn it into an M int.
+
+836
+01:11:45,700 --> 01:11:55,280
+And MX MY MZ.
+
+837
+01:11:57,790 --> 01:11:58,800
+And how do I do it?
+
+838
+01:11:59,900 --> 01:12:07,210
+Well, I take the first one,
+call the result, for example, K.
+
+839
+01:12:07,630 --> 01:12:18,023
+And bind that to the second computation,
+call the result L, bind it to the
+
+840
+01:12:18,023 --> 01:12:22,760
+third computation call the result M.
+
+841
+01:12:22,920 --> 01:12:25,460
+Now I can define the sum.
+
+842
+01:12:30,490 --> 01:12:35,349
+And now I can use the return
+of the monad to return the sum.
+
+843
+01:12:35,449 --> 01:12:36,860
+I mean, I wouldn't need the let here.
+
+844
+01:12:36,860 --> 01:12:41,200
+I could also do that in line, of
+course, which I basically did in...
+
+845
+01:12:42,469 --> 01:12:43,849
+I can also do it like this.
+
+846
+01:12:44,020 --> 01:12:49,500
+But for reasons that will be came,
+come in a second, wait a minute.
+
+847
+01:12:50,240 --> 01:12:51,539
+Let me leave the let here.
+
+848
+01:12:52,549 --> 01:12:56,000
+And if we now look, if you go
+back, for example, to our maybe.
+
+849
+01:12:57,450 --> 01:13:01,210
+We see this is now almost exactly
+the same code that I wrote here,
+
+850
+01:13:02,000 --> 01:13:09,609
+except that instead of bind maybe,
+I'm now just using the bind operator
+
+851
+01:13:09,650 --> 01:13:11,019
+that I have for every monad.
+
+852
+01:13:12,519 --> 01:13:16,010
+So we can now rewrite this.
+
+853
+01:13:17,950 --> 01:13:27,480
+if I import this, then I
+have the three Ints function.
+
+854
+01:13:28,359 --> 01:13:31,730
+So I can now write a
+third version of this foo.
+
+855
+01:13:37,820 --> 01:13:42,676
+So now using the three Ints function
+that I defined in the monad module.
+
+856
+01:13:42,769 --> 01:13:54,050
+I can turn this into a one-liner read
+maybe X, read maybe Y, read maybe Z.
+
+857
+01:13:58,670 --> 01:13:59,780
+Trying it out.
+
+858
+01:14:01,580 --> 01:14:07,940
+So foo one two three.
+
+859
+01:14:10,400 --> 01:14:16,280
+And again, I get just six and if one of
+those is not possible, I get nothing.
+
+860
+01:14:16,290 --> 01:14:18,620
+I can do exactly the same for either.
+
+861
+01:14:23,599 --> 01:14:31,050
+Also import these three Ints function.
+
+862
+01:14:39,660 --> 01:14:43,280
+So in this case, it's three ints.
+
+863
+01:14:47,250 --> 01:14:53,430
+Read either X, read
+either Y, read either Z.
+
+864
+01:14:53,500 --> 01:15:02,259
+Then Again I can try it out.
+
+865
+01:15:02,999 --> 01:15:06,040
+One, two, three.
+
+866
+01:15:08,040 --> 01:15:09,980
+And we get right six.
+
+867
+01:15:10,040 --> 01:15:14,970
+And if one of them is not
+possible, I get a error message,
+
+868
+01:15:15,110 --> 01:15:16,409
+appropriate error message.
+
+869
+01:15:19,839 --> 01:15:23,900
+Writer, writer is a little bit...
+
+870
+01:15:23,970 --> 01:15:27,440
+I can't because of this line here
+because of this additional log it,
+
+871
+01:15:27,480 --> 01:15:33,689
+it's not exactly the same, but I, if
+I am happy with not doing this log.
+
+872
+01:15:48,159 --> 01:15:51,290
+Here it's then it's even simpler
+because this is immediately
+
+873
+01:15:51,290 --> 01:15:52,860
+an instance of the three ints.
+
+874
+01:15:53,239 --> 01:15:53,879
+So...
+
+875
+01:15:56,089 --> 01:15:57,760
+ah, I must import the module.
+
+876
+01:16:03,780 --> 01:16:07,830
+So that would work, but of course that's
+a bit cheating because now I don't
+
+877
+01:16:07,840 --> 01:16:10,659
+have this, but I can get that as well.
+
+878
+01:16:12,329 --> 01:16:16,280
+So I can simply use bind again as...
+
+879
+01:16:17,010 --> 01:16:22,740
+if I want to do that, I do have
+to give the arguments X Y Z.
+
+880
+01:16:23,320 --> 01:16:35,190
+Okay, so I get the sum as a result,
+and now I can do the tell sum show S.
+
+881
+01:16:41,900 --> 01:16:45,750
+The tell doesn't have an interest
+in result, so I could write unit
+
+882
+01:16:45,750 --> 01:16:52,700
+here or I can simply ignore it,
+or I can use the sequence operator
+
+883
+01:16:53,330 --> 01:16:55,750
+which is made for exactly this
+case where I am not interested
+
+884
+01:16:55,810 --> 01:16:58,570
+in the result and then return S.
+
+885
+01:17:04,920 --> 01:17:08,540
+And again, if I run foo double prime.
+
+886
+01:17:10,469 --> 01:17:11,030
+Okay, so yeah.
+
+887
+01:17:11,030 --> 01:17:17,269
+I have to do number one,
+number two, number three.
+
+888
+01:17:18,660 --> 01:17:21,459
+Then again I get the same as before.
+
+889
+01:17:22,590 --> 01:17:26,970
+So we see that now with this three Ints
+function that we defined once and for
+
+890
+01:17:27,090 --> 01:17:33,920
+all for arbitrary monads, I can write
+all this specific code that I did for the
+
+891
+01:17:33,920 --> 01:17:37,300
+various cases, just reusing this function.
+
+892
+01:17:38,660 --> 01:17:41,899
+So that's one of or maybe the
+biggest advantage of actually
+
+893
+01:17:41,900 --> 01:17:43,080
+having this monad class.
+
+894
+01:17:43,140 --> 01:17:47,450
+There is, if you look into the control
+monad module in the standard Haskell
+
+895
+01:17:47,480 --> 01:17:54,769
+prelude, there are many useful functions
+that you can use for all monads.
+
+896
+01:17:55,769 --> 01:18:01,039
+And so you have to write them once
+and for all in Haskell, and then you
+
+897
+01:18:01,039 --> 01:18:03,500
+can reuse them over and over again.
+
+898
+01:18:05,510 --> 01:18:09,830
+So lets go back to this
+monad module one last time.
+
+899
+01:18:11,349 --> 01:18:15,280
+So yeah, I mean, the way I
+think about monads it's....
+
+900
+01:18:15,280 --> 01:18:17,960
+A monad is...
+
+901
+01:18:21,430 --> 01:18:25,490
+is some sort of computation with
+the side-effect or a special
+
+902
+01:18:25,500 --> 01:18:27,000
+feature or a special power.
+
+903
+01:18:29,300 --> 01:18:30,329
+It's like a super power.
+
+904
+01:18:31,200 --> 01:18:37,240
+And, so in the case of IO the super power
+would be having real world side-effects.
+
+905
+01:18:37,270 --> 01:18:41,900
+In the case of maybe, the super
+power would be to be able to fail.
+
+906
+01:18:42,840 --> 01:18:47,599
+The case of either the super power
+would be to fail with an error message.
+
+907
+01:18:47,670 --> 01:18:54,609
+And in the case of writer, the super
+power would be to log string log messages.
+
+908
+01:18:55,489 --> 01:19:00,700
+So we have this computation, we have a
+type that represents computations with
+
+909
+01:19:00,710 --> 01:19:03,230
+some special features, some special power.
+
+910
+01:19:04,469 --> 01:19:09,359
+And what turns this into a monad is
+the existence of return and bind.
+
+911
+01:19:09,450 --> 01:19:13,830
+So return says you must have
+a way to given a pure value A.
+
+912
+01:19:14,100 --> 01:19:18,700
+You must be able to produce a
+computation of this type with return
+
+913
+01:19:18,700 --> 01:19:23,820
+value A that does not make use of this
+super power of the special feature.
+
+914
+01:19:24,180 --> 01:19:28,009
+So it's an IO action that doesn't
+have any real world side-effects
+
+915
+01:19:28,049 --> 01:19:35,630
+or potentially failing computation
+that doesn't fail or potentially
+
+916
+01:19:35,640 --> 01:19:38,150
+logging computation that doesn't log.
+
+917
+01:19:38,660 --> 01:19:42,930
+So that's return, returns a
+pure value into such a value
+
+918
+01:19:42,940 --> 01:19:45,820
+in that type of computations.
+
+919
+01:19:46,330 --> 01:19:52,650
+And bind allows you to chain several
+computations of this type together.
+
+920
+01:19:53,460 --> 01:19:59,220
+So giving two, I mean, giving,
+giving one and the way to given a
+
+921
+01:19:59,610 --> 01:20:03,820
+result of the first one produce a
+second computation, you can use bind
+
+922
+01:20:03,820 --> 01:20:05,629
+to bind those two together to one.
+
+923
+01:20:06,139 --> 01:20:09,610
+And that is of course crucial
+if you want to assemble a
+
+924
+01:20:09,610 --> 01:20:10,880
+large complicated computation.
+
+925
+01:20:12,760 --> 01:20:18,110
+So you have like simple primitive
+ones and using return and bind,
+
+926
+01:20:18,130 --> 01:20:22,070
+you can assemble them into
+arbitrarily complex computations.
+
+927
+01:20:22,670 --> 01:20:27,390
+And there is this slogan in the
+Haskell community that Haskell
+
+928
+01:20:27,420 --> 01:20:29,600
+has an overloaded semi-colon.
+
+929
+01:20:30,130 --> 01:20:35,370
+And the explanation for this is that
+in many programming languages, in
+
+930
+01:20:35,370 --> 01:20:39,059
+imperative programming languages who
+write lines of code and at the end
+
+931
+01:20:39,059 --> 01:20:40,599
+of the line you have a semi-colon.
+
+932
+01:20:40,959 --> 01:20:45,070
+And then basically what that does
+is it executes one after the other.
+
+933
+01:20:45,360 --> 01:20:49,950
+And the different statements
+are separated by the semi-colon.
+
+934
+01:20:50,460 --> 01:20:52,549
+But what exactly the semi-colon means?
+
+935
+01:20:52,760 --> 01:20:55,290
+Someone depends on the programming
+language, for example, there could be
+
+936
+01:20:55,290 --> 01:21:01,640
+an exception in which case, computation
+or execution would stop at the spot
+
+937
+01:21:01,670 --> 01:21:05,350
+where the exception happened and
+wouldn't continue with the next lines.
+
+938
+01:21:06,440 --> 01:21:10,860
+Or there can be other things there
+that could potentially happen.
+
+939
+01:21:11,520 --> 01:21:14,880
+And in a sense, this bind
+is like a semi-colon.
+
+940
+01:21:14,969 --> 01:21:22,019
+So it binds different statements of
+monadic, of computations together like a
+
+941
+01:21:22,020 --> 01:21:24,240
+semi-colon does in an imperative language.
+
+942
+01:21:24,290 --> 01:21:28,219
+And the cool thing about Haskell is that
+it's basically a programmable semi-colon.
+
+943
+01:21:28,639 --> 01:21:32,780
+So we can save what the logic
+is of binding two computations
+
+944
+01:21:32,780 --> 01:21:34,900
+together, depending on the monad.
+
+945
+01:21:35,959 --> 01:21:39,390
+Again, in the case of failure, the
+logic is that if the first computation
+
+946
+01:21:39,390 --> 01:21:40,760
+fails, the whole thing fails.
+
+947
+01:21:40,760 --> 01:21:46,700
+In the case of logging of writer, the
+logic is that you simply combine the list,
+
+948
+01:21:46,750 --> 01:21:52,879
+the individual list of log messages to a
+long concatenated list of log messages.
+
+949
+01:21:53,379 --> 01:21:57,900
+So each monad comes with its own
+semi-colon basically, its own bind that
+
+950
+01:21:57,900 --> 01:22:01,559
+tells you how to combine two computations.
+
+951
+01:22:02,290 --> 01:22:05,780
+One last thing that needs to
+be mentioned is do notation.
+
+952
+01:22:07,400 --> 01:22:11,790
+Because this is so common and monadic
+computations are all over the place and
+
+953
+01:22:12,300 --> 01:22:17,010
+we always have this pattern, so we do a
+bunch of monadic computations and we bind
+
+954
+01:22:17,020 --> 01:22:19,040
+them together and give the result a name.
+
+955
+01:22:19,670 --> 01:22:23,400
+There is special notation for this
+in Haskell that's called do notation.
+
+956
+01:22:23,849 --> 01:22:27,779
+It's just syntactic sugar, so it doesn't
+add any more power to the language.
+
+957
+01:22:27,900 --> 01:22:32,030
+You could write everything simply
+like this, but actually how it
+
+958
+01:22:32,040 --> 01:22:35,850
+would normally be written in
+Haskell would be using do notation.
+
+959
+01:22:36,650 --> 01:22:41,040
+So let's write the same function
+again, but using do notation.
+
+960
+01:22:43,270 --> 01:22:44,690
+And then this would look like that.
+
+961
+01:22:44,690 --> 01:22:46,740
+So it is do keyword.
+
+962
+01:22:47,600 --> 01:22:53,349
+And then, instead of writing it like
+this, this would be written like so.
+
+963
+01:23:10,300 --> 01:23:14,900
+So, which has far less noise than this,
+but it means exactly the same thing.
+
+964
+01:23:14,980 --> 01:23:19,700
+So the compiler will simply
+translate this two version into this.
+
+965
+01:23:20,360 --> 01:23:25,880
+So whenever we want to bind and
+use the result and give a name to
+
+966
+01:23:25,880 --> 01:23:28,139
+the result, we write it like this.
+
+967
+01:23:28,150 --> 01:23:31,530
+So the computations on the right of
+this arrow from the right to the left
+
+968
+01:23:31,550 --> 01:23:35,769
+and on the left is the name that we
+give to the result of this computation.
+
+969
+01:23:36,080 --> 01:23:41,220
+And then we can just, we don't have
+to explicitly use the bind operator.
+
+970
+01:23:41,869 --> 01:23:44,900
+We can just write a new line.
+
+971
+01:23:45,920 --> 01:23:49,750
+And now in the following lines, the K
+and the L and the M will be available.
+
+972
+01:23:49,830 --> 01:23:51,550
+So I can use it here for the return.
+
+973
+01:23:52,280 --> 01:23:54,550
+And another thing you can do is let.
+
+974
+01:23:55,639 --> 01:23:56,700
+So, oh yeah.
+
+975
+01:23:56,700 --> 01:23:58,649
+I said earlier that I want
+to leave it like this.
+
+976
+01:23:59,619 --> 01:24:02,940
+So, I would do that like this.
+
+977
+01:24:06,880 --> 01:24:09,929
+So we can also use let
+statements in a do block.
+
+978
+01:24:10,330 --> 01:24:14,269
+And note that the in keyword that
+is normally needed in Haskell.
+
+979
+01:24:14,520 --> 01:24:20,090
+So normally in Haskell the
+let it's let in, but in a do
+
+980
+01:24:20,120 --> 01:24:21,360
+block, you don't need the in.
+
+981
+01:24:22,930 --> 01:24:23,790
+So yeah.
+
+982
+01:24:23,940 --> 01:24:28,580
+So normally you would, in this
+case, instead of using explicit
+
+983
+01:24:28,620 --> 01:24:31,160
+binds, you would use do notation.
+
+984
+01:24:31,549 --> 01:24:34,629
+For shorter expressions, it's
+more less a matter of taste.
+
+985
+01:24:35,279 --> 01:24:39,220
+So you can always use do notation,
+but you don't have to and often if
+
+986
+01:24:39,220 --> 01:24:43,799
+it's like one or two computations,
+then people also use explicit binds.
+
+987
+01:24:44,139 --> 01:24:44,748
+But as I said, it's a matter of taste.
+
+988
+01:24:44,748 --> 01:24:47,820
+So if we...
+
+989
+01:24:48,050 --> 01:24:52,499
+once more go back to our writer example.
+
+990
+01:24:53,160 --> 01:24:58,150
+Let me just write this here in do
+notation instead, this foo double prime.
+
+991
+01:24:59,250 --> 01:25:01,880
+So S goes here.
+
+992
+01:25:05,320 --> 01:25:06,830
+Then that's the tell.
+
+993
+01:25:07,469 --> 01:25:07,709
+Okay.
+
+994
+01:25:07,709 --> 01:25:11,869
+And If I'm not interested in the result,
+I just can just write it like this.
+
+995
+01:25:12,410 --> 01:25:17,000
+So I don't need the inverse arrow and
+the name if I'm not interested in that,
+
+996
+01:25:17,180 --> 01:25:20,490
+in the name and just do it like so.
+
+997
+01:25:20,769 --> 01:25:27,340
+And if I reload and run this again now
+with the do notation, implemented with do
+
+998
+01:25:27,340 --> 01:25:29,259
+notation, I get exactly the same result.
+
+999
+01:25:30,260 --> 01:25:33,510
+So this is how I would normally write it.
+
+1000
+01:25:35,050 --> 01:25:36,480
+And that's monads for you.
+
+1001
+01:25:37,150 --> 01:25:41,559
+So hopefully now you have an idea
+how monads work, what they mean.
+
+1002
+01:25:42,360 --> 01:25:46,500
+And, there would be a lot
+more to say about monads.
+
+1003
+01:25:47,309 --> 01:25:53,160
+For example, if we have now seen
+examples, how to do failure in pure
+
+1004
+01:25:53,160 --> 01:25:59,969
+code and logging and also IO and not
+in pure code, IO is not pure, but the
+
+1005
+01:25:59,969 --> 01:26:01,800
+other examples were all pure code.
+
+1006
+01:26:02,719 --> 01:26:10,260
+And how to use the monad instance of
+these examples to basically handle all of
+
+1007
+01:26:10,260 --> 01:26:15,580
+them uniformly choosing, for example, do
+notation or bind and return explicitly.
+
+1008
+01:26:17,580 --> 01:26:23,019
+But often as so we have these special
+features like failure with error
+
+1009
+01:26:23,020 --> 01:26:26,230
+message, log, logging messages and so on.
+
+1010
+01:26:27,020 --> 01:26:32,700
+But often you are in a situation where
+you need several of these effects.
+
+1011
+01:26:33,030 --> 01:26:37,229
+So you want failure and log
+messages, for example, and that
+
+1012
+01:26:37,230 --> 01:26:39,270
+is also possible in Haskell.
+
+1013
+01:26:39,270 --> 01:26:41,670
+And they are variety of
+approaches how to do that.
+
+1014
+01:26:41,670 --> 01:26:44,090
+One is called monad trasnformers.
+
+1015
+01:26:44,510 --> 01:26:49,860
+So using so-called monad transformers
+one can basically build custom
+
+1016
+01:26:49,860 --> 01:26:51,410
+monads using these transformers.
+
+1017
+01:26:51,410 --> 01:26:54,820
+We can just say "I want failure
+and I won't log messages".
+
+1018
+01:26:54,820 --> 01:26:59,369
+And then you use the monad transformer
+library to build a custom monad that
+
+1019
+01:26:59,369 --> 01:27:03,840
+has exactly the features that you
+want, but there are other approaches.
+
+1020
+01:27:04,090 --> 01:27:09,759
+One is called effect systems,
+which has a similar objective.
+
+1021
+01:27:09,980 --> 01:27:14,269
+So you basically want to tailor
+make monads that have exactly the
+
+1022
+01:27:14,270 --> 01:27:15,760
+features you want them to have.
+
+1023
+01:27:16,619 --> 01:27:22,440
+And that is incidentally what
+Plutus uses for important monads in
+
+1024
+01:27:22,440 --> 01:27:27,459
+particular, the contract monad in
+the wallet and also the trace monad
+
+1025
+01:27:27,509 --> 01:27:31,150
+that is used to test Plutus code.
+
+1026
+01:27:33,019 --> 01:27:35,859
+And the good news is that you
+don't have to understand effect
+
+1027
+01:27:35,869 --> 01:27:38,040
+systems to work with these monads.
+
+1028
+01:27:38,490 --> 01:27:39,410
+So it's enough.
+
+1029
+01:27:39,520 --> 01:27:44,510
+So for example, to work with the
+contract monad that you use to define
+
+1030
+01:27:45,200 --> 01:27:49,650
+Plutus code that runs in the wallet,
+off-chain code, you must just know that
+
+1031
+01:27:49,650 --> 01:27:54,219
+contract is a monad, which for example,
+tells you that you can use do notation.
+
+1032
+01:27:55,320 --> 01:27:59,480
+And you must know what special
+super powers, what special
+
+1033
+01:27:59,480 --> 01:28:00,414
+features this monad has.
+
+1034
+01:28:00,414 --> 01:28:06,490
+So for example, in the writer,
+monad we have this tell function
+
+1035
+01:28:06,500 --> 01:28:08,150
+that's specific to the writer monad.
+
+1036
+01:28:09,780 --> 01:28:15,410
+And, in the case of maybe or either
+we have be can basically fail.
+
+1037
+01:28:15,650 --> 01:28:18,679
+So we have something like we can
+throw exceptions which would be
+
+1038
+01:28:18,680 --> 01:28:21,500
+nothing and maybe or left in either.
+
+1039
+01:28:22,130 --> 01:28:29,239
+And similar there's a list of things that
+you can do in the wallet contract monad.
+
+1040
+01:28:30,600 --> 01:28:36,180
+So all you have to know is basically
+how monads work in general, how you
+
+1041
+01:28:36,180 --> 01:28:41,679
+can chain statements or computations
+together using bind, or do notation.
+
+1042
+01:28:42,360 --> 01:28:45,679
+And then for a specific monad like
+the contract monad, the wallet
+
+1043
+01:28:46,109 --> 01:28:51,839
+monad you have to know what specific
+features this specific monad offers.
+
+1044
+01:28:52,040 --> 01:28:56,219
+So that is what we will look at next So
+we will look at the contract monad and
+
+1045
+01:28:56,220 --> 01:28:58,870
+see what this specific monad can do.
+
+1046
+01:29:00,620 --> 01:29:05,739
+Now that we hopefully all have at
+least basic understanding of monads
+
+1047
+01:29:05,779 --> 01:29:09,990
+and how to write monadic code
+either by using explicit bind and
+
+1048
+01:29:10,000 --> 01:29:13,019
+return, or by using do notation.
+
+1049
+01:29:13,440 --> 01:29:16,356
+We can look at a very important monad
+for Plutus namely the contract monad.
+
+1050
+01:29:16,356 --> 01:29:23,940
+And maybe you have already seen that
+in the code examples I provided.
+
+1051
+01:29:24,840 --> 01:29:30,590
+So the contract monad defines
+code that will run in a wallet.
+
+1052
+01:29:31,890 --> 01:29:37,159
+So that defines the off-chain
+part of Plutus and is equally
+
+1053
+01:29:37,160 --> 01:29:38,990
+important to the on-chain part.
+
+1054
+01:29:41,090 --> 01:29:44,940
+But before we go into details
+with this contract monad, I also
+
+1055
+01:29:44,940 --> 01:29:49,520
+want to talk about a second monad,
+so-called emulator trace monad.
+
+1056
+01:29:50,610 --> 01:29:55,570
+Because quite a few of you asked me
+whether we really need the playground
+
+1057
+01:29:55,590 --> 01:30:00,839
+to test Plutus contracts and whether
+there's a like quicker, easier and
+
+1058
+01:30:01,310 --> 01:30:06,014
+faster way that doesn't require you
+to, start this playground server
+
+1059
+01:30:06,220 --> 01:30:10,669
+and then obvious manually copy paste
+over into the editor and so on.
+
+1060
+01:30:11,329 --> 01:30:16,439
+And there is indeed, and, this
+is done via this emulator trace
+
+1061
+01:30:16,459 --> 01:30:22,909
+monad and you can think of a trace
+in this monad, programming this
+
+1062
+01:30:24,210 --> 01:30:28,920
+monad as what we do manually in the
+simulator tab of the playground.
+
+1063
+01:30:29,280 --> 01:30:34,510
+So there are we always defined the initial
+conditions and then a defined action.
+
+1064
+01:30:34,510 --> 01:30:38,790
+So we set a wallet one does this,
+invokes this endpoint with these
+
+1065
+01:30:38,790 --> 01:30:40,139
+parameters, and then we wait.
+
+1066
+01:30:40,200 --> 01:30:43,490
+So and so many slots and then
+wallet two does this and so on.
+
+1067
+01:30:44,050 --> 01:30:49,059
+And things like that, you can
+also do in this trace monad, so
+
+1068
+01:30:49,069 --> 01:30:51,269
+we should look at that first.
+
+1069
+01:30:52,139 --> 01:30:56,370
+Emulator traces are defined in
+module Plutus dot trace dot emulator
+
+1070
+01:30:56,660 --> 01:30:58,790
+in package Plutus minus contract.
+
+1071
+01:30:59,850 --> 01:31:07,849
+And we see that emulator trace A is a
+type abbreviation, type synonym for some
+
+1072
+01:31:07,900 --> 01:31:10,960
+very complicated looking effect monad.
+
+1073
+01:31:12,020 --> 01:31:16,840
+This is what I mentioned before that the
+Plutus team used so-called effect system
+
+1074
+01:31:17,510 --> 01:31:23,570
+to build case custom tailor monads,
+including this emulator trace monad.
+
+1075
+01:31:24,059 --> 01:31:27,099
+But we don't have to worry
+about that, what that means.
+
+1076
+01:31:28,410 --> 01:31:34,179
+So before we look at how to define traces,
+let's first look at how to run them.
+
+1077
+01:31:35,920 --> 01:31:41,099
+And the most general way
+is this run emulator trace.
+
+1078
+01:31:41,120 --> 01:31:44,650
+So it takes a emulator
+config, a fee config.
+
+1079
+01:31:45,410 --> 01:31:50,990
+We will look at those two in a
+minute and the trace with unit
+
+1080
+01:31:51,120 --> 01:31:56,120
+result and then produces a triple
+and note that there's no IO here.
+
+1081
+01:31:56,809 --> 01:31:59,809
+So that means this run emulator
+trace is a pure function.
+
+1082
+01:31:59,809 --> 01:32:03,249
+It's a pure function without
+any real world sie-effects.
+
+1083
+01:32:03,960 --> 01:32:07,110
+And this triple, so it's
+a list of emulator events,
+
+1084
+01:32:07,410 --> 01:32:09,080
+then maybe an emulator error.
+
+1085
+01:32:09,450 --> 01:32:12,330
+So if there's no error that's will be
+nothing and if there is an error, it will
+
+1086
+01:32:12,330 --> 01:32:15,930
+be just the error and some emulator state.
+
+1087
+01:32:17,550 --> 01:32:25,260
+Okay, so let's look at the configs, so we
+have the emulator config, which just has
+
+1088
+01:32:25,270 --> 01:32:28,930
+one field of type initial chain state.
+
+1089
+01:32:29,350 --> 01:32:33,980
+So let's look at initial chain
+state, and that is either an
+
+1090
+01:32:33,980 --> 01:32:37,299
+initial distribution or TX pool.
+
+1091
+01:32:38,250 --> 01:32:43,700
+So look, let's look at initial
+distribution and that is just
+
+1092
+01:32:43,750 --> 01:32:46,129
+a map from wallet to value.
+
+1093
+01:32:46,430 --> 01:32:50,349
+So it just specifies key value pairs
+where the keys are the wallets and
+
+1094
+01:32:50,360 --> 01:32:52,189
+the value is the initial value.
+
+1095
+01:32:53,070 --> 01:32:57,590
+Value can be ADA, but it can also
+be native tokens, but we'll get to
+
+1096
+01:32:57,799 --> 01:32:59,609
+native tokens in a later lecture.
+
+1097
+01:33:00,059 --> 01:33:05,550
+There's a default distribution we
+can look at that in the repl and
+
+1098
+01:33:05,550 --> 01:33:11,809
+there's also something called default
+distribution for if you want to specify
+
+1099
+01:33:11,820 --> 01:33:13,530
+how many wallets you want to have.
+
+1100
+01:33:14,179 --> 01:33:18,250
+The default distribution, I think
+uses 10 wallets and here you can have
+
+1101
+01:33:18,250 --> 01:33:19,990
+a list of those wallets you want.
+
+1102
+01:33:20,990 --> 01:33:26,730
+And then you get an initial
+distribution by specifying the wallets.
+
+1103
+01:33:27,900 --> 01:33:30,700
+So maybe we should look
+at that in the repl.
+
+1104
+01:33:31,140 --> 01:33:32,350
+Let's start the repl.
+
+1105
+01:33:35,289 --> 01:33:41,110
+It doesn't really matter, but we can
+load the trace module and we need
+
+1106
+01:33:41,110 --> 01:33:45,120
+to import Plutus contract trace.
+
+1107
+01:33:48,700 --> 01:33:53,039
+We have this initial
+distribution, yes, it's available.
+
+1108
+01:33:53,789 --> 01:33:57,059
+So we can look at the
+default distribution.
+
+1109
+01:33:58,870 --> 01:34:00,770
+Okay, and we see a...
+
+1110
+01:34:01,110 --> 01:34:09,740
+entries from wallet one to wallet ten
+and each wallet gets, I believe 100 ADA.
+
+1111
+01:34:09,740 --> 01:34:16,490
+This default distribution for, as
+I said, takes a list of wallets.
+
+1112
+01:34:16,930 --> 01:34:23,239
+So if we, for example, only one wallet one
+and wallet two, then we don't have wallets
+
+1113
+01:34:23,259 --> 01:34:29,703
+three to wallet ten and just wallet one
+and two, and they to have 100 million ADA.
+
+1114
+01:34:30,333 --> 01:34:34,600
+If we in the repl import Plutus
+contract trace again and then Plutus
+
+1115
+01:34:34,600 --> 01:34:40,500
+dot trace dot emulator and data
+default and ask for emulator config.
+
+1116
+01:34:42,020 --> 01:34:46,269
+Then we see what we saw before in the
+documentation, but we also see that
+
+1117
+01:34:46,279 --> 01:34:51,360
+it is an instance of the default class
+that I explained in the last lecture.
+
+1118
+01:34:52,110 --> 01:35:00,220
+So if we look up the value of the default
+value for emulator config, we see that
+
+1119
+01:35:00,220 --> 01:35:04,899
+we get initial chain state left, recall
+that was the initial distribution.
+
+1120
+01:35:05,330 --> 01:35:10,830
+And we see, this is exactly the default
+distribution that we saw just now.
+
+1121
+01:35:11,080 --> 01:35:13,690
+So 10 wallets with 100 ADA each.
+
+1122
+01:35:14,929 --> 01:35:20,460
+Back in the documentation, so we now
+played a bit with initial distributions.
+
+1123
+01:35:21,099 --> 01:35:24,540
+Of course, if you don't want the
+default value of 100 million ADA, you
+
+1124
+01:35:24,570 --> 01:35:30,630
+can just give an explicit map value
+specify exactly what values you want.
+
+1125
+01:35:31,940 --> 01:35:35,540
+Let's look at the other option, this was
+the left option, look at the right option.
+
+1126
+01:35:35,540 --> 01:35:41,409
+There's TX pool and we see this as just a
+type synonym for a list of transactions.
+
+1127
+01:35:41,910 --> 01:35:46,260
+And as it says here in the documentation,
+in the comment, a pool of transactions
+
+1128
+01:35:46,260 --> 01:35:48,200
+which have yet to be validated.
+
+1129
+01:35:48,580 --> 01:35:51,510
+So instead of providing an
+initial distribution, you can
+
+1130
+01:35:51,530 --> 01:35:56,299
+also provide an initial list of
+transactions that will be applied.
+
+1131
+01:35:58,350 --> 01:35:58,670
+Okay.
+
+1132
+01:35:58,670 --> 01:36:03,550
+So now this was initial change state,
+which we needed for emulator config.
+
+1133
+01:36:04,820 --> 01:36:07,179
+And if you go back to
+this run emulator trace.
+
+1134
+01:36:07,190 --> 01:36:09,339
+So we have looked at the emulator config.
+
+1135
+01:36:09,900 --> 01:36:17,370
+So what's the fee config and we
+see this is a record type with two
+
+1136
+01:36:18,040 --> 01:36:25,210
+fields, a field config constant fee
+and field config scripts fee factor.
+
+1137
+01:36:26,190 --> 01:36:29,046
+So the constant fee per
+transaction and lovelace.
+
+1138
+01:36:29,070 --> 01:36:34,529
+So that's what you will always have
+to pay and then a factor by which to
+
+1139
+01:36:34,539 --> 01:36:37,009
+multiply the size-dependent script fee.
+
+1140
+01:36:37,700 --> 01:36:40,230
+So this is just some calibration factor.
+
+1141
+01:36:41,340 --> 01:36:45,030
+So the size depends on the memory
+consumption of this script and
+
+1142
+01:36:45,059 --> 01:36:49,309
+the run time, the number of
+execution steps, and that then
+
+1143
+01:36:49,320 --> 01:36:51,530
+gets multiplied by this constant.
+
+1144
+01:36:52,330 --> 01:36:58,679
+If we go to the repl again, load our
+module again, although that's not
+
+1145
+01:36:58,680 --> 01:37:03,889
+necessary and import ledger dot fee.
+
+1146
+01:37:05,179 --> 01:37:11,860
+And again, data dot default
+and ask for fee config.
+
+1147
+01:37:12,740 --> 01:37:19,740
+Then we see what we just saw
+and we see that this type is
+
+1148
+01:37:19,840 --> 01:37:21,610
+also an instance of default.
+
+1149
+01:37:21,940 --> 01:37:23,770
+So let's look at the default.
+
+1150
+01:37:27,440 --> 01:37:32,077
+So there's a flat rate fee of 10
+lovelace, so the total fee will be
+
+1151
+01:37:32,210 --> 01:37:37,980
+10 plus one times whatever the memory
+consumption and execution steps are.
+
+1152
+01:37:39,570 --> 01:37:43,779
+So let's load Plutus trace emulator again.
+
+1153
+01:37:45,559 --> 01:37:50,590
+So, recall we were looking at
+the run emulator trace function.
+
+1154
+01:37:52,100 --> 01:37:56,100
+And now we have looked at
+emulator config and fee config.
+
+1155
+01:37:56,360 --> 01:38:03,309
+And we can use def for both so we
+can use run emulator trace def def.
+
+1156
+01:38:03,630 --> 01:38:06,540
+So the first def will be the
+default emulator config which gives
+
+1157
+01:38:06,540 --> 01:38:07,461
+us 10 wallets with 100 ADA each.
+
+1158
+01:38:07,461 --> 01:38:12,070
+The second one will give
+us the default fee config.
+
+1159
+01:38:13,640 --> 01:38:19,300
+So now all that's missing is an actual
+emulator trace and we haven't looked at
+
+1160
+01:38:19,969 --> 01:38:21,919
+how to construct an emulator trace yet.
+
+1161
+01:38:22,209 --> 01:38:25,909
+But we know because I told you
+that emulator traces is a monad.
+
+1162
+01:38:26,280 --> 01:38:29,620
+So without knowing anything else
+about emulator traces, we know
+
+1163
+01:38:29,640 --> 01:38:33,679
+that we have the standard monad
+operations return and bind available.
+
+1164
+01:38:33,740 --> 01:38:38,600
+So in particular return, so the simple,
+most emulator trace we can possibly write
+
+1165
+01:38:38,620 --> 01:38:40,930
+is the one that immediately returns unit.
+
+1166
+01:38:41,459 --> 01:38:45,370
+So it doesn't do anything, it doesn't
+call any contracts, doesn't wait for
+
+1167
+01:38:45,370 --> 01:38:47,770
+any slots, it immediately returns.
+
+1168
+01:38:48,850 --> 01:38:50,870
+So let's try what this gives us.
+
+1169
+01:38:58,039 --> 01:39:04,090
+And wow, we get a lot of
+output and that's mostly due to
+
+1170
+01:39:04,140 --> 01:39:06,620
+this list of emulator events.
+
+1171
+01:39:06,880 --> 01:39:13,449
+So even for a contract for a trace
+that doesn't do anything, we have many
+
+1172
+01:39:13,450 --> 01:39:18,730
+screens full of events, which also
+demonstrates that this is not very useful
+
+1173
+01:39:19,110 --> 01:39:24,740
+for trying out a contract in the repl
+because there's too much information,
+
+1174
+01:39:26,080 --> 01:39:36,329
+but luckily there's also something called
+run emulator trace IO that just takes
+
+1175
+01:39:36,330 --> 01:39:38,920
+an emulator trace, no configurations.
+
+1176
+01:39:38,920 --> 01:39:41,610
+So those will just be the
+default configurations.
+
+1177
+01:39:42,430 --> 01:39:46,659
+And it's not a pure function anymore
+it just write something to the screen.
+
+1178
+01:39:47,280 --> 01:39:52,559
+So we can try this with our trivial
+trace that immediately returns.
+
+1179
+01:39:54,539 --> 01:39:58,080
+And we see we get a much
+more concise output.
+
+1180
+01:39:59,530 --> 01:40:03,509
+So we see right in the beginning,
+a transaction is validated, that
+
+1181
+01:40:03,510 --> 01:40:06,870
+will be the Genesis transaction
+that distributes the initial funds
+
+1182
+01:40:06,870 --> 01:40:09,509
+of 100 ADA to the  10 wallets.
+
+1183
+01:40:10,520 --> 01:40:13,710
+And we see it waits for slot add 2.
+
+1184
+01:40:14,090 --> 01:40:17,320
+And we get the final balances, and
+because we haven't done anything,
+
+1185
+01:40:17,330 --> 01:40:21,480
+those final balances are still
+the initial balances of 100 ADA.
+
+1186
+01:40:22,250 --> 01:40:27,940
+Sometimes of course you do want to specify
+in different initial condition or you
+
+1187
+01:40:27,940 --> 01:40:30,179
+want to have more fine grain control.
+
+1188
+01:40:30,259 --> 01:40:34,349
+And for this, there's a variation
+of run emulator trace IO, which
+
+1189
+01:40:34,349 --> 01:40:39,059
+is called run emulator trace
+IO prime, and that does take an
+
+1190
+01:40:39,059 --> 01:40:41,605
+emulator config and the fee config.
+
+1191
+01:40:41,900 --> 01:40:45,640
+And in addition also a trace
+config, so what's a trace config?
+
+1192
+01:40:47,100 --> 01:40:53,140
+That's a record type with two fields,
+the second one is a handle and in
+
+1193
+01:40:53,170 --> 01:40:57,609
+Haskell a handle can be a file,
+but it can also be the console.
+
+1194
+01:40:57,649 --> 01:41:01,910
+So the default would be that it's the
+console, but you can also specify a file.
+
+1195
+01:41:03,019 --> 01:41:07,110
+So, what we saw right now in
+run emulator trace IO there the
+
+1196
+01:41:07,110 --> 01:41:09,310
+handle is the standard output.
+
+1197
+01:41:10,520 --> 01:41:14,480
+And we have a field show event
+which takes an emulator event
+
+1198
+01:41:14,500 --> 01:41:16,400
+prime and returns a maybe string.
+
+1199
+01:41:16,849 --> 01:41:21,369
+So here, the idea is we get this
+list of all the emulator events
+
+1200
+01:41:22,020 --> 01:41:28,520
+and we run the run emulator trace
+function, the one with so much output.
+
+1201
+01:41:29,230 --> 01:41:34,460
+And then for each such event,
+we can specify either nothing,
+
+1202
+01:41:34,500 --> 01:41:39,590
+which means that event will be
+suppressed or just the string that
+
+1203
+01:41:39,590 --> 01:41:41,180
+should be displayed for that event.
+
+1204
+01:41:43,190 --> 01:41:46,980
+And this trace config is
+also an instance of default.
+
+1205
+01:41:47,190 --> 01:41:51,769
+So we can use def for the default
+trace config which will be the one
+
+1206
+01:41:51,770 --> 01:41:57,160
+that's used by run emulator trace IO,
+which shows very few events as we saw.
+
+1207
+01:41:57,910 --> 01:42:03,849
+Now, let's look at the more interesting
+trace and I copied the contract
+
+1208
+01:42:03,850 --> 01:42:07,900
+from last lecture, the vesting
+contract into the code for this
+
+1209
+01:42:07,900 --> 01:42:10,130
+week, and I'm importing it here.
+
+1210
+01:42:10,910 --> 01:42:15,019
+And class week we tried it
+out in the playground, now
+
+1211
+01:42:15,019 --> 01:44:47,929
+let's do the same in a trace.
+
+1212
+01:44:48,260 --> 01:44:55,450
+So I find a trace and I use do notation.
+
+1213
+01:44:56,200 --> 01:44:59,860
+So the first thing we have to
+do is what the playground does
+
+1214
+01:44:59,860 --> 01:45:05,640
+automatically start the contract in
+all wallets that we are interested in.
+
+1215
+01:45:05,790 --> 01:45:09,290
+So we only need two wallets, so let's
+start it in wallet one and wallet two.
+
+1216
+01:45:09,810 --> 01:45:16,109
+And for that, we have, a function in
+this emulator trace monad activate
+
+1217
+01:45:16,230 --> 01:45:18,979
+contract wallet and it takes a wallet.
+
+1218
+01:45:19,069 --> 01:45:23,440
+So wallet one, and it takes the
+contract we want to activate,
+
+1219
+01:45:23,720 --> 01:45:24,799
+which was called endpoints.
+
+1220
+01:45:25,560 --> 01:45:29,590
+It's always called endpoints If you
+want to try it in the playground, of
+
+1221
+01:45:29,590 --> 01:45:33,879
+course we could choose another name if
+we are not worried with the playground.
+
+1222
+01:45:34,750 --> 01:45:39,310
+Now this monadic function in
+emulator trace actually returns a
+
+1223
+01:45:39,310 --> 01:45:43,370
+value, it returns a so called handle
+that we can then use with other
+
+1224
+01:45:43,370 --> 01:45:48,149
+functions to refer to this specific
+instance of this endpoints contract.
+
+1225
+01:45:49,380 --> 01:45:56,379
+So we use do notation and this bind so
+we bind the result the handle to H1.
+
+1226
+01:45:56,379 --> 01:45:56,514
+Now we do the same for wallet two, and
+now we can actually call endpoints so we
+
+1227
+01:45:56,514 --> 01:46:16,850
+can call the endpoint, give on wallet one
+and that we can do with call endpoint.
+
+1228
+01:46:16,850 --> 01:46:21,370
+We have to specify which endpoint and this
+uses some advanced type level Haskell.
+
+1229
+01:46:22,020 --> 01:46:27,009
+So the syntax is at, and now the name
+of the endpoint, give in our case,
+
+1230
+01:46:27,969 --> 01:46:29,664
+now we have to specify the handle.
+
+1231
+01:46:29,879 --> 01:46:32,809
+So on which instance of the
+contract do will call this.
+
+1232
+01:46:33,300 --> 01:46:35,900
+We did that in the UI in
+the playground as well.
+
+1233
+01:46:36,100 --> 01:46:38,440
+I mean, we clicked on wallet
+one or wallet two depending
+
+1234
+01:46:38,440 --> 01:46:39,889
+on where we wanted to do this.
+
+1235
+01:46:40,420 --> 01:46:42,839
+So let's, do it on wallet one.
+
+1236
+01:46:43,480 --> 01:46:48,470
+And now we must specify the parameters,
+the values we give to this endpoint.
+
+1237
+01:46:48,470 --> 01:46:54,919
+So in the case of give that was the
+give params data type, and that had,
+
+1238
+01:46:55,230 --> 01:46:58,609
+three arguments, the beneficiary,
+the deadline, and the amount.
+
+1239
+01:46:59,090 --> 01:47:04,410
+The beneficiary should be wallet two
+and must be wallet two's pub key hash.
+
+1240
+01:47:04,410 --> 01:47:14,630
+We can do that with pub key hash a wallet,
+pub key wallet two, now the deadline.
+
+1241
+01:47:16,860 --> 01:47:30,300
+Let's say slot 20 and the
+amount, let's say 10 ADA.
+
+1242
+01:47:33,470 --> 01:47:36,170
+Okay, so this will call
+the end line, the endpoint.
+
+1243
+01:47:37,120 --> 01:47:41,330
+Now, for wallet two to grab it
+for that to be successful, the
+
+1244
+01:47:41,390 --> 01:47:43,590
+deadline has to be reached.
+
+1245
+01:47:44,390 --> 01:47:48,420
+And in the another thing we can do in
+the trace monad part from activating
+
+1246
+01:47:49,040 --> 01:47:53,410
+contracts and calling endpoints is also
+waiting either for the number of slots
+
+1247
+01:47:53,410 --> 01:47:59,990
+or until a specific slot, similar to
+what we did in the playground as well.
+
+1248
+01:48:00,770 --> 01:48:05,610
+So that is wait until slot.
+
+1249
+01:48:05,620 --> 01:48:11,880
+We can say until slot 20, and
+this will actually return a value
+
+1250
+01:48:11,900 --> 01:48:14,880
+namely the slot we have reached.
+
+1251
+01:48:14,880 --> 01:48:18,650
+So in this case 20, but we
+are not interested in that.
+
+1252
+01:48:19,060 --> 01:48:24,430
+And in order to avoid the warning,
+we can use void from data functor,
+
+1253
+01:48:25,150 --> 01:48:30,070
+which basically ignores the return
+value and transit into a unit
+
+1254
+01:48:30,070 --> 01:48:31,410
+and then we don't get a warning.
+
+1255
+01:48:32,549 --> 01:48:37,580
+Okay, now we want to call the
+grab endpoint on wallet two.
+
+1256
+01:48:37,940 --> 01:48:39,180
+So that's grab.
+
+1257
+01:48:40,600 --> 01:48:45,120
+The handle now is H2 and the parameters
+to grab endpoint didn't take any
+
+1258
+01:48:45,139 --> 01:48:47,360
+interesting parameters, it was just unit.
+
+1259
+01:48:48,520 --> 01:48:54,599
+And finally, let's wait
+another slot to see the effect.
+
+1260
+01:48:54,660 --> 01:48:59,139
+And for that we have wait N slots one.
+
+1261
+01:49:00,800 --> 01:49:09,980
+In order to test that let's define test IO
+unit and that's just use this run emulator
+
+1262
+01:49:10,010 --> 01:49:14,460
+trace IO with the trace we just defined.
+
+1263
+01:49:16,030 --> 01:49:23,889
+Now in the repl I can invoke
+test and we see our trace.
+
+1264
+01:49:27,000 --> 01:49:33,500
+So we see this is the Genesis transaction,
+and we see that we started these two
+
+1265
+01:49:33,520 --> 01:49:36,099
+instances for wallet one and wallet two.
+
+1266
+01:49:36,099 --> 01:49:42,490
+So this is very similar to the trace
+output you also see in the playground.
+
+1267
+01:49:43,289 --> 01:49:46,930
+So here we invoked our give
+endpoint and the transaction
+
+1268
+01:49:46,930 --> 01:49:48,780
+was submitted and validated.
+
+1269
+01:49:50,350 --> 01:49:57,500
+Here we see a log that comes from
+the contract, so the log messages
+
+1270
+01:49:57,540 --> 01:50:01,150
+that we do inside the contract
+monad inside the off-chain code are
+
+1271
+01:50:01,389 --> 01:50:03,780
+actually well visible in this trace.
+
+1272
+01:50:05,460 --> 01:50:11,385
+And now we reached slot 20 and the
+grab endpoint is called transaction
+
+1273
+01:50:11,630 --> 01:50:15,290
+submitted validated we wait until slot 21.
+
+1274
+01:50:16,860 --> 01:50:20,920
+And we get the contract log
+message, collected gifts.
+
+1275
+01:50:22,380 --> 01:50:27,560
+We see that wallet one has
+10 ADA and 10 lovelace less.
+
+1276
+01:50:27,600 --> 01:50:31,950
+So that's 13 ADA gift and 10
+lovelace transaction fees.
+
+1277
+01:50:32,730 --> 01:50:37,580
+And wallet two has roughly 10 ADA
+more, but had to pay more transaction
+
+1278
+01:50:37,580 --> 01:50:41,889
+fees because the grab endpoint
+involves validating a script,
+
+1279
+01:50:41,949 --> 01:50:43,559
+which is a bit more expensive.
+
+1280
+01:50:45,110 --> 01:50:48,090
+One other thing that we can do
+in the trace monad is logging.
+
+1281
+01:50:48,530 --> 01:50:54,390
+We saw that we do see the log messages
+from the contract monad inside the
+
+1282
+01:50:54,390 --> 01:50:58,910
+trace, but we can also explicitly log
+from inside the trace monad itself.
+
+1283
+01:50:59,529 --> 01:51:04,700
+So for example, if you want to log the
+slot we reached here at the end instead
+
+1284
+01:51:04,700 --> 01:51:09,540
+of ignoring the result of wait N slot,
+we can bind it to a name, let's call
+
+1285
+01:51:09,540 --> 01:51:19,259
+it S and then we can use extras log
+info, it takes a string, reached show
+
+1286
+01:51:19,280 --> 01:51:24,759
+S in the repl and run the trace again.
+
+1287
+01:51:27,020 --> 01:51:31,200
+The result is almost completely
+identical, the only difference is this
+
+1288
+01:51:31,200 --> 01:51:37,370
+one line here, user log and there we
+see our message reach slot, slot 21.
+
+1289
+01:51:39,180 --> 01:51:42,420
+So the next line as before
+is from the contract monad.
+
+1290
+01:51:45,000 --> 01:51:47,179
+Now let's look at the contract monad.
+
+1291
+01:51:47,710 --> 01:51:52,950
+The first thing you notice is that the
+type contract takes four type parameters.
+
+1292
+01:51:53,549 --> 01:51:54,929
+W S E and A.
+
+1293
+01:51:56,620 --> 01:52:01,969
+So as in all monads the last
+one is always the result type.
+
+1294
+01:52:02,480 --> 01:52:06,240
+So the A is the overall
+result of the computation.
+
+1295
+01:52:07,509 --> 01:52:13,990
+I will get to all three of the others
+in your time, but I briefly want
+
+1296
+01:52:13,990 --> 01:52:17,590
+to go through them now just to give
+you an idea of what they're for.
+
+1297
+01:52:18,970 --> 01:52:27,009
+So the W is like in the writer example
+I gave you, so it allows a contract
+
+1298
+01:52:27,009 --> 01:52:31,620
+to write log messages of type W.
+
+1299
+01:52:32,130 --> 01:52:36,790
+So in our example of the writer
+was just list of strings, but
+
+1300
+01:52:36,790 --> 01:52:39,000
+here you can specify some W.
+
+1301
+01:52:39,890 --> 01:52:44,310
+And I did say log messages, but
+the purpose is not really logging,
+
+1302
+01:52:44,320 --> 01:52:47,299
+the purpose is to communicate
+between different contracts.
+
+1303
+01:52:48,020 --> 01:52:54,820
+So the written W is visible from the
+outside, so this is a way for our
+
+1304
+01:52:54,820 --> 01:52:58,870
+contract to pass information to other
+contracts or to the outside world.
+
+1305
+01:53:01,010 --> 01:53:07,440
+The S specifies the endpoints, so what
+endpoints are available in this contract.
+
+1306
+01:53:07,990 --> 01:53:11,590
+And the E is the type of error messages.
+
+1307
+01:53:11,960 --> 01:53:16,590
+So similar to our examples of
+maybe and either, in particular
+
+1308
+01:53:16,820 --> 01:53:21,039
+either, we looked at either string,
+various string error messages.
+
+1309
+01:53:21,809 --> 01:53:26,530
+But here is more general, so you can
+specify the type of error messages, and
+
+1310
+01:53:26,530 --> 01:53:30,700
+then you can throw exceptions and also
+catch them inside the contract monad.
+
+1311
+01:53:31,940 --> 01:53:33,780
+So let's do a first example.
+
+1312
+01:53:33,800 --> 01:53:41,799
+Let's call it my contract one, and let's
+say we don't want to write any state, any
+
+1313
+01:53:41,799 --> 01:53:45,110
+log messages so we can pick unit there.
+
+1314
+01:53:45,920 --> 01:53:52,110
+Now we also, right now don't need any
+endpoints and for that there's empty
+
+1315
+01:53:52,219 --> 01:53:54,250
+so we can specify the empty type.
+
+1316
+01:53:54,250 --> 01:53:56,790
+And that means no endpoints available.
+
+1317
+01:53:58,280 --> 01:54:06,500
+For error messages a popular choice
+is text which is a much more efficient
+
+1318
+01:54:06,550 --> 01:54:08,360
+type than string for textual data.
+
+1319
+01:54:08,700 --> 01:54:14,519
+So when you are dealing with large amounts
+of texts or texts in general, then text
+
+1320
+01:54:14,520 --> 01:54:16,190
+is normally a better choice than string.
+
+1321
+01:54:16,830 --> 01:54:21,290
+And finally, I don't want interesting
+results so I can take unit there as well.
+
+1322
+01:54:22,310 --> 01:54:25,120
+And the very first thing we
+can do is simply log a message.
+
+1323
+01:54:25,150 --> 01:54:29,230
+And this is not to be confused
+with making use of this W feature.
+
+1324
+01:54:29,230 --> 01:54:35,233
+This is just really logging
+as we have seen before so that
+
+1325
+01:54:35,473 --> 01:54:38,400
+we can use contract log info.
+
+1326
+01:54:39,880 --> 01:54:47,429
+And now I need a string or more
+general I can use anything that's
+
+1327
+01:54:47,519 --> 01:54:50,349
+serializable that has a toJson instance.
+
+1328
+01:54:51,059 --> 01:54:55,259
+So let's say hello from the contract.
+
+1329
+01:54:58,050 --> 01:55:03,110
+And now the compiler is complaining and
+it's complaining that it doesn't know
+
+1330
+01:55:03,110 --> 01:55:05,759
+what the type of this little string is.
+
+1331
+01:55:06,599 --> 01:55:09,360
+Normally, as I explained before,
+in Haskell, if you have a
+
+1332
+01:55:09,420 --> 01:55:10,979
+string literal, it's a string.
+
+1333
+01:55:12,029 --> 01:55:18,620
+But I activated this overloaded
+strings extension, which as I explained
+
+1334
+01:55:18,630 --> 01:55:22,870
+before, allows you to lose literal
+strings for more general texture
+
+1335
+01:55:22,920 --> 01:55:26,309
+types, including text or byte string.
+
+1336
+01:55:27,320 --> 01:55:30,560
+So the complainant at this point
+doesn't know what type this is.
+
+1337
+01:55:30,570 --> 01:55:31,330
+Is it a string?
+
+1338
+01:55:31,330 --> 01:55:32,060
+Is it a text?
+
+1339
+01:55:32,080 --> 01:55:33,040
+Is it something else?
+
+1340
+01:55:34,060 --> 01:55:40,730
+And in order to disambiguate this,
+I also edit this type applications
+
+1341
+01:55:40,750 --> 01:55:45,709
+extension, which allows me to specify
+for polymorphic function like log
+
+1342
+01:55:45,709 --> 01:55:48,050
+info, at which type it is used.
+
+1343
+01:55:48,520 --> 01:55:53,150
+So log info it's polimorphic and
+takes arbitrary serializable types.
+
+1344
+01:55:53,650 --> 01:55:58,980
+But I now wanted to use it string and
+the syntax that is enabled by type
+
+1345
+01:55:58,980 --> 01:56:03,589
+applications is like, so, so I can use
+the at symbol and then the type name.
+
+1346
+01:56:04,270 --> 01:56:09,450
+So that means use this
+log info for type string.
+
+1347
+01:56:09,720 --> 01:56:14,330
+And then it's clear to the compiler that
+this literal string is indeed a string.
+
+1348
+01:56:15,849 --> 01:56:20,309
+Okay, if I want to test it, I also
+need a trace let's call it my trace.
+
+1349
+01:56:20,340 --> 01:56:24,060
+So that's of type emulator trace unit.
+
+1350
+01:56:25,260 --> 01:56:30,610
+And all I want to do is I just
+activate the contract, so I
+
+1351
+01:56:30,620 --> 01:56:33,320
+just activate contract wallet.
+
+1352
+01:56:34,219 --> 01:56:38,189
+Now I need to specify the
+wallet and the contract.
+
+1353
+01:56:38,809 --> 01:56:43,030
+So let's say wallet one
+and my contract one.
+
+1354
+01:56:44,490 --> 01:56:51,869
+And finally, in order to test
+this as before I just use run
+
+1355
+01:56:52,189 --> 01:56:54,970
+emulator trace IO my trace one.
+
+1356
+01:56:58,560 --> 01:57:01,470
+Still complaining oh yes,
+because I'm ignoring the result.
+
+1357
+01:57:01,900 --> 01:57:04,550
+So I'm ignoring the handle.
+
+1358
+01:57:05,160 --> 01:57:10,209
+So this wouldn't be this activate
+contract wallet wouldn't result in a
+
+1359
+01:57:10,209 --> 01:57:12,527
+unit, it would result in a handle, but
+I say it should result in the unit.
+
+1360
+01:57:12,527 --> 01:57:16,499
+So as before I can throw
+away the result with void.
+
+1361
+01:57:18,299 --> 01:57:18,699
+Okay.
+
+1362
+01:57:20,180 --> 01:57:30,309
+In the repl, let's load this
+module and let's try test one.
+
+1363
+01:57:32,610 --> 01:57:36,259
+And as expected, we see
+the log message here.
+
+1364
+01:57:36,680 --> 01:57:41,660
+One thing I should still point out is I
+qualified log info with contract here,
+
+1365
+01:57:41,850 --> 01:57:45,670
+which tells that it's supposed to use
+the log info, from Plutus dot contract.
+
+1366
+01:57:46,500 --> 01:57:50,989
+And the reason I have to do that is
+because as we saw before, you can also
+
+1367
+01:57:51,119 --> 01:57:56,160
+log from the trace monad and there's also,
+it's also called log info, but that's
+
+1368
+01:57:56,160 --> 01:57:58,929
+define in control dot monad freer extras.
+
+1369
+01:57:59,720 --> 01:58:03,519
+And in order to tell the compiler
+which version of log info I
+
+1370
+01:58:03,669 --> 01:58:05,630
+want to use, I qualified here.
+
+1371
+01:58:05,630 --> 01:58:09,360
+So this is the logging from
+inside the contract monad.
+
+1372
+01:58:11,090 --> 01:58:14,280
+So next, let's try to throw an exception.
+
+1373
+01:58:14,980 --> 01:58:19,900
+So as I said, we can now have
+error messages of type text.
+
+1374
+01:58:21,809 --> 01:58:27,259
+So let's turn this into a
+do block and let's throw the
+
+1375
+01:58:27,259 --> 01:58:31,290
+exception before I do the logging.
+
+1376
+01:58:32,280 --> 01:58:36,969
+So this throw error allows me
+to throw an exception and of
+
+1377
+01:58:36,969 --> 01:58:38,749
+type E so in our case E is text.
+
+1378
+01:58:38,766 --> 01:58:40,460
+So I can specify a text here.
+
+1379
+01:58:41,420 --> 01:58:46,759
+I can use literal strings because I have
+the overloaded strings extension active.
+
+1380
+01:58:47,160 --> 01:58:51,080
+So I can use a literate string here,
+which will then be passed as a text.
+
+1381
+01:58:51,740 --> 01:58:53,610
+So for example, I can say, boom.
+
+1382
+01:58:57,400 --> 01:59:03,349
+Okay, and I also have to disambiguate
+this because in the emulator also
+
+1383
+01:59:03,349 --> 01:59:08,679
+have the option so I also have to
+disambiguate this with it with contract.
+
+1384
+01:59:10,530 --> 01:59:13,980
+Okay, and now it's complaining that
+this also has a result, which I'm
+
+1385
+01:59:13,980 --> 01:59:19,120
+ignoring, so let's also do void, fine.
+
+1386
+01:59:20,240 --> 01:59:22,409
+And let's try again in the repl.
+
+1387
+01:59:23,969 --> 01:59:27,040
+I reload, and do test one again.
+
+1388
+01:59:30,150 --> 01:59:34,599
+Okay, now we see the log message
+is not displayed anymore, but we
+
+1389
+01:59:34,969 --> 01:59:39,290
+see contract stopped with error and
+we see our error message "boom".
+
+1390
+01:59:40,369 --> 01:59:46,049
+So this behaves as expected as you would
+expect of an exception that execution
+
+1391
+01:59:46,150 --> 01:59:49,309
+stops at the moment exception has risen.
+
+1392
+01:59:49,670 --> 01:59:55,380
+It's the same as we saw in maybe and
+in either as soon as we got the left,
+
+1393
+01:59:55,400 --> 01:59:59,170
+as soon as something went wrong, the
+rest of the computation was ignored.
+
+1394
+01:59:59,959 --> 02:00:05,679
+So here, because the exception is thrown
+here in line 21, we never get to line
+
+1395
+02:00:05,679 --> 02:00:08,150
+22 and we don't see the log message.
+
+1396
+02:00:08,150 --> 02:00:12,669
+We can not only throw exceptions,
+we can also catch or handle them.
+
+1397
+02:00:13,420 --> 02:00:18,129
+We could have done that with maybe an
+either as well, but let's just do it here.
+
+1398
+02:00:18,739 --> 02:00:25,329
+So let me just copy this
+and call it contract two.
+
+1399
+02:00:29,490 --> 02:00:35,110
+And let's now change the
+error type from text to void.
+
+1400
+02:00:35,830 --> 02:00:40,500
+Void is a Haskell type defined in
+data dot void that has no inhabitants
+
+1401
+02:00:40,510 --> 02:00:42,760
+stays no value of type void.
+
+1402
+02:00:42,960 --> 02:00:48,809
+This is different to unit unit has
+exactly one value, which is also
+
+1403
+02:00:48,809 --> 02:00:51,049
+called unit void has no value.
+
+1404
+02:00:51,719 --> 02:00:55,130
+So what does it mean to have a
+contract with error type void?
+
+1405
+02:00:55,570 --> 02:01:00,280
+Well, it means this contract can't produce
+any errors, it can't raise any exceptions
+
+1406
+02:01:00,730 --> 02:01:05,959
+because in order to raise an exception,
+it would need to provide an error message
+
+1407
+02:01:06,519 --> 02:01:12,400
+of type void, but there is no value
+of type void, so this can't happen.
+
+1408
+02:01:12,640 --> 02:01:16,820
+So if we have a contract with an
+error type of void we know this
+
+1409
+02:01:16,830 --> 02:01:20,380
+contract won't have any exceptions,
+it won't raise any exceptions.
+
+1410
+02:01:21,559 --> 02:01:27,860
+So what I want to do is, I want to
+handle, I just call contract one,
+
+1411
+02:01:27,929 --> 02:01:36,090
+but handle the exception and to do
+that there's contract handle error.
+
+1412
+02:01:37,430 --> 02:01:43,690
+And if you look at the type,
+it takes a contract with error
+
+1413
+02:01:43,690 --> 02:01:47,899
+messages of type E and a handle.
+
+1414
+02:01:49,569 --> 02:01:57,349
+So if an exception is raisen here in
+this contract of type E, then we have
+
+1415
+02:01:57,349 --> 02:02:01,669
+a handle that takes an E and turns
+it into a contract with a potentially
+
+1416
+02:02:01,679 --> 02:02:03,659
+different exception type E prime.
+
+1417
+02:02:04,440 --> 02:02:08,870
+And the overall result of this
+handle error construct is then
+
+1418
+02:02:08,870 --> 02:02:11,690
+a contract with error type E
+prime, and the same result type.
+
+1419
+02:02:12,500 --> 02:02:17,220
+So what this will do is it
+will run this inner contract.
+
+1420
+02:02:17,920 --> 02:02:21,730
+If there is no exception, the result
+will be an A, and that would be the
+
+1421
+02:02:21,730 --> 02:02:23,119
+result of the overall computation.
+
+1422
+02:02:24,920 --> 02:02:30,330
+However, if there is an exception of type
+E, then the handle would be applied to the
+
+1423
+02:02:30,330 --> 02:02:34,099
+E and this contract will be run instead.
+
+1424
+02:02:35,139 --> 02:02:39,290
+So in both cases, whether there's
+an exception here or not, it
+
+1425
+02:02:39,290 --> 02:02:40,669
+gets something of this type.
+
+1426
+02:02:41,029 --> 02:02:45,840
+So in our example, the E is text
+because we will use contract one
+
+1427
+02:02:45,840 --> 02:02:48,210
+here and the E prime is void.
+
+1428
+02:02:49,860 --> 02:02:54,200
+So we need to specify the handle
+and the contract we want to run.
+
+1429
+02:02:56,190 --> 02:02:59,569
+So the handle, it takes an
+error message of type text.
+
+1430
+02:02:59,570 --> 02:03:04,580
+And now we must write a contract what
+to do if he received this error message.
+
+1431
+02:03:05,140 --> 02:03:07,070
+So for example, I can simply log it.
+
+1432
+02:03:08,050 --> 02:03:14,849
+I can use contract log info again, but I
+can also just for variety use log error.
+
+1433
+02:03:16,219 --> 02:03:23,780
+And, now the error message and I want
+to use a string, something like caught.
+
+1434
+02:03:25,260 --> 02:03:30,099
+Okay, and now I want to use the
+error message here, but this won't
+
+1435
+02:03:30,099 --> 02:03:35,439
+compile because error is of type
+text and this is of type string.
+
+1436
+02:03:36,099 --> 02:03:41,900
+And, but there's a way to convert from
+text to string, that's unpack, that's
+
+1437
+02:03:41,900 --> 02:03:45,309
+defined in data dot text dot read.
+
+1438
+02:03:45,400 --> 02:03:46,860
+So it converts a text to a string.
+
+1439
+02:03:47,210 --> 02:03:50,335
+Note that in this case, I don't
+have to specify which type I'm
+
+1440
+02:03:50,380 --> 02:03:52,290
+invoking this as I did here.
+
+1441
+02:03:52,610 --> 02:03:55,530
+Here, I had to tell the compiler
+that this little string is a
+
+1442
+02:03:55,530 --> 02:03:58,020
+string and not text or byte string.
+
+1443
+02:03:58,640 --> 02:04:03,160
+Here, the compiler can did use that
+automatically because of this unpacks
+
+1444
+02:04:03,170 --> 02:04:05,080
+with nos unpick, as of type string.
+
+1445
+02:04:05,580 --> 02:04:08,870
+So this here must also be of type
+string otherwise I couldn't concatenate
+
+1446
+02:04:09,559 --> 02:04:12,049
+the two, so this is of type string.
+
+1447
+02:04:12,320 --> 02:04:15,639
+So it knows I'm invoking
+log error at type string.
+
+1448
+02:04:16,540 --> 02:04:19,930
+Okay, and now I need the second
+argument, the contract I want to
+
+1449
+02:04:20,400 --> 02:04:22,720
+handle errors for, so my contract one.
+
+1450
+02:04:23,969 --> 02:04:27,819
+Now in the repl, if I
+reload and do test two.
+
+1451
+02:04:31,240 --> 02:04:33,960
+I see I don't get an error anymore.
+
+1452
+02:04:34,000 --> 02:04:38,519
+So this contract, contract two
+does not fail, but I do get
+
+1453
+02:04:38,520 --> 02:04:43,800
+the expected log message that
+I caught "the boom" exception.
+
+1454
+02:04:44,830 --> 02:04:47,870
+Also note that this is the
+only log message I get.
+
+1455
+02:04:48,510 --> 02:04:54,889
+So I still don't get this one, so
+what will happen is here in, in
+
+1456
+02:04:54,890 --> 02:04:58,730
+contract two when I called handle
+error, contract one will be run.
+
+1457
+02:04:59,010 --> 02:05:04,620
+It will throw the exception, but this
+won't lead to an exception in contract two
+
+1458
+02:05:04,670 --> 02:05:09,230
+instead the handler kicks in, takes the
+error message, which is boom in this case,
+
+1459
+02:05:09,580 --> 02:05:11,490
+and then simply logs it to the screen.
+
+1460
+02:05:11,850 --> 02:05:15,599
+So my contract two will run without
+an exception because the exception
+
+1461
+02:05:15,989 --> 02:05:18,080
+risen in contract one is caught.
+
+1462
+02:05:18,790 --> 02:05:22,870
+One other thing I should mention
+in the context of exceptions is
+
+1463
+02:05:23,379 --> 02:05:27,490
+that there are other ways in which
+they can arise, not just by being
+
+1464
+02:05:27,530 --> 02:05:30,190
+explicitly thrown with throw error.
+
+1465
+02:05:31,050 --> 02:05:34,670
+So there are certain operations that
+you can do related to the blockchain
+
+1466
+02:05:35,010 --> 02:05:37,139
+that can result in exception.
+
+1467
+02:05:37,840 --> 02:05:40,260
+Of course, maybe internally
+in the implementation of those
+
+1468
+02:05:40,260 --> 02:05:43,710
+operations throw error is used,
+but that's opaque to the user.
+
+1469
+02:05:44,610 --> 02:05:50,939
+So for example, if you try to submit
+a transaction that can fail and result
+
+1470
+02:05:51,210 --> 02:05:56,280
+in an exception, and the reason is
+that something can be wrong in the
+
+1471
+02:05:56,299 --> 02:05:58,349
+way you construct the transaction.
+
+1472
+02:05:58,730 --> 02:06:03,230
+So for example, I mean, the way it
+works in Plutus off-chain code is, you
+
+1473
+02:06:03,260 --> 02:06:09,549
+don't directly give the transaction,
+instead you specify certain properties
+
+1474
+02:06:09,550 --> 02:06:10,795
+that the transaction should have.
+
+1475
+02:06:10,950 --> 02:06:17,460
+For example, you can say this transaction
+should pay 100 ADA to that address.
+
+1476
+02:06:18,049 --> 02:06:21,920
+And then the algorithm
+will try to construct a
+
+1477
+02:06:21,920 --> 02:06:23,620
+transaction with this property.
+
+1478
+02:06:23,890 --> 02:06:28,980
+So in particular, in this example, it
+will look at the UTxOs that belong to you,
+
+1479
+02:06:28,990 --> 02:06:36,119
+that are in your wallet and find enough
+inputs to cover these 100 ADA plus fees.
+
+1480
+02:06:37,020 --> 02:06:42,730
+And if your wallet doesn't contain
+enough funds to pay 100 ADA to that
+
+1481
+02:06:42,740 --> 02:06:44,839
+address, then that step will fail.
+
+1482
+02:06:44,889 --> 02:06:48,400
+And then when you try to submit a
+transaction, you will get an exception.
+
+1483
+02:06:49,770 --> 02:06:53,600
+Let's talk about the second
+type parameter, the S next,
+
+1484
+02:06:54,129 --> 02:06:55,890
+which specifies the endpoints.
+
+1485
+02:06:57,220 --> 02:07:01,700
+So the way this is normally done is
+that we define a type synonym call it
+
+1486
+02:07:01,720 --> 02:07:04,549
+something with the word schema in it.
+
+1487
+02:07:04,969 --> 02:07:08,479
+But of course that's just a convention,
+so let's call this my schema.
+
+1488
+02:07:09,870 --> 02:07:19,100
+And if I want one endpoint that takes
+an int and is called foo, the type is
+
+1489
+02:07:19,170 --> 02:07:26,490
+endpoint then a type level string and
+the parameter type, so int this case.
+
+1490
+02:07:26,929 --> 02:07:32,870
+So this is a type, it's a type and
+in particular the string is a type.
+
+1491
+02:07:32,920 --> 02:07:37,860
+So, that's why I say type level strings,
+so it's a string used at the type
+
+1492
+02:07:37,860 --> 02:07:42,910
+level, so that's some fancy Haskell
+extension that's enabled by data kinds.
+
+1493
+02:07:44,740 --> 02:07:53,870
+Okay, and now I can define my contract
+three, which is now of type contract unit
+
+1494
+02:07:53,870 --> 02:07:57,810
+again for the first, but now no longer
+empty, but now I can use my schema.
+
+1495
+02:07:57,870 --> 02:08:02,870
+I could, of course not have done
+this type synonym in it at this point
+
+1496
+02:08:03,210 --> 02:08:05,200
+directly written endpoint foo int.
+
+1497
+02:08:06,660 --> 02:08:11,590
+Now for error messages lists use text
+again, and let's say no result type.
+
+1498
+02:08:14,350 --> 02:08:26,940
+So what can I do, we have endpoint and
+that just results in a contract for
+
+1499
+02:08:26,940 --> 02:08:33,099
+result type A provided we have this
+restriction, this constraint on our
+
+1500
+02:08:33,410 --> 02:08:37,669
+schema type S that has an endpoint L A.
+
+1501
+02:08:38,150 --> 02:08:43,969
+So L is the label, it's the name and A is
+the result type, so if our schema S has
+
+1502
+02:08:44,700 --> 02:08:52,229
+an endpoint with parameter A, then this
+endpoint computation, monadic computation
+
+1503
+02:08:53,289 --> 02:09:00,410
+will give us a contract that results in
+A, so I have to specify which endpoint.
+
+1504
+02:09:01,780 --> 02:09:07,680
+So that's the same at here again, but now
+it's specified by its label, by its name.
+
+1505
+02:09:07,710 --> 02:09:09,190
+So foo in our case.
+
+1506
+02:09:10,900 --> 02:09:15,800
+And so this is a monadic computation
+that will block contract execution
+
+1507
+02:09:16,150 --> 02:09:20,640
+and wait for our value to be provided
+in our case a value of type int.
+
+1508
+02:09:21,180 --> 02:09:27,370
+Once that value is provided from the
+outside, this results in that provided
+
+1509
+02:09:27,370 --> 02:09:30,300
+value and we can bind against it.
+
+1510
+02:09:31,320 --> 02:09:34,570
+So what this will do this
+contract, it will block until
+
+1511
+02:09:34,590 --> 02:09:38,456
+from the outside, this endpoint is
+invoked and provided with an int.
+
+1512
+02:09:38,456 --> 02:09:41,679
+Int because we said it would be an int.
+
+1513
+02:09:42,600 --> 02:09:48,019
+And at that point it will continue and N
+will be bound against the provided int,
+
+1514
+02:09:48,580 --> 02:09:56,320
+so to try it out, we can use contract log
+info again N, N is serializable so we can
+
+1515
+02:09:56,420 --> 02:10:01,070
+just use N there and the compiler knows
+it's an int, so we don't have to tell it.
+
+1516
+02:10:03,040 --> 02:10:04,960
+So in order to test this.
+
+1517
+02:10:10,059 --> 02:10:14,720
+Now it's no longer enough to simply
+start the contract, because as I
+
+1518
+02:10:14,720 --> 02:10:18,940
+said, if it just start it will block
+and wait for the endpoint call.
+
+1519
+02:10:19,610 --> 02:10:23,439
+So this wouldn't do much, so let's
+also turn this into a do block.
+
+1520
+02:10:25,099 --> 02:10:30,660
+And in order to invoke the endpoint
+from the trace, we need the handle
+
+1521
+02:10:30,880 --> 02:10:33,759
+so I can no longer ignore the handle.
+
+1522
+02:10:34,309 --> 02:10:38,980
+I actually need it, so let's call
+it H and then as we have seen
+
+1523
+02:10:38,980 --> 02:10:41,780
+before, I can use call endpoint.
+
+1524
+02:10:42,730 --> 02:10:48,820
+I must say which endpoint, so at
+foo then it takes the handle and
+
+1525
+02:10:49,240 --> 02:10:51,530
+I must provide the parameter.
+
+1526
+02:10:51,800 --> 02:10:57,330
+So an int in our case, for
+example, 42 and this should work.
+
+1527
+02:11:00,040 --> 02:11:08,400
+If I reload in the repl and call
+test three, then we do see here, the
+
+1528
+02:11:08,460 --> 02:11:13,940
+contract has started, then it would
+block, but we received this endpoint
+
+1529
+02:11:14,009 --> 02:11:19,150
+call from the outside, from our trace
+monad in this case with 42 as a value.
+
+1530
+02:11:19,860 --> 02:11:21,516
+And then we see that it works.
+
+1531
+02:11:21,700 --> 02:11:25,350
+So the contract receives
+the 42 and then logs it.
+
+1532
+02:11:27,360 --> 02:11:29,800
+So what do we do if we want
+more than one endpoint.
+
+1533
+02:11:31,070 --> 02:11:36,260
+In that case, this type here, the
+schema needs to be more complicated.
+
+1534
+02:11:36,260 --> 02:11:42,504
+So we have to specify more endpoints
+and we do that by chaining them together
+
+1535
+02:11:42,820 --> 02:11:44,740
+with this so-called type operator.
+
+1536
+02:11:44,760 --> 02:11:49,690
+So a type operator is an operator that
+operates on types as the name suggests.
+
+1537
+02:11:50,139 --> 02:11:54,579
+So it takes one or more types
+and combines them to a new type.
+
+1538
+02:11:54,990 --> 02:11:58,840
+And in order to do that, we need
+this type operator extension.
+
+1539
+02:11:59,660 --> 02:12:03,660
+So we can now specify another
+endpoint, let's call it bar,
+
+1540
+02:12:04,970 --> 02:12:07,019
+I don't know of type string.
+
+1541
+02:12:09,120 --> 02:12:13,859
+And, let's just basically
+do the same here with bar.
+
+1542
+02:12:14,299 --> 02:12:20,110
+So let's call the string
+S and log that as well.
+
+1543
+02:12:21,450 --> 02:12:26,230
+And in our trace, if we want
+to try it out, we also have
+
+1544
+02:12:26,230 --> 02:12:27,440
+to call the second endpoint.
+
+1545
+02:12:27,460 --> 02:12:30,490
+So in this execution, the contract
+will run, will block here.
+
+1546
+02:12:31,219 --> 02:12:35,299
+Then when this endpoint call
+comes, this will unblock and go
+
+1547
+02:12:35,299 --> 02:12:36,709
+to here and then block again.
+
+1548
+02:12:37,430 --> 02:12:39,799
+So if it was second endpoint call.
+
+1549
+02:12:39,969 --> 02:12:50,589
+And now we need the string
+Haskell then this should work out.
+
+1550
+02:12:51,589 --> 02:12:52,109
+Let's try it.
+
+1551
+02:12:57,240 --> 02:12:59,959
+And indeed, we get two log messages now.
+
+1552
+02:13:01,289 --> 02:13:09,340
+Here is the contract log with 42 and
+here is the contract log Haskell.
+
+1553
+02:13:11,289 --> 02:13:16,430
+I have no idea why we get the
+three stars here and not here, but
+
+1554
+02:13:16,470 --> 02:13:17,844
+nevertheless, it seems to work.
+
+1555
+02:13:18,120 --> 02:13:23,629
+So here was the endpoint call on foo
+with 42, and we get the log message.
+
+1556
+02:13:23,630 --> 02:13:29,030
+And here is the second endpoint call
+now on bar with the value Haskell.
+
+1557
+02:13:29,240 --> 02:13:31,800
+And we also get the second log message.
+
+1558
+02:13:33,360 --> 02:13:39,730
+Finally, let's look at the first
+type parameter, the writer.
+
+1559
+02:13:41,390 --> 02:13:44,889
+And, so this W can't be an arbitrary type.
+
+1560
+02:13:44,889 --> 02:13:48,040
+It must be an instance
+of the type class monoid.
+
+1561
+02:13:48,109 --> 02:13:52,758
+This is a very important, very
+common class in Haskell and,
+
+1562
+02:13:53,838 --> 02:13:58,570
+it has mempty and mappend.
+
+1563
+02:13:58,660 --> 02:14:03,379
+Mempty is something like the neutral
+element and mappend combines two
+
+1564
+02:14:03,380 --> 02:14:06,219
+elements of this type to a new element.
+
+1565
+02:14:06,690 --> 02:14:12,990
+The prime example of a monoid is
+lists where mempty is the empty
+
+1566
+02:14:12,990 --> 02:14:15,140
+list and mappend is concatenation.
+
+1567
+02:14:16,030 --> 02:14:23,780
+So for example, I can say mempty list
+of ints will be the empty list, and I
+
+1568
+02:14:23,780 --> 02:14:35,490
+can use mappend 1 2 3 4 5 6 and it will
+combined them, but there are lots and lots
+
+1569
+02:14:35,510 --> 02:14:41,540
+of other instances of this monoid type
+and we'll probably see other instances in
+
+1570
+02:14:41,559 --> 02:14:43,650
+this course, but for now let's with lists.
+
+1571
+02:14:44,290 --> 02:14:45,800
+So let's try this.
+
+1572
+02:14:47,230 --> 02:14:48,600
+So my contract four...
+
+1573
+02:14:49,940 --> 02:14:56,440
+one first argument, and it must be
+a monoid so let's use lists of ints.
+
+1574
+02:14:56,440 --> 02:15:07,099
+We don't want any endpoints so we can
+just use empty let's use text result.
+
+1575
+02:15:07,099 --> 02:15:12,870
+Okay, so we let's start with
+a wait of N slots, 10 slots.
+
+1576
+02:15:14,120 --> 02:15:16,139
+We are not interested in the result.
+
+1577
+02:15:17,869 --> 02:15:23,790
+So now the way we write to the
+state to this log is with tell.
+
+1578
+02:15:25,720 --> 02:15:29,729
+That comes from the monad writer class
+and contract is an instance of it.
+
+1579
+02:15:30,719 --> 02:15:33,550
+So now we need some list of ints.
+
+1580
+02:15:33,570 --> 02:15:36,199
+So for example, the
+list just contains one.
+
+1581
+02:15:37,880 --> 02:15:44,990
+Now let's wait for another 10 slots
+and do another tell, let's say
+
+1582
+02:15:44,990 --> 02:15:50,769
+the list it just contains two and
+let's wait for the final 10 slots.
+
+1583
+02:15:52,199 --> 02:15:57,200
+Now for our trace that
+exercises this contract.
+
+1584
+02:15:58,120 --> 02:16:10,000
+It start as before by starting the
+contract, now let's wait for five slots.
+
+1585
+02:16:12,430 --> 02:16:19,690
+Now the way we read the state of a
+running contract is by observable state.
+
+1586
+02:16:21,480 --> 02:16:26,330
+And as argument that just takes
+a handle which we called H.
+
+1587
+02:16:28,309 --> 02:16:36,170
+And the result would be the state
+at that time, let's call it xs and
+
+1588
+02:16:37,260 --> 02:16:39,930
+let's log that from the trace monad.
+
+1589
+02:16:43,580 --> 02:16:43,860
+Okay.
+
+1590
+02:16:43,920 --> 02:16:50,389
+And let's do that two more times, the
+second time let's wait now for 10 slots
+
+1591
+02:16:51,879 --> 02:17:00,910
+let's call the result ys and log those
+and the final time again 10 slots, let's
+
+1592
+02:17:00,910 --> 02:17:04,609
+call the resul result zs and log those.
+
+1593
+02:17:05,190 --> 02:17:10,130
+So this should be like right here
+we wait five slots, that's before
+
+1594
+02:17:10,130 --> 02:17:11,586
+the first tell happens here.
+
+1595
+02:17:12,776 --> 02:17:17,760
+So this should be after the first tell
+has happened, but before the second
+
+1596
+02:17:17,760 --> 02:17:21,729
+tell has happened and this should be
+after the second tell has happened,
+
+1597
+02:17:22,170 --> 02:17:24,279
+but while this is still waiting here.
+
+1598
+02:17:26,329 --> 02:17:33,830
+Oh yeah, I get the warnings because I
+should ignore the result here of the wait.
+
+1599
+02:17:35,309 --> 02:17:36,610
+Finally, again, we...
+
+1600
+02:17:39,130 --> 02:17:40,570
+have a test four.
+
+1601
+02:17:42,209 --> 02:17:45,350
+And test it.
+
+1602
+02:17:45,350 --> 02:17:50,080
+And let's check what we get.
+
+1603
+02:17:51,250 --> 02:17:54,230
+So the trace waited for five slots.
+
+1604
+02:17:54,240 --> 02:17:59,749
+So this is the first time we call this
+observable state and we get the empty
+
+1605
+02:17:59,749 --> 02:18:05,290
+list, so before we use tell the state
+will be the mempty of the monoid.
+
+1606
+02:18:05,680 --> 02:18:09,075
+And as I explained, in the case of
+lists, the mempty is the empty list.
+
+1607
+02:18:09,170 --> 02:18:14,300
+So before there has been any tell the
+state that we observed with observable
+
+1608
+02:18:14,360 --> 02:18:16,469
+state will be the mempty, the empty list.
+
+1609
+02:18:16,959 --> 02:18:20,059
+So now by slot 10, the first
+tell happened where we wrote
+
+1610
+02:18:20,059 --> 02:18:21,690
+the list that contains just one.
+
+1611
+02:18:22,250 --> 02:18:26,259
+So if by slot 15, we
+observed the state again.
+
+1612
+02:18:26,780 --> 02:18:29,040
+Now we get the list just containing one.
+
+1613
+02:18:30,070 --> 02:18:33,819
+Wait another 10 slots here in the
+middle the second tell happened, the
+
+1614
+02:18:33,830 --> 02:18:38,590
+list just containing two and now we
+get the list containing one and two.
+
+1615
+02:18:38,940 --> 02:18:46,150
+So what happens is each tell uses mappend
+of the monoid that we are using as W to
+
+1616
+02:18:46,150 --> 02:18:51,000
+mappend the thing to what's already there.
+
+1617
+02:18:51,740 --> 02:18:55,779
+So it starts with the empty list,
+then this is concatenated with the
+
+1618
+02:18:55,830 --> 02:18:59,240
+list just containing one, which of
+course is still just containing one.
+
+1619
+02:18:59,830 --> 02:19:03,070
+And then after the second tell the
+list just containing two, that is
+
+1620
+02:19:03,070 --> 02:19:07,760
+concatenated with what we had until
+then, the list just containing one and
+
+1621
+02:19:07,760 --> 02:19:09,670
+we get the list containing one and two.
+
+1622
+02:19:10,920 --> 02:19:12,760
+So this is how this works.
+
+1623
+02:19:12,760 --> 02:19:18,330
+So how the contract can communicate
+information to the outside world that can
+
+1624
+02:19:18,330 --> 02:19:20,830
+then be observed with observable state.
+
+1625
+02:19:23,709 --> 02:19:24,510
+For homework.
+
+1626
+02:19:24,510 --> 02:19:29,910
+I created a model week four dot
+homework in which I define this type
+
+1627
+02:19:29,910 --> 02:19:33,290
+pay params which has two fields,
+a pub key hash and an integer.
+
+1628
+02:19:34,370 --> 02:19:40,049
+Then I defined a schema that has one
+endpoint called pay with those parameters.
+
+1629
+02:19:41,250 --> 02:19:46,389
+And I define a contract that has
+trivial state, observable state,
+
+1630
+02:19:46,699 --> 02:19:49,210
+uses this schema text error messages.
+
+1631
+02:19:49,980 --> 02:19:51,370
+And how does it work?
+
+1632
+02:19:51,460 --> 02:19:59,090
+Well, I use endpoint to wait for somebody
+from the outside, invoke that endpoint.
+
+1633
+02:19:59,200 --> 02:20:02,660
+So, this will block until the
+endpoint is invoked, then PP
+
+1634
+02:20:02,660 --> 02:20:04,520
+will be bound to the pay params.
+
+1635
+02:20:05,549 --> 02:20:11,030
+Then I specify transaction by giving
+the must pay to pub key constraint.
+
+1636
+02:20:11,090 --> 02:20:14,860
+As the name suggests that,
+it's the constraint that this
+
+1637
+02:20:14,870 --> 02:20:17,159
+transaction should pay to a pub key.
+
+1638
+02:20:17,479 --> 02:20:21,970
+So the pub key is the first argument,
+I extract that from the first field
+
+1639
+02:20:21,990 --> 02:20:24,079
+of the provided endpoint parameters.
+
+1640
+02:20:24,840 --> 02:20:29,449
+And then the value is the second
+argument and so I extract this integer
+
+1641
+02:20:29,480 --> 02:20:33,539
+from the second field of the parameters
+and use a function called lovelace
+
+1642
+02:20:33,689 --> 02:20:38,010
+value of, that will return an integer
+into a value given in lovelace.
+
+1643
+02:20:39,309 --> 02:20:44,300
+In line 31, I construct
+and submit the transaction.
+
+1644
+02:20:44,390 --> 02:20:47,570
+So what that will do is it will
+look at these constraints and then
+
+1645
+02:20:47,590 --> 02:20:51,179
+try to construct a transaction
+that satisfies those constraints.
+
+1646
+02:20:52,010 --> 02:20:56,089
+So in particular, it must find an input
+in the wallet that is large enough
+
+1647
+02:20:56,090 --> 02:20:58,920
+to cover this payment and the fees.
+
+1648
+02:20:59,750 --> 02:21:03,880
+And it might also need to a construct to
+change output going back to the wallet.
+
+1649
+02:21:05,120 --> 02:21:08,770
+And once the transaction is constructed
+it will submit it to the blockchain,
+
+1650
+02:21:09,520 --> 02:21:14,329
+and then I recursively call the
+contract again, which means that you
+
+1651
+02:21:14,330 --> 02:21:16,770
+can call this endpoint over and over.
+
+1652
+02:21:18,059 --> 02:21:19,800
+So, what I would like you to do.
+
+1653
+02:21:20,150 --> 02:21:26,200
+First is implement this paid trace,
+so the idea of that is it takes
+
+1654
+02:21:26,220 --> 02:21:30,640
+two integer arguments and then
+returns an emulator trace, and the
+
+1655
+02:21:30,640 --> 02:21:32,629
+behavior should be in this trace.
+
+1656
+02:21:33,190 --> 02:21:39,080
+First start the contract in wallet
+one, and then do two endpoint
+
+1657
+02:21:39,080 --> 02:21:43,480
+calls to the pay endpoint where the
+recipient in both cases is wallet two.
+
+1658
+02:21:44,309 --> 02:21:47,209
+And the amounts to be paid are
+given by these two parameters.
+
+1659
+02:21:47,210 --> 02:21:50,570
+So first parameter first endpoint call,
+second parameter, second endpoint call.
+
+1660
+02:21:50,592 --> 02:21:55,130
+And after each of the endpoint
+calls please wait for one slot.
+
+1661
+02:21:56,290 --> 02:21:58,500
+So that's the first task you should do.
+
+1662
+02:21:59,450 --> 02:22:04,890
+And then, I provide these two
+tests where I try this trace with
+
+1663
+02:22:04,940 --> 02:22:06,400
+different values for the arguments.
+
+1664
+02:22:06,400 --> 02:22:07,377
+1 ADA and 2 ADA in the first case.
+
+1665
+02:22:07,377 --> 02:22:12,770
+1000 ADA and 2 ADA in the second case.
+
+1666
+02:22:13,740 --> 02:22:18,410
+If we try the first one, we see it works.
+
+1667
+02:22:18,410 --> 02:22:20,630
+So here we have the two endpoint calls.
+
+1668
+02:22:20,700 --> 02:22:25,240
+And if we look at the final balances, we
+see that wallet two indeed has 3 ADA more.
+
+1669
+02:22:25,880 --> 02:22:28,539
+One from the first payment,
+two from the second payment.
+
+1670
+02:22:29,490 --> 02:22:36,110
+If however we tried to pay test two,
+there would be an exception in line 31,
+
+1671
+02:22:36,370 --> 02:22:42,530
+because wallet one only has 100 ADA,
+I'm using the default configuration
+
+1672
+02:22:42,530 --> 02:22:46,729
+and we learned that that means 100 ADA
+each wallet has 100 ADA, so it doesn't
+
+1673
+02:22:46,729 --> 02:22:47,740
+have 1000 ADA so it can't construct a
+transaction that can pay a thousand ADA.
+
+1674
+02:22:47,740 --> 02:22:55,550
+So once it reaches this line 31 for
+the first time, there will be an
+
+1675
+02:22:55,550 --> 02:22:57,749
+exception and this contract will stop.
+
+1676
+02:22:58,130 --> 02:23:02,389
+So in particular, the second endpoint
+call from the trace will never do
+
+1677
+02:23:02,389 --> 02:23:05,819
+anything because the contract has
+already crashed at that point.
+
+1678
+02:23:06,680 --> 02:23:10,410
+So the second thing I would like you
+to do is modify the pay contract,
+
+1679
+02:23:10,850 --> 02:23:13,070
+so that this exception gets handled.
+
+1680
+02:23:13,470 --> 02:23:18,199
+So instead of crashing, it should
+be caught and then just logged.
+
+1681
+02:23:18,580 --> 02:23:21,689
+So just produce a log message
+that shows the exception.
+
+1682
+02:23:22,660 --> 02:23:26,230
+And once you have done that,
+when you invoke pay test two,
+
+1683
+02:23:27,140 --> 02:23:28,810
+this should something like that.
+
+1684
+02:23:29,440 --> 02:23:33,240
+So up on the first endpoint call, we...
+
+1685
+02:23:33,260 --> 02:23:37,250
+It doesn't crash, we just get a log
+message caught error, and then the error.
+
+1686
+02:23:37,250 --> 02:23:39,920
+So in this case, it will be
+an insufficient funds error.
+
+1687
+02:23:41,369 --> 02:23:46,890
+And the second endpoint call will then
+still proceed and in the result we
+
+1688
+02:23:46,890 --> 02:23:48,939
+see that wallet two has 2 ADA more.
+
+1689
+02:23:48,940 --> 02:23:54,350
+So the first one with the 1000 ADA
+failed, but the contract kept running,
+
+1690
+02:23:54,400 --> 02:24:06,029
+second endpoint called successfully
+transfers 2 ADA to wallet two.
+

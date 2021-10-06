@@ -1,0 +1,6925 @@
+1
+00:00:06,540 --> 00:00:10,700
+In the last lecture I introduced state
+machines and explained how they are very
+
+2
+00:00:10,700 --> 00:00:17,259
+useful and often allow us to write much less
+code to express the logic of a smart contract.
+
+3
+00:00:18,000 --> 00:00:22,780
+And part of the reason is that there's a lot
+of sharing between on-chain and off-chain
+
+4
+00:00:22,780 --> 00:00:25,180
+code due to the use of these constraints.
+
+5
+00:00:25,300 --> 00:00:30,270
+And another reason is that a lot of boiler plate
+is encapsulated in the state machine machinery,
+
+6
+00:00:30,480 --> 00:00:33,000
+like the handling of this NFT stake token.
+
+7
+00:00:34,219 --> 00:00:39,330
+And in today's lecture, I want to give another
+example because the concept is really very important.
+
+8
+00:00:39,790 --> 00:00:45,570
+So I want to show another example of using a
+state machine, and I want to talk about testing.
+
+9
+00:00:45,679 --> 00:00:52,280
+So first I presented example, and then I'll
+explain various ways to test that code.
+
+10
+00:00:52,799 --> 00:00:57,339
+the example I picked is a contract
+that allows somebody to sell tokens.
+
+11
+00:00:58,100 --> 00:01:02,680
+So the idea is that if I own tokens, I can
+lock some of them in this contract, set a
+
+12
+00:01:02,680 --> 00:01:04,560
+price, and then other people can buy it.
+
+13
+00:01:04,620 --> 00:01:07,390
+And I get the money they paid for it.
+
+14
+00:01:07,660 --> 00:01:13,690
+In the beginning, the seller, the person or
+party that wants to sell tokens starts with
+
+15
+00:01:13,690 --> 00:01:20,610
+an NFT and it can be an arbitrary NFT, and it
+will just be used as before to identify the
+
+16
+00:01:20,730 --> 00:01:24,450
+correct UTxO that contains the contract state.
+
+17
+00:01:24,950 --> 00:01:32,320
+The first step is for the seller to lock his NFT
+at the script address of the smart contract, we are
+
+18
+00:01:32,320 --> 00:01:36,479
+about to write and I called it TS here for token sale.
+
+19
+00:01:37,110 --> 00:01:43,929
+So we create a transaction, submit a
+transaction that locks the NFT at this address.
+
+20
+00:01:44,099 --> 00:01:49,550
+And as datum, we will use a simple integer,
+which indicates the price of the token.
+
+21
+00:01:50,000 --> 00:01:51,789
+And this starts of as zero.
+
+22
+00:01:52,280 --> 00:01:55,020
+There will be several operations
+that the seller can do.
+
+23
+00:01:55,390 --> 00:01:58,329
+One of those is setting the price to a different value.
+
+24
+00:01:58,380 --> 00:02:05,459
+And in order to do that, the seller needs to
+submit the transaction that has the current UTxO
+
+25
+00:02:06,570 --> 00:02:14,120
+as input, and then update that UTxO as output where
+the datum has been changed to a different price.
+
+26
+00:02:14,290 --> 00:02:21,250
+So in this example, the seller set
+the price to six, six ADA per token.
+
+27
+00:02:21,530 --> 00:02:26,220
+And other thing the seller can do is
+actually lock some tokens in the contract.
+
+28
+00:02:26,800 --> 00:02:33,390
+So in order to do that, he has to create
+yet another transaction that has as input.
+
+29
+00:02:33,450 --> 00:02:37,659
+Again, the contract, the UTxO looked at the contract.
+
+30
+00:02:38,320 --> 00:02:42,579
+And UTxO containing some tokens that the seller owns.
+
+31
+00:02:43,300 --> 00:02:49,840
+And as output, just the updated UTxO
+at the contract address, which now
+
+32
+00:02:49,870 --> 00:02:52,399
+contains the provided tokens as well.
+
+33
+00:02:52,730 --> 00:02:56,690
+So in this example, the seller
+provides five tokens to the contract.
+
+34
+00:02:57,960 --> 00:03:04,870
+Now for somebody to buy tokens, there needs to be
+created a transaction by the buyer that as input,
+
+35
+00:03:04,920 --> 00:03:11,290
+of course, again has this UTxO sitting at the
+TS script address and the buying price in ADA.
+
+36
+00:03:11,639 --> 00:03:18,235
+So if somebody wants to buy two tokens, it would
+create a transaction that has as input the price,
+
+37
+00:03:18,325 --> 00:03:22,120
+12 ADA and the UTxO at the TS script address.
+
+38
+00:03:22,730 --> 00:03:29,970
+And then two outputs, one the updated contract
+state where now the tokens are taking out and
+
+39
+00:03:29,970 --> 00:03:35,910
+the price has been added, And one output going
+to the buyer with the tokens he just bought.
+
+40
+00:03:36,779 --> 00:03:41,470
+Finally, there must be a way for the
+seller to retrieve tokens and ADA.
+
+41
+00:03:42,260 --> 00:03:49,540
+So in this example, if the seller after the sale wants
+to retrieve all the ADA and one token, he would create
+
+42
+00:03:49,540 --> 00:03:54,169
+a transaction that again has the script UTxO as input.
+
+43
+00:03:54,850 --> 00:04:01,950
+And then two outputs, one with the updated script
+UTxO when now some tokens and some ADA have been
+
+44
+00:04:01,950 --> 00:04:06,150
+retrieved and one to himself with the retrieved funds.
+
+45
+00:04:06,240 --> 00:04:10,389
+And of course this diagram just shows one example.
+
+46
+00:04:10,690 --> 00:04:14,010
+So the idea is that these
+operations can happen in any order.
+
+47
+00:04:14,550 --> 00:04:20,370
+So the price can be set several times,
+tokens can be added, tokens can be bought and
+
+48
+00:04:20,370 --> 00:04:22,910
+funds can be withdrawn in arbitrary order.
+
+49
+00:04:23,620 --> 00:04:28,500
+I implemented this in this week's code
+and I called the module token sale.
+
+50
+00:04:29,690 --> 00:04:34,820
+And let's first look at this type data token
+sale, or that's the parameter I will use
+
+51
+00:04:35,080 --> 00:04:37,720
+for the contract and it has three fields.
+
+52
+00:04:38,030 --> 00:04:41,430
+The seller, the seller's public key hash.
+
+53
+00:04:42,240 --> 00:04:48,679
+Then this token, that is the token being sold
+in this token sale given by its asset class.
+
+54
+00:04:49,830 --> 00:04:53,775
+And finally the thread token,
+or  maybe the thread token.
+
+55
+00:04:54,110 --> 00:05:00,690
+So in production code, you would use a thread
+token, but as it turns out it's difficult
+
+56
+00:05:00,710 --> 00:05:03,799
+to test when this thread token is present.
+
+57
+00:05:04,029 --> 00:05:07,190
+So I also allowed it to be absent.
+
+58
+00:05:07,680 --> 00:05:15,299
+And as I explained last time, this can go
+wrong because arbitrary people can send
+
+59
+00:05:15,320 --> 00:05:17,319
+arbitrary stuff to arbitrary addresses.
+
+60
+00:05:17,809 --> 00:05:23,409
+So in the real world, there could be more
+than one UTxO at the token sale address.
+
+61
+00:05:23,440 --> 00:05:28,150
+And then we need this thread token,
+this NFT to identify the right one.
+
+62
+00:05:28,750 --> 00:05:34,819
+But for all our tests, we can assume that there will
+only ever be one UTxO at the token sale address.
+
+63
+00:05:35,120 --> 00:05:38,740
+So then we don't need the thread token
+and that will make testing easier.
+
+64
+00:05:39,700 --> 00:05:49,110
+And as redeemer I provide exactly the operations
+we saw in the diagram, so set price to a new value.
+
+65
+00:05:49,110 --> 00:05:51,260
+This is the token price and lovelace.
+
+66
+00:05:52,700 --> 00:05:57,870
+Add tokens, where the argument
+gives the amount of tokens to add.
+
+67
+00:05:59,310 --> 00:06:04,570
+Buy tokens, where the arguments
+gives the amount of tokens to buy.
+
+68
+00:06:05,600 --> 00:06:12,159
+And finally withdraw, this is actually like
+bad practice to just give integer arguments,
+
+69
+00:06:12,160 --> 00:06:13,940
+because now it's not clear which is which.
+
+70
+00:06:14,690 --> 00:06:20,159
+So in this case the first one is supposed
+to be how many tokens to withdraw.
+
+71
+00:06:20,680 --> 00:06:23,859
+And the second one, how many lovelaces to withdraw.
+
+72
+00:06:25,950 --> 00:06:30,120
+And I have my helper function again,
+lovelace is that given a value extracts
+
+73
+00:06:30,460 --> 00:06:32,429
+the amount of lovelaces in there.
+
+74
+00:06:33,120 --> 00:06:36,880
+I also use that in last week's code I believe.
+
+75
+00:06:37,990 --> 00:06:41,180
+And now the transition function of the state machine.
+
+76
+00:06:41,910 --> 00:06:49,060
+So the first argument is the parameter and then
+recall, we get this date and then in this case for
+
+77
+00:06:49,070 --> 00:06:56,630
+datum we will use integer, as I mentioned before,
+the price of the token and the redeemer, and
+
+78
+00:06:56,630 --> 00:07:01,390
+then we must return a maybe constraints a state.
+
+79
+00:07:02,099 --> 00:07:03,230
+So we return nothing.
+
+80
+00:07:03,240 --> 00:07:10,549
+If the corresponding transition is illegal and
+just something, if it's not, and then we must
+
+81
+00:07:10,559 --> 00:07:17,349
+provide the constraints and the new state and
+recall the state contains the datum and the value.
+
+82
+00:07:19,470 --> 00:07:29,120
+So similar to last time I split this given state into
+the value and the datum, and then I have the redeemer.
+
+83
+00:07:29,150 --> 00:07:33,090
+So I pattern match on these
+triplets in this case statement.
+
+84
+00:07:34,160 --> 00:07:38,180
+And now I simply go through the four transitions.
+
+85
+00:07:40,570 --> 00:07:42,610
+So the first one is for a set price.
+
+86
+00:07:43,790 --> 00:07:51,800
+And if I want to set price, to a new price,
+P, I only allow that if the new price is not
+
+87
+00:07:51,950 --> 00:07:57,869
+negative and in that case, the constraint is
+that that must be signed by the token seller.
+
+88
+00:07:57,900 --> 00:08:00,710
+So only the token seller can change the price.
+
+89
+00:08:01,950 --> 00:08:03,310
+But that's the only constraint.
+
+90
+00:08:04,020 --> 00:08:05,050
+And the new state.
+
+91
+00:08:06,820 --> 00:08:10,830
+So now the new datum will be this
+new price P that comes from here.
+
+92
+00:08:11,820 --> 00:08:15,450
+And, I don't change the value in the contract.
+
+93
+00:08:16,110 --> 00:08:19,140
+The second transition is add tokens.
+
+94
+00:08:19,940 --> 00:08:24,880
+And here I demand that the amount
+of tokens to add is positive.
+
+95
+00:08:25,870 --> 00:08:27,869
+So not negative and also not zero.
+
+96
+00:08:28,980 --> 00:08:32,319
+And in that case, there's no constraint.
+
+97
+00:08:33,230 --> 00:08:37,360
+I could of course have put as constraint
+that it must be added by the seller.
+
+98
+00:08:38,090 --> 00:08:43,610
+But, the way I see it, I mean, this
+contract is created by the seller.
+
+99
+00:08:43,700 --> 00:08:49,730
+The seller will set up the state machine
+and create the UTxO in the first place.
+
+100
+00:08:50,570 --> 00:08:54,479
+So everything is written from
+the point of view of the seller.
+
+101
+00:08:54,660 --> 00:08:59,869
+And the seller, he does care that only he
+can change the price otherwise the buyer
+
+102
+00:08:59,869 --> 00:09:03,615
+could set a lower price and then buy it.
+
+103
+00:09:03,650 --> 00:09:07,660
+So obviously the seller wants to be
+the only one that can change the price.
+
+104
+00:09:07,660 --> 00:09:13,769
+However, if somebody so feels and wants to donate
+tokens to this contract, then the seller doesn't
+
+105
+00:09:13,770 --> 00:09:18,730
+mind, therefore from the point of view of the
+seller, that doesn't have to be a requirement
+
+106
+00:09:18,730 --> 00:09:22,910
+that he must sign that as long as in is positive.
+
+107
+00:09:23,260 --> 00:09:29,529
+So if somebody adds tokens to this contract
+then the seller doesn't forbid it, of course in
+
+108
+00:09:29,530 --> 00:09:35,040
+reality, probably nobody ever will, but there's
+no reason for the seller to allow that that's
+
+109
+00:09:35,059 --> 00:09:38,220
+why in this case, no constraint is needed.
+
+110
+00:09:39,170 --> 00:09:42,020
+And the new state will the price doesn't change.
+
+111
+00:09:43,290 --> 00:09:47,320
+But, the value changes by this amount of tokens.
+
+112
+00:09:47,320 --> 00:09:51,999
+So it's the old value plus the
+value of the tokens that I added.
+
+113
+00:09:52,349 --> 00:09:58,740
+So with asset class value token, and this
+end, I get the value of adding N tokens.
+
+114
+00:10:00,080 --> 00:10:01,770
+Third case is buy tokens.
+
+115
+00:10:02,740 --> 00:10:04,440
+Again, there is no constraint.
+
+116
+00:10:04,480 --> 00:10:06,190
+Anybody can buy tokens.
+
+117
+00:10:06,190 --> 00:10:08,589
+There's no additional constraint on the transaction.
+
+118
+00:10:09,420 --> 00:10:13,720
+And, the new state, the price again doesn't change.
+
+119
+00:10:14,040 --> 00:10:15,610
+And the value changes.
+
+120
+00:10:15,610 --> 00:10:17,870
+So we have the original value.
+
+121
+00:10:18,570 --> 00:10:25,980
+We subtract the amount of tokens that are bought,
+which by the way, is again a positive number.
+
+122
+00:10:26,030 --> 00:10:31,790
+So you can only buy a positive number
+of tokens and we also add the price.
+
+123
+00:10:31,790 --> 00:10:39,130
+And the price is just the lovelace value of the amount
+of tokens times the current price, which is this P.
+
+124
+00:10:41,230 --> 00:10:49,550
+Finally, we have to withdraw
+operation, so N tokens L lovelace.
+
+125
+00:10:50,470 --> 00:10:54,360
+So we insisted both amounts are greater or equal zero.
+
+126
+00:10:56,120 --> 00:10:57,290
+One of them could be zero.
+
+127
+00:10:58,240 --> 00:11:02,280
+Maybe I should have forbidden that both are
+zero, but it also doesn't really matter.
+
+128
+00:11:02,509 --> 00:11:10,160
+Then simply nothing will happen in this case that does
+have to be signed by the seller because only the seller
+
+129
+00:11:10,160 --> 00:11:14,470
+wants to be allowed to withdraw from the contract.
+
+130
+00:11:15,040 --> 00:11:21,130
+And the new state again, the price doesn't
+change and the new value is, well, the old
+
+131
+00:11:21,130 --> 00:11:29,730
+value V minus the N tokens that are taken
+out minus the lovelace that are taken out.
+
+132
+00:11:30,430 --> 00:11:31,090
+So minus.
+
+133
+00:11:31,130 --> 00:11:32,909
+That's why I have that negate here.
+
+134
+00:11:34,900 --> 00:11:38,260
+And that's all, all other transitions are illegal.
+
+135
+00:11:38,450 --> 00:11:43,179
+So in all other cases, I return
+nothing in the transition.
+
+136
+00:11:43,279 --> 00:11:43,599
+function.
+
+137
+00:11:45,629 --> 00:11:50,280
+Now that we have the transition function,
+we can easily define our state machine.
+
+138
+00:11:50,920 --> 00:11:55,999
+And in this case, we can use a smart
+constructor called make state machine.
+
+139
+00:11:56,819 --> 00:12:01,560
+And the reason is last time we had to use the
+actual constructor of the state machine, because
+
+140
+00:12:01,600 --> 00:12:08,170
+there was one check to check that the commitment
+there hash agreed with the actual choice.
+
+141
+00:12:08,250 --> 00:12:13,180
+That was something we couldn't express as a
+constraint, but normally you can express everything
+
+142
+00:12:13,180 --> 00:12:18,390
+as a constraint, and then you can use the smart
+constructor that just takes three arguments.
+
+143
+00:12:18,620 --> 00:12:24,600
+So the first is the thread token, or  maybe the
+thread token, which we have from our token sale type,
+
+144
+00:12:25,290 --> 00:12:27,850
+then the transition function, which we just defined.
+
+145
+00:12:28,510 --> 00:12:32,760
+And finally the function that determines
+whether states are final or not.
+
+146
+00:12:33,380 --> 00:12:35,790
+And in our case, we don't have a final state.
+
+147
+00:12:35,790 --> 00:12:41,670
+So none of the states is final so we can use
+the constant function that always returns false.
+
+148
+00:12:42,420 --> 00:12:47,670
+So the idea is that once this token sale, state
+machine has been started, it will run forever.
+
+149
+00:12:47,770 --> 00:12:50,860
+There is no operation to stop it again.
+
+150
+00:12:51,000 --> 00:12:59,890
+So once the UTxO is there at the state machine address
+at the token sale address, it will always be there.
+
+151
+00:13:00,180 --> 00:13:01,370
+You can't remove it.
+
+152
+00:13:01,500 --> 00:13:01,810
+again.
+
+153
+00:13:01,900 --> 00:13:03,809
+And that's it.
+
+154
+00:13:03,840 --> 00:13:09,069
+So this gives us our state machine and
+then there's the usual boiler plate.
+
+155
+00:13:10,000 --> 00:13:16,400
+So we can turn the state machine into a
+validator function like we saw last time.
+
+156
+00:13:17,550 --> 00:13:21,720
+And then we get our type validator
+with the usual template Haskell.
+
+157
+00:13:22,820 --> 00:13:26,340
+And from that we get the validator and the address.
+
+158
+00:13:27,059 --> 00:13:32,976
+And we can also, as we saw last time easily
+define the state machine client, which if you
+
+159
+00:13:33,160 --> 00:13:39,170
+recall, is used to interact with the state
+machine, from off-chain code, from the wallet.
+
+160
+00:13:39,750 --> 00:13:45,030
+So the client allows you to start the state machine
+and step the state machine, make a transition.
+
+161
+00:13:46,799 --> 00:13:48,249
+Then I need one helper function.
+
+162
+00:13:48,250 --> 00:13:54,290
+That's also similar to last time because I
+want to use these operations from the state
+
+163
+00:13:54,290 --> 00:14:00,670
+machine library, but they all use their own
+custom error type, some SM contract error.
+
+164
+00:14:01,370 --> 00:14:05,279
+And I want to stick with text as error messages.
+
+165
+00:14:05,580 --> 00:14:13,730
+So again, I, use map error and then show and
+pack SM contract error to convert it to text.
+
+166
+00:14:14,940 --> 00:14:18,319
+So now let's look at the off-chain code first.
+
+167
+00:14:18,730 --> 00:14:22,590
+There's a function that I called
+start TS start token sale.
+
+168
+00:14:23,190 --> 00:14:28,680
+It takes two parameters, the asset
+class, which will be the token for sale.
+
+169
+00:14:31,370 --> 00:14:35,129
+And the boolean I call use thread token.
+
+170
+00:14:35,480 --> 00:14:41,260
+So if this is true, we want to use the
+thread token mechanism of the state machines.
+
+171
+00:14:41,650 --> 00:14:43,870
+And if it's false, we don't want to.
+
+172
+00:14:44,630 --> 00:14:50,060
+And as I mentioned before in production
+code, in real code, you would use true in
+
+173
+00:14:50,060 --> 00:14:54,890
+order to be able to pinpoint the correct
+UTxO identified by the thread token.
+
+174
+00:14:55,650 --> 00:15:01,790
+But because that complicates testing, I also have the
+false option, which will simply assume that there will
+
+175
+00:15:01,830 --> 00:15:05,140
+only ever be one UTxO at the state machine address.
+
+176
+00:15:06,580 --> 00:15:12,360
+So given these two parameters, I first need
+to create this value of type token sale.
+
+177
+00:15:12,780 --> 00:15:16,160
+Then need the seller, the token and the thread token.
+
+178
+00:15:17,129 --> 00:15:19,920
+So the seller should be myself.
+
+179
+00:15:19,970 --> 00:15:23,980
+So start TS will be invoked by the
+seller to kick off the token sale.
+
+180
+00:15:24,660 --> 00:15:32,710
+So I need to look up my own public key hash as we
+did before the token I have couse It was one of
+
+181
+00:15:32,710 --> 00:15:35,930
+the parameters which leaves the threadd tokens.
+
+182
+00:15:36,199 --> 00:15:37,680
+So now I have two cases.
+
+183
+00:15:38,370 --> 00:15:39,680
+Should I use one or not?
+
+184
+00:15:40,110 --> 00:15:42,790
+So if not, then it's easy.
+
+185
+00:15:42,790 --> 00:15:44,900
+Then I just use nothing.
+
+186
+00:15:45,780 --> 00:15:48,620
+Recall, this field was of type, maybe thread token.
+
+187
+00:15:48,620 --> 00:15:51,120
+So if I don't want to use one, it's just nothing.
+
+188
+00:15:51,509 --> 00:15:54,179
+So I don't have to do anything and
+immediately can return nothing.
+
+189
+00:15:55,240 --> 00:16:02,760
+If I want to use one, Then as we learned in the last
+lecture, I can use the get thread token function
+
+190
+00:16:03,290 --> 00:16:08,710
+to get a thread token, but because that's in the
+state machine library, the type wouldn't fit.
+
+191
+00:16:09,030 --> 00:16:13,740
+So I use my map error state machine
+to convert the error type to text.
+
+192
+00:16:14,400 --> 00:16:18,949
+And then I must just F map just over it,
+because this gives me a thread token, but
+
+193
+00:16:18,949 --> 00:16:21,579
+in this case I want just the thread token.
+
+194
+00:16:23,300 --> 00:16:32,450
+So then I can define my Ts, my token sale and
+having that I can get a state machine client,
+
+195
+00:16:33,810 --> 00:16:36,030
+and now I want to kick off the state machine.
+
+196
+00:16:36,030 --> 00:16:41,429
+So create the first UTxO at the state
+machine address and as in the last lecture
+
+197
+00:16:41,429 --> 00:16:47,260
+I can use run initialize, which takes the
+client, and now the datum and the value.
+
+198
+00:16:47,440 --> 00:16:55,140
+So datum is the initial price that zero
+and the value should be the zero value.
+
+199
+00:16:55,630 --> 00:17:03,560
+And I can use mempty here because, value
+implements or is an instance of monoid.
+
+200
+00:17:03,770 --> 00:17:06,650
+So  mempty corresponds to the zero value.
+
+201
+00:17:07,500 --> 00:17:14,300
+And again, I have to use map error as M to get
+text error messages, and I ignore the return.
+
+202
+00:17:14,300 --> 00:17:14,710
+value.
+
+203
+00:17:15,910 --> 00:17:24,930
+Then I tell last, just TS so I think we won't
+really make use of this in this lecture, but
+
+204
+00:17:24,930 --> 00:17:31,370
+if you want it to use this for real, then other
+parties would need to be able to discover the
+
+205
+00:17:31,370 --> 00:17:33,930
+value of TS in order to find the state machine.
+
+206
+00:17:34,849 --> 00:17:42,020
+And that value depends on the thread token,
+which we use in, in a real scenario, so that
+
+207
+00:17:42,029 --> 00:17:44,520
+isn't known before you actually execute this.
+
+208
+00:17:44,630 --> 00:17:48,190
+So there must be some way to communicate
+the value out to other parties.
+
+209
+00:17:48,630 --> 00:17:53,729
+So that's why I tell it here so that
+it can be observed from the outside.
+
+210
+00:17:54,679 --> 00:17:56,740
+And finally, I just log a message.
+
+211
+00:17:57,990 --> 00:18:01,830
+So now for the other operations, they
+are all very similar on all very simple.
+
+212
+00:18:01,840 --> 00:18:08,060
+They're all one-liners, which again, shows how
+nice state machines work if they're applicable.
+
+213
+00:18:09,590 --> 00:18:13,679
+So all of them take the token sale
+as one argument and an integer.
+
+214
+00:18:14,000 --> 00:18:17,579
+So set price, I just use run step.
+
+215
+00:18:17,580 --> 00:18:25,570
+So in all of these four cases, I just use run step,
+which will cause one transition in this state machine.
+
+216
+00:18:26,360 --> 00:18:29,710
+And I always have to give the
+client and then the redeemer.
+
+217
+00:18:29,710 --> 00:18:33,290
+So the client is always TS client Ts.
+
+218
+00:18:34,879 --> 00:18:37,480
+And the redeemer depends on which case I am in.
+
+219
+00:18:37,480 --> 00:18:43,290
+So if I want to set the price to P it's
+set price P for want to add N tokens,
+
+220
+00:18:43,300 --> 00:18:49,879
+it add it's add tokens N if we want
+to buy N tokens, it's buy tokens N.
+
+221
+00:18:50,530 --> 00:18:53,890
+And if I want to withdraw N tokens
+and L lovelace it's withdraw N L.
+
+222
+00:18:57,560 --> 00:19:04,700
+So this really shows how nice state machines are,
+how easy it is to generate off-chain code for them.
+
+223
+00:19:05,360 --> 00:19:11,169
+So all the details, adding the correct signatures,
+adding the correct values and so on will be
+
+224
+00:19:11,170 --> 00:19:13,880
+taken care of by the state machine mechanism.
+
+225
+00:19:16,020 --> 00:19:22,419
+Now, in order to make that usable from the
+outside, I need versions with endpoints
+
+226
+00:19:22,740 --> 00:19:25,290
+so that I can trigger these operations.
+
+227
+00:19:26,170 --> 00:19:26,939
+And I use two schemas.
+
+228
+00:19:27,880 --> 00:19:34,330
+So one to start, and then once the
+token sale is up to interact with it.
+
+229
+00:19:35,310 --> 00:19:38,990
+So the start will take a triple as an argument.
+
+230
+00:19:40,210 --> 00:19:44,839
+Recall in order to start, I needed the asset class
+and the bool, but I split this here in this triple.
+
+231
+00:19:44,959 --> 00:19:49,620
+So the asset class is split into the currency
+symbol and token name, and then the boolean
+
+232
+00:19:49,620 --> 00:19:51,625
+whether to use a thread token or not.
+
+233
+00:19:51,930 --> 00:19:54,130
+And for the use schema, it's what we expect.
+
+234
+00:19:54,130 --> 00:20:02,180
+So the first three operations set price add tokens and
+buy tokens, take an integer each and withdraw takes
+
+235
+00:20:02,720 --> 00:20:09,820
+a pair of integers because I must specify how many
+tokens to withdraw and how many lovelaces to withdraw.
+
+236
+00:20:12,370 --> 00:20:22,999
+And then I can define versions of these operations
+with endpoints, but we encounter a slight problem here.
+
+237
+00:20:22,999 --> 00:20:28,430
+And that is that since the last lecture,
+the signature of endpoints has changed.
+
+238
+00:20:28,490 --> 00:20:30,740
+So we must look at that first.
+
+239
+00:20:31,390 --> 00:20:37,260
+So if you look up the documentation for
+endpoint, it looks much more complicated now.
+
+240
+00:20:38,120 --> 00:20:47,980
+It used to be that an endpoint that corresponded
+to parameters of type A simply gave a contract
+
+241
+00:20:47,990 --> 00:20:56,919
+of type A and the behavior was give would block
+until A was provided from the outside and then
+
+242
+00:20:56,950 --> 00:21:01,980
+it would continue and the result of this would
+be the A that was provided from the outside.
+
+243
+00:21:03,070 --> 00:21:08,800
+Now it's different, so it's still an endpoint
+where the parameters of type A but now there's an
+
+244
+00:21:08,809 --> 00:21:15,320
+argument to this endpoint function there wasn't
+before, and this argument is a continuation.
+
+245
+00:21:15,320 --> 00:21:23,240
+So that tells us once we have the A, how can we
+turn this A into a contract with return type B?
+
+246
+00:21:24,580 --> 00:21:31,429
+And then the overall result of this operation
+is something of type promise W S E B.
+
+247
+00:21:31,840 --> 00:21:37,320
+So the W the S and the E are the same type
+parameters that we are used to from contract.
+
+248
+00:21:37,320 --> 00:21:44,820
+So the writer type the endpoints and the
+error type, and the B is the overall result.
+
+249
+00:21:45,870 --> 00:21:47,400
+So what's a promise?
+
+250
+00:21:48,080 --> 00:21:54,870
+If you look that up, doesn't tell us anything,
+but we can look at the comment and it says a
+
+251
+00:21:54,870 --> 00:21:59,410
+wrapper indicating that this contract starts
+with a waiting action for use with select.
+
+252
+00:21:59,850 --> 00:22:07,470
+So promise is basically a contract, but a
+contract that first waits for external input.
+
+253
+00:22:08,780 --> 00:22:14,909
+And, we see there's an await promise function
+that takes a promise and turns it into a contract.
+
+254
+00:22:15,370 --> 00:22:17,320
+So that's how we can get a contract back.
+
+255
+00:22:17,700 --> 00:22:24,159
+But we also see that in particular select now
+no longer doesn't take contracts, but promises.
+
+256
+00:22:25,809 --> 00:22:29,859
+So let's see how to use that in
+practice first with the start endpoint.
+
+257
+00:22:31,720 --> 00:22:38,870
+So the idea is that this should allow the seller
+to start the token sale over and over again,
+
+258
+00:22:38,880 --> 00:22:41,770
+if we wants to, maybe for different tokens.
+
+259
+00:22:42,670 --> 00:22:44,290
+So let's start at the end.
+
+260
+00:22:44,389 --> 00:22:48,493
+So endpoint as before using type
+application and the type level string,
+
+261
+00:22:48,493 --> 00:22:50,500
+we specify the name of the endpoint,.
+
+262
+00:22:52,290 --> 00:22:56,330
+But now we have this new function
+argument that wasn't there before.
+
+263
+00:22:56,330 --> 00:23:01,110
+The continuation that tells us what to
+do with the provided parameter values.
+
+264
+00:23:01,690 --> 00:23:08,060
+So in this case, the parameter values are this
+triple currency symbol token name and useTT
+
+265
+00:23:08,100 --> 00:23:10,950
+whether or not to use the thread token mechanism.
+
+266
+00:23:12,130 --> 00:23:18,100
+So once I have them, I will use my
+earlier defined function start Ts, and
+
+267
+00:23:18,100 --> 00:23:20,509
+that took the asset class and this bool.
+
+268
+00:23:21,429 --> 00:23:26,380
+so I can assemble the asset class from
+the first two components of my triple.
+
+269
+00:23:26,870 --> 00:23:30,140
+And then the last component is just the useTT.
+
+270
+00:23:31,410 --> 00:23:41,124
+So this line now gives me a promise that will block
+wait for user input and then continue with this
+
+271
+00:23:41,199 --> 00:23:44,760
+start TS parameterized by the provided values.
+
+272
+00:23:44,760 --> 00:23:52,300
+Now I use await promise to turn that back into
+a contract, wrap it into an error handler so
+
+273
+00:23:52,330 --> 00:23:58,609
+that if something goes wrong, the contract
+won't crash, but instead simply log the error.
+
+274
+00:23:59,850 --> 00:24:05,110
+And then I use this very useful combinator
+from the standard Haskell libraries forever,
+
+275
+00:24:05,120 --> 00:24:11,439
+which does as the name suggests so given some
+monadic computation, it just forever repeats it.
+
+276
+00:24:13,410 --> 00:24:16,709
+And the use endpoints are similar.
+
+277
+00:24:17,690 --> 00:24:26,439
+So first of all, here are these promises for the four
+operations set price add token, buy token and withdraw.
+
+278
+00:24:26,480 --> 00:24:33,220
+So endpoint and now the continuations, which show
+how to continue once we have the parameter value.
+
+279
+00:24:33,350 --> 00:24:39,970
+So in the first three cases, the parameter
+is an int and set price, for example,
+
+280
+00:24:39,970 --> 00:24:42,360
+took the token sale and an integer.
+
+281
+00:24:42,450 --> 00:24:46,219
+So set price TS partially applied.
+
+282
+00:24:46,320 --> 00:24:54,129
+Just the TS is exactly what we need as continuation
+function from integer, the parameter value to contract.
+
+283
+00:24:54,340 --> 00:24:55,990
+Same for the next two cases.
+
+284
+00:24:57,380 --> 00:25:05,070
+The last one is a little bit different because we have
+a tuple of two integers as parameter value, but this
+
+285
+00:25:05,100 --> 00:25:14,570
+withdraw TS took two integers, not as a tuple but just
+as two parameters, but uncurry can take care of that.
+
+286
+00:25:15,919 --> 00:25:17,770
+That's exactly what uncurry is for.
+
+287
+00:25:19,620 --> 00:25:26,879
+If we look at uncurry the signature, we see it
+takes a function with two parameters, A and B.
+
+288
+00:25:28,100 --> 00:25:32,370
+And turns it into a function
+that takes A and B as a tuple.
+
+289
+00:25:32,940 --> 00:25:42,119
+So for example, if as function we take
+plus addition which takes two A's.
+
+290
+00:25:42,340 --> 00:25:51,290
+Then if we have uncurry plus that is now
+a function with one parameter a tuple.
+
+291
+00:25:51,300 --> 00:25:57,699
+So for example, we can do uncurry
+three let's specify, it's an int and 4.
+
+292
+00:25:59,230 --> 00:26:00,979
+and we get seven as expected.
+
+293
+00:26:02,790 --> 00:26:04,960
+So we have these endpoints.
+
+294
+00:26:05,160 --> 00:26:12,460
+So these promises, and now we can use select
+on those recall select now takes promises.
+
+295
+00:26:13,140 --> 00:26:20,030
+So this will now be the promise that waits
+until one of those four will get input and then
+
+296
+00:26:20,080 --> 00:26:22,040
+commit to that one and continue with that one.
+
+297
+00:26:23,139 --> 00:26:26,630
+Then using await promise we turn it into a contract.
+
+298
+00:26:26,750 --> 00:26:30,720
+And then again, we handle errors and do this forever.
+
+299
+00:26:31,510 --> 00:26:40,089
+So once one of the four operations is finished, it
+will offer all four again, in order to try it out.
+
+300
+00:26:40,199 --> 00:26:42,860
+Let's first use the emulator as we did before.
+
+301
+00:26:43,590 --> 00:26:49,480
+So I define a run my trace function that
+again, uses run emulator trace IO prime
+
+302
+00:26:50,370 --> 00:26:53,669
+with a custom emulator configuration.
+
+303
+00:26:53,670 --> 00:26:57,070
+And my trace will get to my trace in a minute.
+
+304
+00:26:57,610 --> 00:27:04,000
+Let's first look at the custom emulator
+configuration, where again, I specify an
+
+305
+00:27:04,000 --> 00:27:10,910
+initial distribution that doesn't give only
+ADA to the wallets, but also some other token.
+
+306
+00:27:12,330 --> 00:27:16,050
+So the idea is every wallet gets 1000 ADA.
+
+307
+00:27:17,260 --> 00:27:22,370
+And in addition to that thousand tokens
+where token is just arbitrary currency
+
+308
+00:27:22,370 --> 00:27:25,240
+symbol AA and token name capital A.
+
+309
+00:27:27,429 --> 00:27:35,950
+These underscores, make it easier to read large
+numbers and they are provided by extension, GHC
+
+310
+00:27:35,950 --> 00:27:40,290
+extension that's, called numeric underscores.
+
+311
+00:27:41,629 --> 00:27:46,060
+So we'll only use three wallets 1, 2,
+3, and each of them will have 1,000
+
+312
+00:27:46,290 --> 00:27:48,090
+ADA and 1,000 of these tokens.
+
+313
+00:27:49,330 --> 00:27:55,850
+Now for the trace first we activate
+the start endpoint for wallet one.
+
+314
+00:27:56,020 --> 00:28:01,070
+So wallet one will be the one running
+the token sale, owning the token sale.
+
+315
+00:28:01,070 --> 00:28:07,420
+And as  parameters we give our
+currency and name that we defined here.
+
+316
+00:28:07,440 --> 00:28:08,950
+So the AA and the A.
+
+317
+00:28:08,980 --> 00:28:11,760
+So that will be the token that can be sold.
+
+318
+00:28:12,619 --> 00:28:13,989
+And we specified true.
+
+319
+00:28:14,030 --> 00:28:20,110
+So we will use the thread token or
+NFT mechanism for the state machine.
+
+320
+00:28:20,599 --> 00:28:27,759
+So for this trace, that's possible, then
+we just wait for five slots to give this
+
+321
+00:28:27,759 --> 00:28:30,420
+enough time to start the state machine.
+
+322
+00:28:31,380 --> 00:28:39,649
+And we ask for the observable state, which
+if you recall, should be the token sale value
+
+323
+00:28:39,780 --> 00:28:45,990
+that has been started, which in particular
+also contains this just thread token in
+
+324
+00:28:45,990 --> 00:28:48,340
+this case, because we specified true here.
+
+325
+00:28:50,060 --> 00:28:54,270
+And then there are two possibilities
+that this M is nothing.
+
+326
+00:28:54,840 --> 00:28:58,710
+In which case the token sale hasn't
+started yet, or something went wrong.
+
+327
+00:28:58,710 --> 00:29:08,100
+So we log an error message and in the good case, the
+one we expect, we do get our TS of type token sale.
+
+328
+00:29:08,930 --> 00:29:14,260
+So we just log a message and now
+we can start the use endpoints.
+
+329
+00:29:14,260 --> 00:29:18,340
+Remember the use endpoints are
+parameterized by this TS value.
+
+330
+00:29:18,929 --> 00:29:24,789
+So we need to know the TS in
+order to start the use endpoints.
+
+331
+00:29:24,969 --> 00:29:32,350
+So we start them on all three wallets one,
+two, three, and then we call various endpoints.
+
+332
+00:29:33,490 --> 00:29:39,340
+So first wallet one sets the price to 1 ADA.
+
+333
+00:29:40,760 --> 00:29:42,260
+We wait for five slots.
+
+334
+00:29:43,550 --> 00:29:53,280
+Now, wallet one, adds 100 tokens to the token sale
+state machine for the token sale, UTxO we wait
+
+335
+00:29:53,460 --> 00:29:59,110
+another five slots now, wallet two buys 20 tokens.
+
+336
+00:29:59,760 --> 00:30:04,879
+And because the prize at the moment
+is one ADA, that should cost 20 ADA.
+
+337
+00:30:06,060 --> 00:30:18,710
+we wait another five slots wallet three buys, 5 ADA
+sorry wallet three buys five tokens, which should
+
+338
+00:30:18,710 --> 00:30:22,240
+cost 5 ADA, because the price it's still 1 ADA.
+
+339
+00:30:23,130 --> 00:30:24,000
+We wait again
+
+340
+00:30:27,360 --> 00:30:35,949
+and finally, wallet one
+withdraws, 40 tokens and 10 ADA.
+
+341
+00:30:37,629 --> 00:30:48,460
+So originally there were 100 tokens, 25 have
+been bought that leaves 75 40 are withdrawn.
+
+342
+00:30:49,060 --> 00:30:51,449
+So 35 should be left.
+
+343
+00:30:52,240 --> 00:30:55,890
+And initially there were no ADA, but wallet
+
+344
+00:30:56,060 --> 00:31:00,810
+two pay 20 and wallet three paid 5 makes 25.
+
+345
+00:31:01,440 --> 00:31:08,500
+So if we withdraw 10, then 15 should be
+left and we can run that in the repl.
+
+346
+00:31:08,940 --> 00:31:15,460
+Let's see.
+
+347
+00:31:17,020 --> 00:31:26,209
+So here the start contract was
+started We get the log message started
+
+348
+00:31:26,429 --> 00:31:34,350
+token sale with all the information in particular,
+also about the thread token that was picked.
+
+349
+00:31:37,420 --> 00:31:44,649
+Now we start the other three contracts, the
+use contracts parameterized by this TS value,
+
+350
+00:31:46,259 --> 00:31:56,405
+Here we set the price here add the tokens
+Wallet two buys, wallet three buys and wallet
+
+351
+00:31:56,570 --> 00:31:59,920
+one withdraws and let's see the final result.
+
+352
+00:32:01,580 --> 00:32:04,859
+So wallet one starts with 1,000 ADA.
+
+353
+00:32:06,340 --> 00:32:14,660
+And 1000 tokens and set 100 tokens
+up for sale, but withdrew 14.
+
+354
+00:32:15,130 --> 00:32:17,442
+So 940 tokens in the end.
+
+355
+00:32:17,570 --> 00:32:18,239
+That's correct.
+
+356
+00:32:18,870 --> 00:32:23,099
+And it also withdrew 10, ADA.
+
+357
+00:32:23,859 --> 00:32:30,510
+So this is roughly 10 ADA and the discrepancy
+is due to transaction fees Wallet two
+
+358
+00:32:31,080 --> 00:32:33,740
+started with 1,000 tokens and bought 20.
+
+359
+00:32:34,010 --> 00:32:36,010
+So that's correct, but had to pay 20.
+
+360
+00:32:36,090 --> 00:32:44,710
+So it's left with roughly 980 ADA Wallet three
+bought five tokens also correct and had to pay five.
+
+361
+00:32:45,060 --> 00:32:46,300
+So left with roughly 995.
+
+362
+00:32:48,169 --> 00:32:52,799
+And this here is the script UTxO, the token sale UTxO.
+
+363
+00:32:53,280 --> 00:32:55,869
+And as we said, so this is also correct.
+
+364
+00:32:55,880 --> 00:33:00,119
+35 tokens are left and 15 ADA.
+
+365
+00:33:01,739 --> 00:33:09,080
+So our contract seems to work at least as far
+as the behavior with this trace is concerned.
+
+366
+00:33:09,820 --> 00:33:17,170
+But in order to come to that conclusion we had to
+execute that in the repl and manually check the result.
+
+367
+00:33:17,660 --> 00:33:23,270
+Which of course you wouldn't want to do in a
+production environment, in a production environment.
+
+368
+00:33:23,280 --> 00:33:27,750
+You want to have automatic
+tests for example, unit tests.
+
+369
+00:33:28,440 --> 00:33:32,669
+So we'll look at how to do that in Plutus next.
+
+370
+00:33:32,980 --> 00:33:35,50
+This is actually the topic of today's lecture.
+
+371
+00:33:37,250 --> 00:33:48,000
+and there are various testing frameworks in Haskell.test harnesses 
+that can organize your tests, label your tests, group them, and so on,
+
+372
+00:33:48,309 --> 00:33:55,540
+but Plutus uses the so called tasty test
+framework, you can find tasty on Hackage.
+
+373
+00:33:56,730 --> 00:34:06,809
+And, there's also an example to basically you have
+a main program that uses, for example, default main,
+
+374
+00:34:06,840 --> 00:34:11,239
+and then some tests and tests are of type test tree.
+
+375
+00:34:11,879 --> 00:34:16,449
+And as the name suggests a test tree is
+a tree of tests so you can group tests
+
+376
+00:34:17,070 --> 00:34:19,620
+and have sub groups and sub sub groups.
+
+377
+00:34:19,620 --> 00:34:20,120
+and so on.
+
+378
+00:34:20,840 --> 00:34:28,139
+They're special support for tests in Plutus and
+that is provided in module Plutus dot contract
+
+379
+00:34:28,150 --> 00:34:31,610
+dot test in the Plutus minus contract package.
+
+380
+00:34:32,310 --> 00:34:35,879
+And there are various types
+of tests that are supported.
+
+381
+00:34:36,449 --> 00:34:44,000
+But today we'll only look at two of those one that
+works with emulator traces and one that's much more
+
+382
+00:34:44,000 --> 00:34:50,300
+sophisticated and uses so-called property-based
+testing, which we will look at next, but let's
+
+383
+00:34:50,300 --> 00:34:53,920
+start with the emulator trace based tests.
+
+384
+00:34:53,960 --> 00:35:01,069
+So in this module, there's the chapter
+on checking predicates and there
+
+385
+00:35:01,069 --> 00:35:03,490
+we see the connection with tasty.
+
+386
+00:35:04,240 --> 00:35:09,250
+So there's this check predicate function
+it takes a descriptive name of the test.
+
+387
+00:35:09,700 --> 00:35:11,350
+Then a trace predicate.
+
+388
+00:35:11,620 --> 00:35:15,059
+we'll get to that in a minute and then emulator trace.
+
+389
+00:35:15,110 --> 00:35:18,749
+Like the one we just used to
+manually test our contract.
+
+390
+00:35:19,170 --> 00:35:24,779
+And the result is a test tree, which we just
+saw is the type of tests that tasty uses.
+
+391
+00:35:25,220 --> 00:35:31,370
+So by using this check predicate, we can produce
+something that the tasty framework can understand.
+
+392
+00:35:32,059 --> 00:35:36,479
+There's also a variation check predicate
+options, where we can set some options.
+
+393
+00:35:36,780 --> 00:35:40,390
+So there's one additional
+argument of type check options.
+
+394
+00:35:41,500 --> 00:35:48,000
+And if you look at that, then We don't
+see any constructors, so they are hidden.
+
+395
+00:35:49,480 --> 00:35:54,450
+And in order to access the options and
+set various options, you need these
+
+396
+00:35:54,740 --> 00:35:56,799
+operations here and they have this.
+
+397
+00:35:56,839 --> 00:36:02,879
+We had typed that we haven't seen yet
+this lens prime and that is related
+
+398
+00:36:02,880 --> 00:36:04,310
+to something called optics in Haskell.
+
+399
+00:36:05,030 --> 00:36:07,140
+And that is a huge topic by itself.
+
+400
+00:36:08,010 --> 00:36:11,140
+And whole books have been
+written about optics in Haskell.
+
+401
+00:36:11,649 --> 00:36:14,240
+So I will ignore this for now.
+
+402
+00:36:14,290 --> 00:36:18,740
+Just show you how to use this simulator trace,
+and then say a couple of words about optics.
+
+403
+00:36:18,740 --> 00:36:28,330
+Unfortunately, I can't go into detail there and I find
+it a bit unfortunate that, you're basically forced to
+
+404
+00:36:28,330 --> 00:36:31,549
+use these optics in order to work with this library.
+
+405
+00:36:31,580 --> 00:36:38,770
+It would, in my opinion, have been better to expose the
+constructor so that we could have without using optics,
+
+406
+00:36:39,440 --> 00:36:42,040
+interacted with this check options type, for example.
+
+407
+00:36:43,430 --> 00:36:51,999
+But in any case, so this we can use here, this,
+emulator config lens to actually set an emulator
+
+408
+00:36:52,250 --> 00:36:59,030
+config like we did before, when we ran the manual,
+trace to specify an initial distribution of funds.
+
+409
+00:37:00,230 --> 00:37:05,720
+So let's look at this trace
+predicate now, and that specifies.
+
+410
+00:37:06,090 --> 00:37:12,849
+some predicate, Some condition, some check
+that the emulator trace should satisfy.
+
+411
+00:37:12,849 --> 00:37:16,100
+And this is then what will be
+tested when you run this test.
+
+412
+00:37:17,260 --> 00:37:21,510
+And, first of all, we see that
+there are some logical combinators.
+
+413
+00:37:22,670 --> 00:37:28,660
+so you have not to negate predicate
+and you have logical end to combine
+
+414
+00:37:28,670 --> 00:37:31,620
+two predicates to, the combination.
+
+415
+00:37:31,660 --> 00:37:35,490
+So this combination will only be true
+if both of the arguments are true.
+
+416
+00:37:36,600 --> 00:37:44,319
+And then we see there's a variety of
+possible trace predicates, various checks.
+
+417
+00:37:44,320 --> 00:37:48,139
+You can do some checking, some UTxOs and...
+
+418
+00:37:48,700 --> 00:37:53,560
+check that a contract has completed
+or not completed and so on.
+
+419
+00:37:54,720 --> 00:37:59,290
+But as an example, I will only use
+one that actually checks funds.
+
+420
+00:38:00,650 --> 00:38:07,710
+So here we have, wallet one's check, which
+given a wallet and the value determines that
+
+421
+00:38:08,620 --> 00:38:14,510
+after the emulator trace has executed the
+funds in the wallet have changed by this value.
+
+422
+00:38:15,570 --> 00:38:18,290
+And interestingly fees are ignored.
+
+423
+00:38:18,370 --> 00:38:20,390
+So we would have.
+
+424
+00:38:20,950 --> 00:38:26,340
+A hard time to write precise tests, if you had
+to take fees into account, because we don't
+
+425
+00:38:26,340 --> 00:38:31,020
+know exactly how high they are, and then we
+would have to like two approximations and so on.
+
+426
+00:38:31,410 --> 00:38:35,729
+So it's nice that we have this available
+where we can ignore fees, but there is also a
+
+427
+00:38:36,059 --> 00:38:38,629
+variation on this valid funds except change.
+
+428
+00:38:39,000 --> 00:38:40,899
+We have fees are taking into account.
+
+429
+00:38:42,070 --> 00:38:45,839
+And as you see, there are lots of
+other available trace predicates.
+
+430
+00:38:46,220 --> 00:38:51,050
+So if we go back to the module where I defined
+my trace, you see there's one additional
+
+431
+00:38:51,050 --> 00:38:53,320
+function here that I haven't shown you before.
+
+432
+00:38:53,809 --> 00:38:58,074
+And it's called tests and it's of
+type test tree, and it uses exactly
+
+433
+00:38:58,289 --> 00:38:59,849
+this check predicate options.
+
+434
+00:39:00,809 --> 00:39:07,020
+And, for the options I want to use the same
+emulator configuration that I used before.
+
+435
+00:39:07,170 --> 00:39:14,380
+That we also used for the manual trace here
+at this point, I showed you that earlier.
+
+436
+00:39:14,410 --> 00:39:19,740
+So I want to do the same, but now unfortunately,
+in order to set that I have to use these optics.
+
+437
+00:39:19,740 --> 00:39:20,990
+So let's ignore that for now.
+
+438
+00:39:21,210 --> 00:39:22,810
+just this syntax, works.
+
+439
+00:39:23,340 --> 00:39:30,380
+So these are the default check options, and then I
+modify the emulator, config in it to have this value.
+
+440
+00:39:31,270 --> 00:39:33,260
+And then the next argument is the name.
+
+441
+00:39:33,260 --> 00:39:35,170
+So I just call it token sale trace.
+
+442
+00:39:35,660 --> 00:39:37,759
+And now I use this end Combinator.
+
+443
+00:39:38,020 --> 00:39:41,690
+to Chain together, our three
+different trace predicates.
+
+444
+00:39:42,020 --> 00:39:43,480
+And each of these uses
+
+445
+00:39:43,480 --> 00:39:50,790
+these wallet, funds change where I ignore the fees and
+I just say, okay, wallet one, after being run should
+
+446
+00:39:50,790 --> 00:40:00,109
+have 10, ADA or more and 60 tokens less Wallet two
+should have 20 ADA less and 20 token more, and wallet
+
+447
+00:40:00,240 --> 00:40:03,440
+three should have five, ADA less and five tokens more.
+
+448
+00:40:03,960 --> 00:40:05,870
+We can try this out in the repl.
+
+449
+00:40:06,190 --> 00:40:08,960
+I just need to import test tasty.
+
+450
+00:40:09,820 --> 00:40:13,190
+And then I have this default main available.
+
+451
+00:40:13,190 --> 00:40:16,270
+I can do the default main tests
+
+452
+00:40:19,780 --> 00:40:25,810
+and it passes and says, okay, let's
+see what happens if it doesn't pass.
+
+453
+00:40:26,400 --> 00:40:28,629
+So let me just change value here.
+
+454
+00:40:29,119 --> 00:40:34,640
+Let's say instead of 60, I
+have 50 and let's run it again.
+
+455
+00:40:37,670 --> 00:40:45,950
+And now we see we get a failure and it gives us
+a nice error message that says what it expected.
+
+456
+00:40:47,010 --> 00:40:49,950
+The funds should change by minus 50.
+
+457
+00:40:50,350 --> 00:40:53,470
+But in actual fact, they changed by minus 60.
+
+458
+00:40:54,110 --> 00:40:59,320
+And we also get an emulator log that we
+didn't see before when the test pass.
+
+459
+00:41:00,509 --> 00:41:05,779
+This is probably the simplest and easiest way
+to write automatic tests for Plutus contracts.
+
+460
+00:41:06,350 --> 00:41:12,500
+You simply write one or more emulator traces,
+and then use check predicate in combination with
+
+461
+00:41:12,510 --> 00:41:18,650
+appropriate test predicates to check that those
+emulator traces lead to the desired result.
+
+462
+00:41:19,349 --> 00:41:22,669
+And what you get is more or
+less traditional unit tests.
+
+463
+00:41:23,250 --> 00:41:30,340
+Before I get to the second way of testing Plutus
+contracts that I want to present today, I want to give
+
+464
+00:41:30,350 --> 00:41:38,289
+a very brief introduction into optics and lenses, and
+they are various competing optics libraries on Hackage,
+
+465
+00:41:39,059 --> 00:41:42,329
+but the most prominent and also most infamous one.
+
+466
+00:41:42,500 --> 00:41:46,790
+And the one that the Plutus team
+decided to use is called lens.
+
+467
+00:41:46,940 --> 00:41:54,849
+And it's authored by Edward commit, who is probably
+the most prolific contributor to Haskell libraries.
+
+468
+00:41:55,559 --> 00:42:03,390
+And, you see already on the Hackage page, the
+overview page of the lens library, there's this
+
+469
+00:42:03,400 --> 00:42:07,520
+scaring diagram and there's a whole zoo of optics.
+
+470
+00:42:07,670 --> 00:42:09,150
+So there are lenses and prism, and
+
+471
+00:42:09,150 --> 00:42:11,489
+traversals and ISOs and whatnot.
+
+472
+00:42:12,099 --> 00:42:19,430
+And he has a nice diagram with all the operations, or
+some of the operations that the lens library provides.
+
+473
+00:42:20,770 --> 00:42:22,950
+And what optics are all about.
+
+474
+00:42:22,980 --> 00:42:31,350
+is Reaching deeply into like hierarchical
+data types and inspect parts that are deeply
+
+475
+00:42:31,350 --> 00:42:33,680
+hidden in a data type and manipulate them.
+
+476
+00:42:34,680 --> 00:42:40,860
+Let's look at a very simple example that I
+provide in module lens that shows the problem
+
+477
+00:42:40,900 --> 00:42:43,250
+and how optics addressed that problem.
+
+478
+00:42:44,470 --> 00:42:47,380
+So let's look at a company data type.
+
+479
+00:42:47,380 --> 00:42:53,409
+It's just a newtype wrapper around
+a list of persons with the excess.
+
+480
+00:42:53,410 --> 00:42:59,390
+So accord staff, and I provide an underscore
+in front of staff that has no semantic meaning.
+
+481
+00:42:59,680 --> 00:43:05,700
+So it's just another letter in this case, but
+when dealing with lenses, it's stress convention
+
+482
+00:43:05,700 --> 00:43:09,620
+to call fields with a leading underscore.
+
+483
+00:43:11,340 --> 00:43:14,230
+So we have this company type wrap around persons.
+
+484
+00:43:14,360 --> 00:43:18,550
+Then person has the record type
+with two fields name and address.
+
+485
+00:43:18,740 --> 00:43:22,650
+When name is justice string and address
+is of type address again, following this
+
+486
+00:43:22,650 --> 00:43:25,630
+convention to use underscores front of names.
+
+487
+00:43:26,610 --> 00:43:33,290
+And finally address is yet another newtype wrapper
+around a string where excess called underscore.
+
+488
+00:43:34,510 --> 00:43:36,990
+So there's nothing advanced going on.
+
+489
+00:43:37,000 --> 00:43:39,130
+That's basically first week Haskell.
+
+490
+00:43:40,610 --> 00:43:48,710
+And just as an example, I define two people, two
+persons, a hundred and last, with name and address.
+
+491
+00:43:48,970 --> 00:43:54,470
+And finally, I define a company where
+the staff consists of these two persons.
+
+492
+00:43:55,200 --> 00:44:02,470
+And now the task is to write a simple function,
+go to that gets a string as argument and a company
+
+493
+00:44:02,809 --> 00:44:09,970
+and the suppose to create a new company, which
+you'll get from the oil company by changing all
+
+494
+00:44:10,000 --> 00:44:19,489
+the city names or the cities of all the persons
+in the staff of the company to the given string.
+
+495
+00:44:20,230 --> 00:44:26,540
+So if I apply that to IOHK and
+a string argument, I use Ethans.
+
+496
+00:44:27,100 --> 00:44:32,370
+Then in the end, I should get a company with,
+again, two persons, again, name a hundred last,
+
+497
+00:44:32,370 --> 00:44:35,550
+but now both of those should have city Athens.
+
+498
+00:44:36,809 --> 00:44:39,289
+And I mean, that is not very difficult.
+
+499
+00:44:39,870 --> 00:44:41,049
+So you can easily do that.
+
+500
+00:44:41,049 --> 00:44:46,760
+You don't need any advanced test script for that,
+but it's a bit messy, even in this simple example.
+
+501
+00:44:47,440 --> 00:44:50,560
+So if I implement this, go to there.
+
+502
+00:44:50,560 --> 00:44:59,259
+So that's the new city and company then, I can use
+the old company and update the staff field in it.
+
+503
+00:45:00,420 --> 00:45:02,620
+And this is remember list of persons.
+
+504
+00:45:02,630 --> 00:45:07,440
+So I write the helper function, move person,
+and I map this helper function over the
+
+505
+00:45:07,440 --> 00:45:10,759
+list over the staff of the given company.
+
+506
+00:45:11,840 --> 00:45:16,659
+And now in order to implement this move
+person, I take the existing person.
+
+507
+00:45:16,740 --> 00:45:23,340
+And then you was record app update syntax to change the
+address, or the name will be the same as the name of P,
+
+508
+00:45:23,810 --> 00:45:28,100
+but I changed the address and what do I change it to?
+
+509
+00:45:28,260 --> 00:45:34,910
+Whether I take the existing address and change the
+city name to there, we can try this out in the repl.
+
+510
+00:45:36,230 --> 00:45:43,259
+So I can first look at the original
+company and it's as expected.
+
+511
+00:45:44,010 --> 00:45:53,989
+And now I can apply, go to Athens, to IOHK
+and you see that the deep insight, I mean,
+
+512
+00:45:53,989 --> 00:45:56,020
+a couple of levels down in the company.
+
+513
+00:45:56,500 --> 00:46:00,610
+Now we have changed the city names
+here to Athens and here as well.
+
+514
+00:46:01,050 --> 00:46:06,609
+So we see that I'm dealing with nested record types,
+even though conceptually, they are not complicated.
+
+515
+00:46:06,969 --> 00:46:11,899
+It's just can be quite messy because
+you always have to like keep the oil
+
+516
+00:46:12,289 --> 00:46:14,560
+fields in place and update the new ones.
+
+517
+00:46:14,560 --> 00:46:16,940
+And if it's nested, it can be quite messy.
+
+518
+00:46:17,450 --> 00:46:21,140
+And this is exactly what,
+optics try to solve and make it.
+
+519
+00:46:22,219 --> 00:46:26,720
+The idea is to provide something
+like first class field exercise.
+
+520
+00:46:27,630 --> 00:46:33,510
+And in the end, it's almost as easy, or it's
+very similar to dealing with such data types in
+
+521
+00:46:33,510 --> 00:46:39,720
+Haskell than it is in an imperative language with
+multiple data types using these dot excesses.
+
+522
+00:46:40,710 --> 00:46:49,760
+So in, in C sharp, you can, you could write something
+like company dot, staff dot, name, address city,
+
+523
+00:46:49,770 --> 00:46:53,479
+for example, and with lenses, it looks very similar.
+
+524
+00:46:53,780 --> 00:47:00,950
+So in that sense, I, when I introduced monads,
+I said that some people say that monads of a
+
+525
+00:47:01,590 --> 00:47:06,930
+programmable semi-colon because the semi-colon
+is normally what's used in a lot of programming
+
+526
+00:47:06,930 --> 00:47:09,570
+languages to chain statements together.
+
+527
+00:47:09,850 --> 00:47:14,190
+And with the monad you can customize
+how this chaining of statements works.
+
+528
+00:47:15,190 --> 00:47:20,869
+And similarly, you can say that optics
+provide a programmable.in the sense
+
+529
+00:47:20,889 --> 00:47:23,830
+often xsr.like in Python or Java.
+
+530
+00:47:25,029 --> 00:47:30,180
+And in order to work with lenses, I mean, you can,
+if you want to implement them by hand, but the lenses
+
+531
+00:47:30,180 --> 00:47:35,880
+library provides some template, Haskell and magic
+to do that automatically, but that expects these
+
+532
+00:47:36,009 --> 00:47:39,259
+underscore convention and a that's called make lenses.
+
+533
+00:47:39,259 --> 00:47:42,470
+And then you provide the types
+for which you want these lenses.
+
+534
+00:47:42,490 --> 00:47:47,510
+So I added these make lenses company,
+make lenses person make lenses address.
+
+535
+00:47:48,430 --> 00:47:54,070
+And the names of the lenses will be the names
+of the original fields without the underscore.
+
+536
+00:47:54,650 --> 00:47:56,910
+So that's why there's this convention.
+
+537
+00:47:57,049 --> 00:47:59,969
+The fields will have the underscore and the lenses.
+
+538
+00:48:00,039 --> 00:48:07,660
+Won't, there's a way to inspect what core template
+has rights at compile time from the repl for
+
+539
+00:48:07,660 --> 00:48:12,790
+that you can activate a flick or dump places.
+
+540
+00:48:14,610 --> 00:48:18,589
+Now, if I reload, I think happens,
+I think I must change to code.
+
+541
+00:48:18,629 --> 00:48:20,540
+So let me just like this.
+
+542
+00:48:21,710 --> 00:48:22,010
+Okay.
+
+543
+00:48:22,010 --> 00:48:23,225
+And there we go.
+
+544
+00:48:23,800 --> 00:48:26,330
+So this is now what template has good does.
+
+545
+00:48:26,690 --> 00:48:32,470
+So we see the make lenses for
+company gives us a staff eyesore.
+
+546
+00:48:32,630 --> 00:48:36,700
+So that's the type of uptick
+from company to list of person.
+
+547
+00:48:37,760 --> 00:48:46,209
+Then make lenses person gives us an address lens from
+person to address and name lens from person to string.
+
+548
+00:48:46,410 --> 00:48:54,020
+And finally make lenses address gives us a city
+ISO from address to string and ISO and lens are
+
+549
+00:48:54,020 --> 00:49:01,470
+two different types of optics, but the convention
+or the order of type arguments is of is the same.
+
+550
+00:49:01,890 --> 00:49:02,200
+So.
+
+551
+00:49:03,110 --> 00:49:07,799
+Two type agreements, at least for these
+prime varieties outlets or more general
+
+552
+00:49:08,070 --> 00:49:10,090
+optics with four type parameters.
+
+553
+00:49:10,600 --> 00:49:15,470
+But these with tool, the first fund
+is always like the big data type.
+
+554
+00:49:15,870 --> 00:49:19,660
+And then the second parameter is
+the one you zoom into the pot.
+
+555
+00:49:19,980 --> 00:49:25,299
+So it's called optics because you can have
+this mental image of zooming into a data type.
+
+556
+00:49:26,040 --> 00:49:34,529
+So the staff lens or ISO provides a way to zoom in from
+a company to the staff, which is a list of persons.
+
+557
+00:49:34,980 --> 00:49:40,360
+The address lens allows us given a person to
+zoom into the address field of the person.
+
+558
+00:49:40,750 --> 00:49:46,519
+The name lens gives us a way to zoom in from
+a person to the name, which is a string.
+
+559
+00:49:46,519 --> 00:49:53,720
+And finally, the city ISO allows us to zoom
+in from address into the city named string.
+
+560
+00:49:54,910 --> 00:49:56,779
+And we can try these out.
+
+561
+00:49:56,790 --> 00:50:05,629
+So if you take, for example, loss and want
+to use the name lens one way is to trust.
+
+562
+00:50:05,750 --> 00:50:11,620
+Look at the result of zooming in, I can
+do last and then use one of these funny
+
+563
+00:50:11,620 --> 00:50:13,330
+operators provide by the lens library.
+
+564
+00:50:13,330 --> 00:50:17,949
+That's this carrot dot and then one of the lenses.
+
+565
+00:50:18,580 --> 00:50:26,080
+So let's take the name lens and I see, I
+have to import control lens for this to work.
+
+566
+00:50:29,430 --> 00:50:35,129
+Then I indeed get last, which is not very
+exciting, but at least it works some life.
+
+567
+00:50:35,150 --> 00:50:40,450
+Instead I use the address lens and I get the address.
+
+568
+00:50:41,570 --> 00:50:46,490
+So one very important feature of lenses and that
+makes them so powerful is that you can compose them.
+
+569
+00:50:47,060 --> 00:50:51,510
+So using the address lens, I get
+from a person to the address.
+
+570
+00:50:51,510 --> 00:50:57,469
+But the address itself is again, a record
+type, which has this city field, and I can
+
+571
+00:50:58,070 --> 00:51:01,040
+chain lenses together if they are compatible.
+
+572
+00:51:01,059 --> 00:51:07,810
+So I have something going from person to address
+and I have something going from address to string.
+
+573
+00:51:08,120 --> 00:51:09,039
+Then I can combine them.
+
+574
+00:51:09,039 --> 00:51:14,270
+And the combination is actually just the usual
+function, composition dot, which is actually
+
+575
+00:51:14,410 --> 00:51:19,390
+very cute because it's exactly like in a
+imperative programming languages with the XSR dot.
+
+576
+00:51:19,680 --> 00:51:25,200
+And there is some quite advanced type level of
+machinery going on behind the scenes to make that
+
+577
+00:51:25,200 --> 00:51:33,520
+work, but it works so I can just address.city
+for example, and now eyes womb into steps.
+
+578
+00:51:33,530 --> 00:51:39,000
+So from the person last first to the address and
+then to the city, and I see the result, which is
+
+579
+00:51:39,060 --> 00:51:47,940
+waking Spock and you can't only view the result of
+zooming in, you can also manipulate so you can set.
+
+580
+00:51:48,200 --> 00:51:52,500
+So if I want to, for example,
+set my name to something else.
+
+581
+00:51:53,049 --> 00:51:54,020
+Do the following.
+
+582
+00:51:54,629 --> 00:51:57,950
+So here, the syntax would be this
+epicenter, which is basically just
+
+583
+00:51:59,270 --> 00:52:01,110
+function application the other way round.
+
+584
+00:52:01,110 --> 00:52:05,950
+So the argument comes first and
+then the function and now a lens.
+
+585
+00:52:05,960 --> 00:52:10,969
+So name and now call on Tudor and new value.
+
+586
+00:52:11,029 --> 00:52:16,160
+So if I want to, for example, renamed
+myself to all upper case, I can do this.
+
+587
+00:52:16,750 --> 00:52:20,880
+And now the result is a new
+person where the name has updated.
+
+588
+00:52:21,540 --> 00:52:32,090
+And again, I can compose, so I can do, for example,
+name taught or not name, address, and then.city.
+
+589
+00:52:32,380 --> 00:52:36,420
+So I can reach into the present with the
+address and then deeper insight to the
+
+590
+00:52:36,420 --> 00:52:43,870
+city and update the city from, for example,
+things, book to Munich and it auto box.
+
+591
+00:52:44,429 --> 00:52:47,369
+So name and address are lenses and lenses.
+
+592
+00:52:47,830 --> 00:52:53,370
+Uh, I mean the tuition is that it's a part of a
+data structure like the field and the record type.
+
+593
+00:52:54,610 --> 00:53:01,389
+There's a different type of optics quote traversable,
+which doesn't only zoom into one field, one thing,
+
+594
+00:53:01,400 --> 00:53:04,980
+one smaller part, but into many simultaneously.
+
+595
+00:53:05,390 --> 00:53:08,660
+So if you have a list, it would zoom into each element.
+
+596
+00:53:08,820 --> 00:53:21,940
+So for example, I can use, a list of integers three,
+four, And now I can use the, each traversable,
+
+597
+00:53:22,309 --> 00:53:28,540
+which works for lots of container types,
+including lists and can set every elemental 42.
+
+598
+00:53:29,820 --> 00:53:33,060
+And now I get a list with three 40 twos.
+
+599
+00:53:34,230 --> 00:53:39,830
+And the cool thing is that various types of
+lenses, can we combine again with the dot operator?
+
+600
+00:53:40,949 --> 00:53:46,730
+So for example, I had this IOHK type,
+sorry, the company type so I can have IOHK
+
+601
+00:53:47,580 --> 00:53:54,470
+and I can, view the staff that we have
+seen before, but now the staff is a list.
+
+602
+00:53:54,880 --> 00:54:00,460
+So now for example, I can compose
+it with the, each traversable.
+
+603
+00:54:00,460 --> 00:54:04,510
+So now I focus on each element
+of the list, which is a person.
+
+604
+00:54:05,630 --> 00:54:13,700
+Now I can compose this with address and
+that with the city, and finally set it to,
+
+605
+00:54:14,030 --> 00:54:17,630
+for example, essence, oh, I wanted to set.
+
+606
+00:54:18,760 --> 00:54:27,629
+So what I have to do as this, and this
+is exactly what this go to function.
+
+607
+00:54:28,860 --> 00:54:36,910
+So I reach into the staff, then reach into each
+person in the staff, into each person's address
+
+608
+00:54:36,940 --> 00:54:40,230
+into each addresses city and set it to essence.
+
+609
+00:54:41,250 --> 00:54:48,350
+So instead of this relatively messy quote I wrote
+before using lenses, I can simply update the name of
+
+610
+00:54:48,350 --> 00:54:52,010
+the city of each person in the company using this.
+
+611
+00:54:53,029 --> 00:54:58,320
+If we go back to the quote, that's exactly how
+you can implement this to function using lenses.
+
+612
+00:54:58,950 --> 00:55:04,710
+So you just, update the company
+using this composed lens or not.
+
+613
+00:55:04,730 --> 00:55:07,230
+It's not the lens then anymore because
+there's a traversable in there.
+
+614
+00:55:07,230 --> 00:55:14,200
+This compost optics,
+staff.each.address.city and set it to there.
+
+615
+00:55:15,360 --> 00:55:20,660
+And this is actually what I did
+here when I configured our test.
+
+616
+00:55:21,300 --> 00:55:26,020
+So this default check options is of
+type check options, but there's a lens
+
+617
+00:55:26,030 --> 00:55:28,239
+from check options to emulator config.
+
+618
+00:55:28,500 --> 00:55:34,399
+And I just wanted to change the emulator config so
+I can use this and, and then this emulator config
+
+619
+00:55:34,690 --> 00:55:38,230
+lens and set it to the value I wanted to have.
+
+620
+00:55:39,420 --> 00:55:44,560
+So that's how this works and that
+concludes the brief excursion into optics.
+
+621
+00:55:44,620 --> 00:55:45,749
+It's a fascinating topic.
+
+622
+00:55:46,309 --> 00:55:48,099
+I love lenses and optics.
+
+623
+00:55:48,119 --> 00:55:49,330
+I think they're really cool.
+
+624
+00:55:49,330 --> 00:55:54,549
+And you can do very cool things with that, but
+of course, it's not the topic of these lectures.
+
+625
+00:55:55,100 --> 00:56:00,610
+The second approach to testing plutus contracts,
+I want to present today uses a concept called
+
+626
+00:56:00,610 --> 00:56:07,475
+property-base testing, and that is quite a
+revolutionary approach to testing that is
+
+627
+00:56:07,610 --> 00:56:10,810
+much more powerful than simple unit testing.
+
+628
+00:56:11,690 --> 00:56:18,650
+And it originally from Haskell and Haskell
+due to it's pureness and it's immutable data
+
+629
+00:56:18,660 --> 00:56:25,640
+structures is particularly suited to this
+approach, but it has been copied by almost
+
+630
+00:56:25,700 --> 00:56:27,840
+all other programming languages by now.
+
+631
+00:56:28,250 --> 00:56:34,890
+So you get property-base testing diaries for
+Java and Python and C sharp and Javascript,
+
+632
+00:56:36,179 --> 00:56:42,689
+and many more And the, one of the inventors
+of quick check, which is the most prominent.
+
+633
+00:56:42,689 --> 00:56:50,369
+And it was the first library using this approach
+is, John Hughes, who is also one of the original
+
+634
+00:56:50,590 --> 00:56:59,179
+inventors of Haskell And he and his company
+actually worked with IOHK to provide special support
+
+635
+00:56:59,190 --> 00:57:01,939
+of this approach to testing plutus contracts.
+
+636
+00:57:03,030 --> 00:57:05,770
+But before we go to that, let's first look at vanilla.
+
+637
+00:57:05,820 --> 00:57:14,190
+Quick check for pure Haskell programs in particular
+property-base testing subsumes unit tests.
+
+638
+00:57:14,309 --> 00:57:16,900
+So unit tests, are just a special case.
+
+639
+00:57:17,559 --> 00:57:21,730
+So we can have a very silly, simple unit test.
+
+640
+00:57:21,870 --> 00:57:36,690
+Something like simple, simple prop, just of type
+boolean, something like, two plus two equals four.
+
+641
+00:57:36,700 --> 00:57:38,940
+I'd say ints.
+
+642
+00:57:41,800 --> 00:57:49,529
+and if I import quick check, then I can
+test this property with the quick check
+
+643
+00:57:49,799 --> 00:57:55,750
+function and quick check tells me it's okay.
+
+644
+00:57:55,880 --> 00:57:57,220
+So the property is true.
+
+645
+00:57:58,460 --> 00:58:03,609
+If I modify it and make it false, then it fails.
+
+646
+00:58:04,679 --> 00:58:06,460
+Of course, that is not very exciting.
+
+647
+00:58:06,540 --> 00:58:11,979
+Oh, by the way I see the convention is to call
+these quick check properties prop underscore
+
+648
+00:58:12,150 --> 00:58:16,720
+not where I did it let's change that.
+
+649
+00:58:16,720 --> 00:58:24,129
+Let's also make it correct again now to see a more
+interesting example, here is a implementation of a
+
+650
+00:58:24,210 --> 00:58:31,030
+sort function sorting list of integers, which is using
+insertion sort which of course is not very efficient.
+
+651
+00:58:31,990 --> 00:58:38,140
+So the idea of insertion sort is you saw
+at the tail of the list and then insert
+
+652
+00:58:38,450 --> 00:58:40,959
+the hat of the list at the right position.
+
+653
+00:58:41,740 --> 00:58:44,220
+And, this is a buggy implementation.
+
+654
+00:58:45,150 --> 00:58:51,890
+And in order to test it, for example, a property
+that we could test would be after applying sort
+
+655
+00:58:51,890 --> 00:58:54,700
+to list of integers to result in list is sorted.
+
+656
+00:58:55,210 --> 00:59:01,399
+So I define a helper function is sorted that
+checks whether a given a list of ints is sorted.
+
+657
+00:59:01,719 --> 00:59:03,290
+So the empty list is sorted.
+
+658
+00:59:03,290 --> 00:59:09,100
+A one element list is sorted and list
+with at least two elements are sorted.
+
+659
+00:59:09,110 --> 00:59:16,160
+If the first element is less than or equal the
+second element, if, and if recursively, the tail
+
+660
+00:59:16,200 --> 00:59:22,529
+of the list is sorted and using that, we can
+now provide a quick check property like this.
+
+661
+00:59:22,549 --> 00:59:29,120
+That is not just simply of type boolean, but
+instead is a function from list of ints to bool.
+
+662
+00:59:29,660 --> 00:59:34,450
+So you can read that like a specification
+or like a mathematical property.
+
+663
+00:59:34,710 --> 00:59:43,449
+Basically it says for all list of integers XS, if
+you apply sort to it, then the result should be
+
+664
+00:59:43,470 --> 00:59:47,950
+sorted and quick check can deal with such properties.
+
+665
+00:59:48,720 --> 00:59:55,370
+So I can try that in the repl and
+apply quick check to this new property.
+
+666
+00:59:56,210 --> 01:00:03,340
+So it sorts and it fails And
+it gives me a counter example.
+
+667
+01:00:03,420 --> 01:00:10,020
+So it says for this list, XS
+this property doesn't hold.
+
+668
+01:00:10,250 --> 01:00:13,179
+So if I sort it, the result is not sorted.
+
+669
+01:00:13,670 --> 01:00:15,410
+So I can try that out.
+
+670
+01:00:17,250 --> 01:00:24,080
+And indeed I get zero minus one,
+which is indeed not a sorted list.
+
+671
+01:00:24,890 --> 01:00:30,060
+And in addition to that, it also seems to
+have lost an element somewhere on the way.
+
+672
+01:00:30,530 --> 01:00:32,530
+So how does quick chek do that?
+
+673
+01:00:33,570 --> 01:00:36,259
+So if you provide a function with mon
+
+674
+01:00:36,320 --> 01:00:43,740
+or also more arguments to the quick check function,
+it will generate random arguments for the function.
+
+675
+01:00:43,920 --> 01:00:48,430
+So in our case, because we have one
+argument of type list of ints, quick
+
+676
+01:00:48,660 --> 01:00:51,430
+check will generate random list of ints.
+
+677
+01:00:52,199 --> 01:01:00,560
+And then for each of these random lists check whether
+the property holds and if it does then the test passes.
+
+678
+01:01:00,930 --> 01:01:03,950
+But if it doesn't, it will report the counter example.
+
+679
+01:01:03,960 --> 01:01:11,449
+However, we see that here in this error report,
+it says after eight tests and four shrinks.
+
+680
+01:01:12,010 --> 01:01:14,490
+So this means quick check, try it eight.
+
+681
+01:01:15,780 --> 01:01:21,490
+Random integer lists and then found a counter
+example where this property didn't hold, but
+
+682
+01:01:21,490 --> 01:01:26,339
+then it didn't simply report the list it had
+at that point, but it tried to simplify it.
+
+683
+01:01:26,340 --> 01:01:29,529
+And this is so-called shrinking and
+that's also very powerful feature of
+
+684
+01:01:29,529 --> 01:01:32,550
+quick check because often the counter
+
+685
+01:01:32,550 --> 01:01:34,393
+examples, to random counter example at
+
+686
+01:01:34,393 --> 01:01:38,730
+quick check finds are very complicated,
+very long lists with very long numbers.
+
+687
+01:01:39,280 --> 01:01:45,669
+But then once a counter example has been found
+quick chek tries to simplify these counter examples.
+
+688
+01:01:46,199 --> 01:01:52,060
+So in the case of list of ints might try to
+drop an element of the list that it found as a
+
+689
+01:01:52,100 --> 01:01:57,320
+counter example and check whether the property
+is still violated, or maybe make some of the
+
+690
+01:01:57,389 --> 01:02:03,109
+numbers in the list smaller until it doesn't
+find a way to get an even simpler example.
+
+691
+01:02:03,969 --> 01:02:08,970
+And this is really very powerful and very
+useful because if you want to, debug, it's very
+
+692
+01:02:09,180 --> 01:02:14,390
+important to have not only a counter example, but
+a simpler counter example, as simple as possible.
+
+693
+01:02:14,940 --> 01:02:19,790
+So it's this combination of random test
+generation and shrinking that makes
+
+694
+01:02:19,870 --> 01:02:21,779
+quick shake so tremendously useful.
+
+695
+01:02:22,739 --> 01:02:29,980
+And actually we can see what types of
+random lists quick check generates.
+
+696
+01:02:29,980 --> 01:02:37,650
+there's a function called sample, and
+it looks a bit weird, but bear with me.
+
+697
+01:02:39,089 --> 01:02:42,610
+So the way quick check does this run
+random generation is via type class
+
+698
+01:02:42,610 --> 01:02:44,840
+and the type class is called arbitrary.
+
+699
+01:02:44,880 --> 01:02:46,710
+with Capital a.
+
+700
+01:02:47,300 --> 01:02:52,270
+So we can actually ask for
+information on the arbitrary class.
+
+701
+01:02:52,270 --> 01:03:02,250
+And we see there are lots of instances
+already, and we see it has two methods.
+
+702
+01:03:02,600 --> 01:03:03,650
+One is called arbitrary.
+
+703
+01:03:03,790 --> 01:03:04,490
+One is shrink.
+
+704
+01:03:04,490 --> 01:03:09,740
+So arbitrary is of type gen A
+and gen is here another monad.
+
+705
+01:03:10,190 --> 01:03:17,210
+And basically what it allows is it allows
+random number generation for values of type a.
+
+706
+01:03:17,869 --> 01:03:24,740
+So it has various methods provided by the
+monad that allow you to do random generation.
+
+707
+01:03:25,710 --> 01:03:27,770
+And the second method is shrink.
+
+708
+01:03:28,080 --> 01:03:36,330
+so given an, a provide a list of simpler versions of a
+whatever that means that depends on the type of course.
+
+709
+01:03:37,270 --> 01:03:42,420
+And as I said, we have lots of predefined
+instances for this arbitrary class already.
+
+710
+01:03:42,420 --> 01:03:49,170
+So in particular, we have one for int somewhere
+and given an arbitrary instance for A we also
+
+711
+01:03:49,170 --> 01:03:51,000
+have an arbitrary instance for list of As.
+
+712
+01:03:51,210 --> 01:03:55,449
+and therefore we check now how to generate random ints.
+
+713
+01:03:56,260 --> 01:04:00,260
+And now, if we look at the result
+of the sample function that just
+
+714
+01:04:00,260 --> 01:04:06,760
+in IO provides Some of the random,
+int lists that quick check will use
+
+715
+01:04:06,900 --> 01:04:07,290
+And there.
+
+716
+01:04:07,390 --> 01:04:11,390
+we see something interesting that the
+further we go down in the list, the
+
+717
+01:04:11,390 --> 01:04:13,150
+more complicated the list becomes.
+
+718
+01:04:13,160 --> 01:04:15,840
+So the first random one is just the empty list.
+
+719
+01:04:16,230 --> 01:04:20,280
+And then we get two with just one element
+with quite small numbers, minus two and
+
+720
+01:04:20,280 --> 01:04:26,319
+zero, and then we get longer lists, but
+the elements, yeah, still only one digit.
+
+721
+01:04:26,730 --> 01:04:33,680
+And we get simple ones again, but towards the end,
+we have like long lists with quite light numbers.
+
+722
+01:04:34,800 --> 01:04:39,766
+So in addition to just providing random
+generation in this, gen monad there is
+
+723
+01:04:39,766 --> 01:04:43,029
+also concept of basically complexity.
+
+724
+01:04:43,710 --> 01:04:50,640
+So not only if you implement it actually by
+hand, then you're not only supposed to, to some
+
+725
+01:04:50,640 --> 01:04:54,390
+are generated random a but also a random, a.
+
+726
+01:04:54,390 --> 01:05:01,319
+of some Sort of complexity, so a simple random
+a or more complex random A, And then when
+
+727
+01:05:01,389 --> 01:05:08,690
+quick check actually checks a property, it
+starts with simple random arguments and then
+
+728
+01:05:08,700 --> 01:05:10,930
+makes them more and more complex over time.
+
+729
+01:05:11,310 --> 01:05:18,170
+And by default it tries 100 different random arguments
+to a given property, but that can be configured.
+
+730
+01:05:18,700 --> 01:05:26,400
+So I think 100 is a good default for development, but
+probably if for production, especially for complex
+
+731
+01:05:26,410 --> 01:05:32,980
+properties, something like a thousand or even 10,000
+is maybe more appropriate, so that can be configured.
+
+732
+01:05:33,380 --> 01:05:33,660
+Okay.
+
+733
+01:05:33,660 --> 01:05:39,999
+And so we see that this random generation for
+int lists work and in our example, we found
+
+734
+01:05:40,680 --> 01:05:43,120
+this counter example zero zero minus one.
+
+735
+01:05:44,290 --> 01:05:51,790
+If we inspect the code, it's quite obvious that
+there's one back here, because all we do for non
+
+736
+01:05:51,790 --> 01:05:54,740
+empty list is insert the first element into the tail.
+
+737
+01:05:55,400 --> 01:06:05,310
+But we don't recursively sort the tail so we
+can try to fix this and test again, and now
+
+738
+01:06:05,310 --> 01:06:07,410
+it doesn't find a counter example anymore.
+
+739
+01:06:09,530 --> 01:06:15,270
+So this property now seems to be satisfied,
+at least for the 100 or 200 test cases.
+
+740
+01:06:15,270 --> 01:06:15,402
+We tried.
+
+741
+01:06:15,402 --> 01:06:19,360
+However, if I try the original.
+
+742
+01:06:20,470 --> 01:06:25,819
+counter example that we found before fixing this
+back, we see that we still, I mean, we get this
+
+743
+01:06:25,820 --> 01:06:29,169
+sorted list now, but it's of course still not correct.
+
+744
+01:06:29,950 --> 01:06:35,540
+And this leads to an important point that
+obviously quick check can't do magic.
+
+745
+01:06:35,640 --> 01:06:39,090
+So the results are only as good
+as the properties we provide.
+
+746
+01:06:39,500 --> 01:06:45,010
+And what we see here is that this one property
+we have prop sort sorts is not strong enough to
+
+747
+01:06:45,030 --> 01:06:47,609
+detect whether the function is actually correct.
+
+748
+01:06:47,710 --> 01:06:52,399
+So in this case, we do get a sorted
+list, but it's still the wrong result.
+
+749
+01:06:52,879 --> 01:07:03,490
+So for example, we could add a second property prop
+sort preserves length, which states that after sorting
+
+750
+01:07:03,770 --> 01:07:07,000
+the result should be as long as the original list.
+
+751
+01:07:09,339 --> 01:07:16,640
+So what we could say is, for example,
+length sort xs equals length.
+
+752
+01:07:17,310 --> 01:07:17,860
+xs.
+
+753
+01:07:17,860 --> 01:07:19,503
+If we try this, then we do find it
+another counter example zero, zero.
+
+754
+01:07:19,503 --> 01:07:33,770
+And if you check sort of zero, zero, we
+see, we only get the one element list.
+
+755
+01:07:35,040 --> 01:07:49,770
+And the bug is, here, because if X is less than or
+equal, Y, we append X to Ys but we forget about the Y.
+
+756
+01:07:51,140 --> 01:08:00,520
+So that's insert that there and try quick check
+again, and it works, but of course there is still no
+
+757
+01:08:00,530 --> 01:08:08,600
+proof that our function is correct because these two
+properties together that, actually the result is sorted
+
+758
+01:08:08,600 --> 01:08:14,700
+and it has the same length as the original list is
+still not enough to fully specify a sorting function.
+
+759
+01:08:14,990 --> 01:08:18,439
+For example, the sorting function
+could simply return a list of the same
+
+760
+01:08:18,439 --> 01:08:20,960
+length, where all the elements are zero.
+
+761
+01:08:21,299 --> 01:08:22,379
+So that would be sorted.
+
+762
+01:08:22,379 --> 01:08:27,390
+And it would have the same length, but
+obviously it wouldn't sort the original list.
+
+763
+01:08:28,420 --> 01:08:35,090
+So it's quite an odd to find properties that
+are strong enough to basically guarantee that
+
+764
+01:08:35,099 --> 01:08:37,519
+if they are all satisfied, there is no bug.
+
+765
+01:08:37,929 --> 01:08:44,340
+but nevertheless, this quick check approach is much
+more powerful than traditional unit testing because
+
+766
+01:08:44,340 --> 01:08:51,420
+it tests so many hundreds of thousands of random test
+cases and often finds examples that a human programmer
+
+767
+01:08:51,420 --> 01:08:54,010
+that writes unit tests wouldn't have thought of.
+
+768
+01:08:54,210 --> 01:08:55,720
+And with a few lines of code.
+
+769
+01:08:55,759 --> 01:09:02,650
+Now, these two properties that I provided,
+I test a hundred of thousands of scenarios.
+
+770
+01:09:03,180 --> 01:09:07,609
+Which is much better than just writing
+two unit tests for specific lists.
+
+771
+01:09:08,130 --> 01:09:15,939
+Now that we have gotten a brief overview of quick
+check, we will apply it to testing of plutus
+
+772
+01:09:15,979 --> 01:09:19,939
+contracts, but there we encounter a problem.
+
+773
+01:09:20,290 --> 01:09:26,420
+Namely, how do you use quick check to test
+side effecting code, code that has effects, in
+
+774
+01:09:26,420 --> 01:09:31,560
+the real world like on a blockchain and that
+problem doesn't only arise with blockchains.
+
+775
+01:09:32,349 --> 01:09:37,420
+It arises with all systems
+that use IO that have effects.
+
+776
+01:09:38,979 --> 01:09:44,269
+And, John Hughes himself always uses the
+example of, for example, file system.
+
+777
+01:09:44,270 --> 01:09:50,749
+How would you test file system operations like open
+a file, write To a file, close, a file, read a file.
+
+778
+01:09:50,749 --> 01:09:55,470
+And so on, using quick check
+and the approach one can use.
+
+779
+01:09:55,470 --> 01:09:58,480
+There is very similar to the
+one that is used for plutus.
+
+780
+01:09:58,480 --> 01:10:06,179
+And the idea is that you start with a model
+A model is basically an idealized model
+
+781
+01:10:07,190 --> 01:10:10,509
+of how the real world system should work.
+
+782
+01:10:11,000 --> 01:10:15,590
+So there must be some sort of relation
+between the model and the real system.
+
+783
+01:10:17,080 --> 01:10:23,920
+So if the real system is a file system, then
+you could in the model have an idealized
+
+784
+01:10:23,920 --> 01:10:26,549
+version of how you think file should work.
+
+785
+01:10:27,530 --> 01:10:30,490
+And then what quick check does.
+
+786
+01:10:31,210 --> 01:10:39,259
+In its random generation, it generates a random
+sequence of actions that you can perform on the system.
+
+787
+01:10:39,270 --> 01:10:45,450
+So in the example of a file system, it would randomly
+generate the sequence of opening files, closing
+
+788
+01:10:45,450 --> 01:10:48,099
+files writing to files, reading files and so on.
+
+789
+01:10:48,959 --> 01:10:54,080
+And now you can basically step this
+model and the system in parallel.
+
+790
+01:10:54,370 --> 01:11:01,200
+So you have some sort of action that you
+perform in the real world, and you apply
+
+791
+01:11:01,200 --> 01:11:03,339
+the same type of action to your model.
+
+792
+01:11:05,320 --> 01:11:14,880
+And then after that, your real system has progressed
+into a new state and your model has also been updated.
+
+793
+01:11:15,990 --> 01:11:21,700
+And then after the step, you can compare the
+two and check whether they are still in sync
+
+794
+01:11:22,580 --> 01:11:26,230
+and you continue this For several steps.
+
+795
+01:11:26,980 --> 01:11:30,450
+So when our first quick check example we
+
+796
+01:11:30,740 --> 01:11:38,150
+generate a random list of ints, the idea for testing
+a real word system is to generate random lists of
+
+797
+01:11:38,190 --> 01:11:46,800
+actions and then apply those actions both to a model
+and to the real system and compare that the results
+
+798
+01:11:46,980 --> 01:11:54,730
+are as expected and that the model and the real
+system stay in sync and shrinking in this case would
+
+799
+01:11:54,740 --> 01:12:01,060
+be, if you have a list of actions that, that shows
+that there's a bug in your system, then you can, for
+
+800
+01:12:01,060 --> 01:12:07,160
+example, drop some of the actions and see whether the
+problem still arises and try making this action, list
+
+801
+01:12:07,160 --> 01:12:14,490
+shorter until you can't drop any more actions
+from the list and still reproduce the bug.
+
+802
+01:12:15,679 --> 01:12:18,629
+And this is exactly how the quick
+
+803
+01:12:18,650 --> 01:12:20,500
+check support for plutus also works.
+
+804
+01:12:20,960 --> 01:12:27,580
+So in order to test the plutus contract, we
+have to come up with the model and define our
+
+805
+01:12:27,580 --> 01:12:34,130
+expectations, how the various endpoints, for
+example, would change the model and provide
+
+806
+01:12:34,130 --> 01:12:37,400
+a link between the model and the real system.
+
+807
+01:12:37,700 --> 01:12:44,610
+Or actually it's not the real blockchain,
+it's the emulator, but in, in a sense
+
+808
+01:12:44,610 --> 01:12:47,620
+that it's like a real system and then.
+
+809
+01:12:48,240 --> 01:12:50,540
+Apply this quick check machinery.
+
+810
+01:12:50,900 --> 01:12:55,930
+So that's what we will look at next for
+the example of our token sale contract.
+
+811
+01:12:56,460 --> 01:13:05,200
+So the code for this is in module spec dot model, and
+here we see we import plutus contract tests that we saw
+
+812
+01:13:05,200 --> 01:13:07,999
+before that provides basic support for testing plutus.
+
+813
+01:13:09,080 --> 01:13:14,140
+And now to use this quick check approach, we
+also import plutus contract tests contract model,
+
+814
+01:13:15,260 --> 01:13:23,090
+which has all the machinery to define a model and
+link it to the real contract further more we have
+
+815
+01:13:23,120 --> 01:13:29,389
+test dot tasty and test dot tasty quick check,
+test dot tasty dot quick check provides a link
+
+816
+01:13:29,590 --> 01:13:35,460
+between quick check and tasty so that you can
+use quick check properties in tasty test suites.
+
+817
+01:13:37,970 --> 01:13:43,899
+So to define the model first, define a
+data type TS state for token sale state.
+
+818
+01:13:44,270 --> 01:13:51,340
+So that's supposed to represent the state
+of one token sale instance, and it has three
+
+819
+01:13:51,440 --> 01:14:00,039
+fields, the current price, the current supply
+of lovelace in the UTxO, in the contract and
+
+820
+01:14:00,050 --> 01:14:03,099
+the current supply of tokens in the contract.
+
+821
+01:14:03,809 --> 01:14:05,319
+And now I define my model.
+
+822
+01:14:05,319 --> 01:14:08,850
+That is now the model I was talking
+about in the diagram earlier.
+
+823
+01:14:09,530 --> 01:14:14,270
+And that is Just a map from wallet to token sale state.
+
+824
+01:14:14,540 --> 01:14:19,639
+So the idea in this test is that I have
+several wallets, actually only two, and
+
+825
+01:14:20,049 --> 01:14:23,079
+all the wallets run their own token sale.
+
+826
+01:14:23,359 --> 01:14:29,410
+So we have left two wallets and each of the wallets
+will run a token sale contract and we will have two
+
+827
+01:14:29,460 --> 01:14:32,900
+tokens and the two wallets will trade different tokens.
+
+828
+01:14:33,950 --> 01:14:38,410
+And the idea to use a map is that in the
+beginning, before the contract has started,
+
+829
+01:14:39,120 --> 01:14:41,040
+there won't be an entry for that wallet.
+
+830
+01:14:41,040 --> 01:14:46,930
+And once the contract has started, there will be
+an entry for that wallet with the current state.
+
+831
+01:14:48,070 --> 01:14:56,899
+And I am also implement lenses for that because we
+also need optics in order to interact with the library
+
+832
+01:14:56,950 --> 01:15:01,420
+with this plutus contract test contract model library.
+
+833
+01:15:02,850 --> 01:15:10,769
+And now that all the logic is in the instance
+of the type class contract model for this type.
+
+834
+01:15:11,179 --> 01:15:17,950
+So here we provide how our model should behave
+and how it is linked to the actual contract.
+
+835
+01:15:19,919 --> 01:15:25,770
+So the first we have and so-called associated data
+type, so that's quite an advance Haskell feature.
+
+836
+01:15:25,770 --> 01:15:33,999
+So in type classes you can have, instead of just
+methods that we usually have also have data types.
+
+837
+01:15:34,029 --> 01:15:36,970
+We have actually seen that before, when we.
+
+838
+01:15:37,600 --> 01:15:44,980
+Define validators And we define this
+dummy type that provides a link between
+
+839
+01:15:45,210 --> 01:15:47,360
+the datum type and the redeemer type.
+
+840
+01:15:47,400 --> 01:15:49,780
+So there we also use these associated types.
+
+841
+01:15:50,460 --> 01:15:56,750
+So the we need an associated action type, which
+represents the actions that quick check will generate.
+
+842
+01:15:56,750 --> 01:16:01,890
+And in principle, I just have one constructor
+and this action type for each of the endpoints we
+
+843
+01:16:01,910 --> 01:16:08,389
+said so earlier, I just have additional arguments
+because now there are different wallets at play.
+
+844
+01:16:08,460 --> 01:16:11,840
+And I must keep track, which of
+the wallets performs an action.
+
+845
+01:16:12,230 --> 01:16:16,840
+So start wallet means that this
+wallet starts a token sale contract.
+
+846
+01:16:17,610 --> 01:16:19,030
+Then set price, wallet, wallet.
+
+847
+01:16:19,260 --> 01:16:28,170
+Integer means that this wallet, the second one sets
+the prize for the token sale operated by the first one.
+
+848
+01:16:29,129 --> 01:16:31,769
+And it sets the price to this integer.
+
+849
+01:16:32,160 --> 01:16:35,780
+Of course we know from the contract
+logic that this should only work.
+
+850
+01:16:36,040 --> 01:16:40,770
+If these two wallets are the same, because only
+the owner of the token sale can actually set the
+
+851
+01:16:40,770 --> 01:16:46,379
+price, but to make it more interesting, I want to
+provide actions also, if somebody else tries to,
+
+852
+01:16:46,379 --> 01:16:53,050
+and then we can see whether this is actually not
+working, because we expect that nobody else can set
+
+853
+01:16:53,050 --> 01:16:56,240
+the price of token sale own by a different wallet.
+
+854
+01:16:56,970 --> 01:16:59,230
+same for a token, So again add
+
+855
+01:16:59,280 --> 01:17:04,049
+tokens, this wallet Wants to add
+tokens to that wallet's token sale.
+
+856
+01:17:04,389 --> 01:17:07,609
+And this many tokens then withdraw.
+
+857
+01:17:07,979 --> 01:17:14,700
+This wallet wants to withdraw so many
+tokens and so many ADA from the token sale
+
+858
+01:17:14,700 --> 01:17:16,620
+run by this wallet that should again fail.
+
+859
+01:17:17,400 --> 01:17:21,320
+If the two wallets are not the
+same and finally buy tokens.
+
+860
+01:17:21,469 --> 01:17:27,860
+So this wallet wants to buy from that
+wallet's token sale, this amount of tokens.
+
+861
+01:17:29,390 --> 01:17:29,620
+Okay.
+
+862
+01:17:29,620 --> 01:17:31,849
+So this is the first ingredient that we need.
+
+863
+01:17:31,850 --> 01:17:33,400
+This type actions.
+
+864
+01:17:34,809 --> 01:17:41,100
+The second ingredient is, another associated
+data type it's called contract instance key.
+
+865
+01:17:41,430 --> 01:17:47,309
+So the idea is for each instance of a contract
+that we are running, we want a key that
+
+866
+01:17:47,330 --> 01:17:54,639
+identifies this instance, and this is actually
+a so-called general algebraic data type.
+
+867
+01:17:54,830 --> 01:18:01,530
+So it's a little bit different format to an usual
+data declarations in Haskell that look like this.
+
+868
+01:18:03,850 --> 01:18:09,939
+So the idea is that that instead of just
+providing the constructors, you write them
+
+869
+01:18:09,940 --> 01:18:12,479
+this form basically with their type signature.
+
+870
+01:18:13,500 --> 01:18:18,860
+So this means we have a constructor start
+key that takes a wallet as an argument,
+
+871
+01:18:19,270 --> 01:18:21,630
+and then produces something of this type.
+
+872
+01:18:22,490 --> 01:18:28,750
+And the reason we need these GADTs here, or
+the point of GADTs general algebraic data
+
+873
+01:18:28,800 --> 01:18:35,650
+types, generalized algebraic data types is that
+with normal data types, the type parameters
+
+874
+01:18:35,650 --> 01:18:37,340
+are always the same for all constructors.
+
+875
+01:18:37,620 --> 01:18:44,070
+So if you have a parameterized type like list,
+for example, list of As, then all the constructors
+
+876
+01:18:44,070 --> 01:18:50,479
+that we have will produce a list of the same
+type a and generalized algebraic data types,
+
+877
+01:18:50,500 --> 01:18:53,550
+allow us to have different type parameters.
+
+878
+01:18:53,550 --> 01:18:59,760
+And we need this in this case because our contracts
+potentially can have different type paramteters.
+
+879
+01:19:00,890 --> 01:19:05,010
+So in this case, there are
+two types of instances recall.
+
+880
+01:19:05,010 --> 01:19:10,389
+We had these, the start contract and the use
+contract, and they had different type signatures.
+
+881
+01:19:11,010 --> 01:19:18,360
+And, so I provide one sort of key that are called
+start key for the first type, for the start contract.
+
+882
+01:19:18,600 --> 01:19:18,925
+And it.
+
+883
+01:19:19,020 --> 01:19:26,806
+just Basically as an argument has the wallet that does
+the starting and here we see, so the type parameters
+
+884
+01:19:26,806 --> 01:19:33,500
+are, the first one is the model we are just defining,
+and then the ones that come from the contract itself.
+
+885
+01:19:33,500 --> 01:19:38,630
+So the state type, which is last token
+sale, if you recall in this case, then
+
+886
+01:19:38,630 --> 01:19:41,470
+the schema and takes us to error type.
+
+887
+01:19:42,349 --> 01:19:45,600
+And then there's the second type
+of contracts, that use type.
+
+888
+01:19:45,900 --> 01:19:50,560
+And so I provide the instance key
+for that as well that I call use key.
+
+889
+01:19:51,140 --> 01:19:53,450
+And that takes two wallets as parameters.
+
+890
+01:19:53,570 --> 01:19:55,570
+This is the one that owns the token sale
+
+891
+01:19:55,620 --> 01:19:59,269
+we are interacting with, and that is
+the one that actually runs the contract.
+
+892
+01:19:59,540 --> 01:20:01,500
+So similar to how it worked here.
+
+893
+01:20:01,719 --> 01:20:06,960
+So same order of wallets and this,
+has different type parameters.
+
+894
+01:20:07,940 --> 01:20:10,290
+Again, TS model, but there is no state.
+
+895
+01:20:10,310 --> 01:20:13,490
+We don't use tell And the schema is different.
+
+896
+01:20:13,750 --> 01:20:17,370
+The error type is the same next.
+
+897
+01:20:17,370 --> 01:20:25,840
+We need to, some of provide this instance
+tag function, which given such a key that
+
+898
+01:20:25,910 --> 01:20:32,040
+we just defined and the wallet as so-called
+instance, tag or contract instance tag.
+
+899
+01:20:32,300 --> 01:20:37,889
+And because we already know the wallet that
+runs the instance, because that was one of
+
+900
+01:20:37,920 --> 01:20:40,440
+the arguments to our contract instance keys.
+
+901
+01:20:41,020 --> 01:20:47,695
+We can ignore this wallet argument and this,
+instance tag type or contract instance, tag
+
+902
+01:20:47,900 --> 01:20:55,170
+type Doesn't have an accessible constructor,
+but it implements the is string class.
+
+903
+01:20:55,210 --> 01:20:59,129
+And we haven't seen that class before
+explicitly, but we have used it all the time.
+
+904
+01:21:00,330 --> 01:21:03,520
+when we use this GHC extension for overloaded strings.
+
+905
+01:21:03,540 --> 01:21:09,370
+So when we can use string, literals to, for example,
+define a byte string or token name or currency symbol.
+
+906
+01:21:09,900 --> 01:21:14,389
+All those types implement is string
+and they allow using string literals.
+
+907
+01:21:14,389 --> 01:21:18,920
+And the way that is actually implemented
+is via type class called is string.
+
+908
+01:21:19,410 --> 01:21:22,420
+And that in particular has a method from string.
+
+909
+01:21:22,550 --> 01:21:28,010
+So given a string, it converts a
+string into that type and this constant
+
+910
+01:21:28,030 --> 01:21:30,810
+instance, tag type implements, is string.
+
+911
+01:21:31,240 --> 01:21:34,689
+Therefore, if we provide a string, we
+can construct something of that type.
+
+912
+01:21:35,350 --> 01:21:42,630
+So the idea here is to simply use our key
+that we have here and show it because it
+
+913
+01:21:42,970 --> 01:21:49,220
+implements show and then write instances tag
+for some arbitrary texts in front of that.
+
+914
+01:21:49,230 --> 01:21:50,620
+I mean that wouldn't be necessary.
+
+915
+01:21:50,660 --> 01:21:55,660
+I just copied that from some code from the
+libraries where they do it like that as well.
+
+916
+01:21:56,170 --> 01:21:59,099
+So it is just important that this instance
+
+917
+01:21:59,099 --> 01:22:04,500
+tag function results in a different tag
+for each instance, that we will ever
+
+918
+01:22:04,500 --> 01:22:07,999
+run in our simulation or in our tests.
+
+919
+01:22:08,670 --> 01:22:14,520
+And this is guaranteed here because the
+way these are set up, so we will have
+
+920
+01:22:14,530 --> 01:22:17,480
+one start instance for each wallet.
+
+921
+01:22:17,480 --> 01:22:24,704
+and then One use instance for each pair of wallets,
+but of course they are all different values
+
+922
+01:22:24,929 --> 01:22:27,510
+of this contract instance, key TS model type.
+
+923
+01:22:28,379 --> 01:22:31,580
+And then when we show them, they
+will still all be different.
+
+924
+01:22:31,630 --> 01:22:33,179
+And that's the important part here.
+
+925
+01:22:34,360 --> 01:22:40,170
+Actually, there's a default implementation for the
+instance tag method of the contract model class.
+
+926
+01:22:40,620 --> 01:22:48,430
+So you normally don't have to implement it yourself,
+but that default only works at least right now,
+
+927
+01:22:48,910 --> 01:22:56,610
+if you only have at most one contract instance per
+wallet, but this is not the case in our case, because
+
+928
+01:22:56,610 --> 01:23:04,769
+you will have two, no, actually three per wallet,
+one start instance and two use instances using the
+
+929
+01:23:05,110 --> 01:23:07,690
+own token sale and the other wallets token sale.
+
+930
+01:23:08,219 --> 01:23:14,530
+So we have three contracts running per wallet,
+and therefore we are forced to implement
+
+931
+01:23:14,530 --> 01:23:17,230
+that ourselves, this instance tag function.
+
+932
+01:23:18,639 --> 01:23:26,020
+So the next one, arbitrary action as the name
+suggests is supposed to generate an arbitrary action.
+
+933
+01:23:26,170 --> 01:23:26,879
+So action.
+
+934
+01:23:26,890 --> 01:23:31,410
+We defined here and we must now tell the
+system how to generate a random action.
+
+935
+01:23:32,389 --> 01:23:35,530
+And as argument it gets the model state.
+
+936
+01:23:35,700 --> 01:23:40,239
+We come to that later, but I don't
+need that here and I can ignore it.
+
+937
+01:23:40,719 --> 01:23:50,559
+One of, is one of the combinators provided
+by quick check And given a list of arbitrary
+
+938
+01:23:50,559 --> 01:23:54,040
+actions, it picks, randomly picks one of those.
+
+939
+01:23:55,090 --> 01:24:03,200
+So the idea is I basically just provide a list to
+create random actions of these types using these
+
+940
+01:24:03,660 --> 01:24:06,190
+constructors, and then pick randomly one of those.
+
+941
+01:24:07,560 --> 01:24:11,659
+And this is using something that
+we also haven't seen before.
+
+942
+01:24:11,670 --> 01:24:20,060
+It's so-called applicative style so recall
+when we introduced monads, I mentioned
+
+943
+01:24:20,070 --> 01:24:26,100
+that monad is a superclass has applicative,
+but we haven't used applicative yet.
+
+944
+01:24:26,480 --> 01:24:32,510
+And applicative is often very useful
+to write monadic code more compact.
+
+945
+01:24:33,089 --> 01:24:42,500
+So basically what this says is first run the monadic
+gen wallet action, which I should show first.
+
+946
+01:24:42,800 --> 01:24:43,690
+This is here.
+
+947
+01:24:44,910 --> 01:24:50,130
+So what this is supposed to do, it's in
+this quick check gen monad this random
+
+948
+01:24:50,130 --> 01:24:52,759
+generation monad, generate a random wallet.
+
+949
+01:24:53,109 --> 01:24:54,179
+And how do I do that?
+
+950
+01:24:54,199 --> 01:24:58,799
+I use yet another Combinator provider for
+quick check elements that simply takes a
+
+951
+01:24:58,800 --> 01:25:03,629
+list of values of the type I want to generate
+and then picks a random of those elements.
+
+952
+01:25:04,250 --> 01:25:08,130
+So wallets is another helper I define somewhere here.
+
+953
+01:25:09,650 --> 01:25:10,099
+Here.
+
+954
+01:25:10,289 --> 01:25:14,150
+So wallets is just wallet one wallet two.
+
+955
+01:25:14,150 --> 01:25:16,280
+So it's just this two element list.
+
+956
+01:25:18,160 --> 01:25:22,799
+So gen wallet will just randomly
+either pick wallet one or wallet two.
+
+957
+01:25:25,130 --> 01:25:25,420
+Okay.
+
+958
+01:25:25,420 --> 01:25:35,960
+So what this means is we first use this gen wallet
+to generate random wallet and then return the action.
+
+959
+01:25:36,040 --> 01:25:38,360
+Start that wallet that we just picked.
+
+960
+01:25:39,059 --> 01:25:41,554
+And this is just a more compact way to write it.
+
+961
+01:25:41,809 --> 01:25:47,850
+This, of course, this operator, we have seen this
+before this F map, which comes from the functor class.
+
+962
+01:25:48,330 --> 01:25:54,100
+So gen wallet is of type gen
+capital gen wallet and start.
+
+963
+01:25:54,260 --> 01:25:58,629
+As we see here, start takes a
+wallet and returns and action.
+
+964
+01:25:59,290 --> 01:26:04,619
+So if we F map that we get something
+of type gen wallet to gen action.
+
+965
+01:26:05,190 --> 01:26:08,370
+So the result is something of
+type gen action as we want.
+
+966
+01:26:08,380 --> 01:26:09,820
+So it's a random action.
+
+967
+01:26:11,630 --> 01:26:17,080
+And here for set price, we must
+pick three random arguments.
+
+968
+01:26:17,080 --> 01:26:20,019
+So set price takes two wallets and an integer.
+
+969
+01:26:21,130 --> 01:26:28,770
+So we use gen wallet twice to pick two random
+wallets for these two wallet arguments and
+
+970
+01:26:28,770 --> 01:26:35,079
+then gen non neg, which is also defined,
+here, is a helper function, which randomly
+
+971
+01:26:35,079 --> 01:26:37,859
+generates an integer, but a Non-negative one.
+
+972
+01:26:39,240 --> 01:26:44,190
+And actually that is, there is something in
+the quick check libraries to support this.
+
+973
+01:26:44,480 --> 01:26:48,700
+There's a non-negative type that
+implements an arbitrary instance.
+
+974
+01:26:49,230 --> 01:26:53,110
+And, it's just a newtype wrap
+around integer and with get no
+
+975
+01:26:53,110 --> 01:26:54,999
+negative I can extract the integer.
+
+976
+01:26:55,799 --> 01:26:58,409
+So this arbitrary comes from the non
+
+977
+01:26:58,410 --> 01:27:06,040
+negative type that would generate something
+of type non-negative, but that just wraps
+
+978
+01:27:06,040 --> 01:27:11,080
+an integer and I extract that integer
+with this, get no negative anyway, so this
+
+979
+01:27:11,300 --> 01:27:13,990
+generates a non-negative random integer.
+
+980
+01:27:16,660 --> 01:27:17,050
+Okay.
+
+981
+01:27:17,080 --> 01:27:21,090
+And, this is now where this
+applicative style really shines.
+
+982
+01:27:21,120 --> 01:27:27,950
+So if I wrote that in a do block, for example, I would
+first, call gen wallet and bind the result against
+
+983
+01:27:28,219 --> 01:27:35,230
+something, whatever W1, then I would call gen wallet
+again and bind the result against something like W2.
+
+984
+01:27:36,670 --> 01:27:39,010
+Then I would call gen non neg,
+
+985
+01:27:39,010 --> 01:27:41,330
+bind the result against P.
+
+986
+01:27:41,920 --> 01:27:45,630
+And then finally I would return set price W1 W2.
+
+987
+01:27:46,849 --> 01:27:52,209
+P and using this operator, which comes
+from the applicative class, you can write
+
+988
+01:27:52,209 --> 01:27:54,519
+this nicely and compactly like this.
+
+989
+01:27:55,299 --> 01:28:03,290
+So conceptually applicative is richer than  monad and
+you can always use this applicative style if what you
+
+990
+01:28:03,290 --> 01:28:10,239
+are doing, the actions in the monad you are invoking
+don't depend on the result of previous actions.
+
+991
+01:28:10,500 --> 01:28:17,830
+So in a do block, I can have some monadic action
+and then inspect the result and depending on what
+
+992
+01:28:17,830 --> 01:28:24,050
+the result is to the one thing or the other, and,
+that does not possibly implicative, but often
+
+993
+01:28:24,050 --> 01:28:26,250
+monadic code doesn't make use of that power.
+
+994
+01:28:26,250 --> 01:28:34,220
+And then we have this more compact way of writing it,
+but it's really just identical to using a do block.
+
+995
+01:28:34,240 --> 01:28:41,059
+It's just more compact anyway, and I follow
+this same schema for the other constructors.
+
+996
+01:28:42,099 --> 01:28:50,339
+So again, this one of, we randomly pick
+one of these lines and then so decide on
+
+997
+01:28:50,350 --> 01:28:52,540
+one constructor for an action to pick.
+
+998
+01:28:52,540 --> 01:28:56,479
+So if we randomly pick a start action, a
+set price action, and add tokens action,
+
+999
+01:28:56,490 --> 01:29:02,460
+buy token action, a withdraw action, and
+then once it has picked one, it will generate
+
+1000
+01:29:03,020 --> 01:29:05,370
+random arguments for that constructor.
+
+1001
+01:29:05,709 --> 01:29:10,380
+Depending on what constructor is, might
+be different types or number of arguments.
+
+1002
+01:29:10,390 --> 01:29:16,960
+So withdraw takes two random wallets and
+then two integers, non negative integers
+
+1003
+01:29:18,020 --> 01:29:20,070
+for how many tokens I want to withdraw.
+
+1004
+01:29:20,070 --> 01:29:22,769
+And how many lovelace I want to withdraw.
+
+1005
+01:29:23,879 --> 01:29:25,450
+I can try this out in the repl.
+
+1006
+01:29:27,110 --> 01:29:33,389
+So using samples that we saw before, and then I
+sampled this arbitrary actions that I just defined.
+
+1007
+01:29:34,040 --> 01:29:41,620
+I don't have this model state, but I know I'm not
+looking at it so I can just use undefined and let's
+
+1008
+01:29:41,630 --> 01:29:48,540
+see, and I get a couple of randomly generated actions
+and we see that it indeed picks different constructors.
+
+1009
+01:29:49,990 --> 01:29:54,259
+And then for those constructors picks
+random arguments, for example, here is
+
+1010
+01:29:54,259 --> 01:29:56,889
+Withdraw wallet one wallet one, three
+
+1011
+01:29:56,900 --> 01:30:02,170
+five, and give another withdraw wallet
+one wallet two, one two And so on.
+
+1012
+01:30:04,000 --> 01:30:11,830
+Next is initial state as the name suggests
+it's the initial state of our model.
+
+1013
+01:30:11,830 --> 01:30:17,280
+Recall the model, was this map
+from wallets to tokens sale states.
+
+1014
+01:30:17,799 --> 01:30:21,849
+And in the beginning, there
+won't be any token sale yet.
+
+1015
+01:30:22,160 --> 01:30:23,620
+So it's just the empty map.
+
+1016
+01:30:23,670 --> 01:30:29,830
+So the initial state is the model that has the empty
+map, which means no token sale has started yet.
+
+1017
+01:30:31,570 --> 01:30:39,950
+Now comes the most complex function that we must
+implement to set this up and that's called next state.
+
+1018
+01:30:39,990 --> 01:30:47,049
+And if you recall the diagram, I said, you must
+know what effect performing action has on the model.
+
+1019
+01:30:47,590 --> 01:30:51,389
+And that's exactly what this next state function does.
+
+1020
+01:30:52,650 --> 01:31:00,750
+If you look at the type of next state we see
+it takes an action and return something in
+
+1021
+01:31:01,020 --> 01:31:03,740
+yet another monad, it's called the spec monad.
+
+1022
+01:31:05,330 --> 01:31:11,279
+And that basically allows us, that monad
+allows us to inspect our current state.
+
+1023
+01:31:11,330 --> 01:31:17,600
+So the current state of our model, and
+also to transfer funds in our model.
+
+1024
+01:31:17,980 --> 01:31:25,549
+So this is not new funds on the real blockchain or in
+the emulator, but the model among other things also
+
+1025
+01:31:25,549 --> 01:31:30,340
+knows how many funds each wallet currently holds.
+
+1026
+01:31:33,450 --> 01:31:35,100
+So let's look at an example.
+
+1027
+01:31:36,070 --> 01:31:41,009
+Let's first look at the effect of the start action.
+
+1028
+01:31:42,450 --> 01:31:51,330
+So one effect is that now the model
+state should change require the model
+
+1029
+01:31:51,330 --> 01:31:54,000
+is this new type wrapper around a map.
+
+1030
+01:31:54,480 --> 01:31:57,929
+And in the map, we have an
+entry for every wallet, which.
+
+1031
+01:31:59,270 --> 01:32:02,790
+In the map, if the corresponding
+token sale has started.
+
+1032
+01:32:03,740 --> 01:32:09,905
+So what we have to do is we have to create
+this entry and the map for wallet w and
+
+1033
+01:32:10,120 --> 01:32:12,230
+this is exactly what this line does.
+
+1034
+01:32:13,010 --> 01:32:25,520
+So this operator here comes from the spec monad
+and it takes a lens from the model to somewhere
+
+1035
+01:32:25,990 --> 01:32:35,809
+on the left-hand side, and then sets that focus
+of that lens to the entry on the right-hand side.
+
+1036
+01:32:36,020 --> 01:32:43,910
+So this here on the left-hand side is an optic
+and T TS model goes from our model to the map
+
+1037
+01:32:45,460 --> 01:32:52,420
+and this, it comes from the lens library, and
+that is something that works nicely with maps.
+
+1038
+01:32:53,179 --> 01:32:55,610
+And what it does is at key.
+
+1039
+01:32:55,650 --> 01:33:02,540
+So if you have a map from key two values, then
+eight key zooms in from the map to the entry at
+
+1040
+01:33:02,540 --> 01:33:05,710
+that key, however, the entry could not be there.
+
+1041
+01:33:06,160 --> 01:33:11,969
+So actually the target type
+of this lens is maybe value.
+
+1042
+01:33:12,870 --> 01:33:15,160
+So if it's there, it will be adjusted.
+
+1043
+01:33:15,160 --> 01:33:16,559
+If it's not there, it would be nothing.
+
+1044
+01:33:17,000 --> 01:33:18,080
+And this is a proper lens.
+
+1045
+01:33:18,080 --> 01:33:21,190
+So you can not only look up entries.
+
+1046
+01:33:21,190 --> 01:33:22,620
+You can also set entries.
+
+1047
+01:33:22,980 --> 01:33:31,360
+You was this lens, this ed lens to set to
+just then you create an entry at that key.
+
+1048
+01:33:31,770 --> 01:33:35,180
+And if you set to nothing, you
+would delete the entry at that key.
+
+1049
+01:33:35,889 --> 01:33:43,800
+So the combination of these two lenses now
+zooms in from our state to the entry at
+
+1050
+01:33:44,179 --> 01:33:47,399
+wallet w and we want to set it to this.
+
+1051
+01:33:47,410 --> 01:33:52,629
+So by starting the token set, now there should
+be an entry and that entry should be this
+
+1052
+01:33:52,699 --> 01:33:59,220
+TSS state required these, the price and the
+amount of tokens and the amount of lovelace.
+
+1053
+01:33:59,220 --> 01:34:06,180
+So in the beginning, when we just start the token sale
+or through various zero, so what this line does in this
+
+1054
+01:34:06,180 --> 01:34:18,770
+tech spec is it will change the model and set the entry
+in the map, add for the w two, this token sale with
+
+1055
+01:34:18,860 --> 01:34:22,490
+zero price and no tokens, and no lovelace included.
+
+1056
+01:34:23,719 --> 01:34:27,780
+The second client weight also comes
+from the spec, Mona to the spec.
+
+1057
+01:34:27,920 --> 01:34:30,420
+Monad also has a concept of the passing of time.
+
+1058
+01:34:31,050 --> 01:34:35,360
+So we basically wait for one
+step, one block or one slot.
+
+1059
+01:34:35,890 --> 01:34:43,349
+I mean, in reality, in the real blockchain, there's
+only one block, every 20 slots on average, but
+
+1060
+01:34:43,370 --> 01:34:46,299
+here wait, one basically means we wait one step.
+
+1061
+01:34:46,599 --> 01:34:47,750
+We wait until the next block.
+
+1062
+01:34:48,039 --> 01:34:49,919
+So the starting of the token sale.
+
+1063
+01:34:50,450 --> 01:34:50,740
+Sure.
+
+1064
+01:34:51,900 --> 01:34:59,250
+Basically be one transaction, which it is, if you
+recall how it was implemented, it just, since this
+
+1065
+01:34:59,250 --> 01:35:04,010
+UTxO or creates this UTxO at the state machine address.
+
+1066
+01:35:04,410 --> 01:35:10,670
+This wouldn't be true if you use a real thread
+token, because in that case, the thread token
+
+1067
+01:35:10,670 --> 01:35:16,750
+first has to be minted, which also takes at
+least one step, probably exactly one step.
+
+1068
+01:35:17,420 --> 01:35:21,049
+So in that case, it would take two
+steps, but we will not use this thread
+
+1069
+01:35:21,099 --> 01:35:23,120
+talk mechanism, as I mentioned earlier.
+
+1070
+01:35:23,650 --> 01:35:26,600
+So this starting really should take one step.
+
+1071
+01:35:26,860 --> 01:35:28,860
+So the white one is enough.
+
+1072
+01:35:29,650 --> 01:35:35,129
+So what this now says is that after the
+start action, the model should be changed.
+
+1073
+01:35:35,130 --> 01:35:43,030
+So that now in the map at the w the S this
+entry, and one time steps should have passed.
+
+1074
+01:35:43,439 --> 01:35:45,790
+Now, the second case set price.
+
+1075
+01:35:47,450 --> 01:35:57,340
+So, set price to the tokens here, run by wallet V and
+the price setter is valid w and the new price is P.
+
+1076
+01:35:58,529 --> 01:36:03,780
+So when comes Kong control night, and as
+the name suggests, so it takes a boolean.
+
+1077
+01:36:03,780 --> 01:36:09,066
+And if the bullying is true, then the second
+argument will be executed in the morning.
+
+1078
+01:36:09,066 --> 01:36:12,599
+And if it's false, this would simply
+be ignored and nothing happens.
+
+1079
+01:36:13,799 --> 01:36:14,339
+So.
+
+1080
+01:36:14,920 --> 01:36:19,486
+What we say is if somebody tries to
+set the price, that's not the owner of
+
+1081
+01:36:19,670 --> 01:36:21,080
+the token sale, nothing will happen.
+
+1082
+01:36:21,640 --> 01:36:28,480
+Only time will pass, but if the owner tries to
+set the price, then the model will be updated.
+
+1083
+01:36:29,330 --> 01:36:35,529
+And this is now a bit similar to this
+lens here, but instead of ed V was X.
+
+1084
+01:36:35,930 --> 01:36:37,769
+So at is a lens.
+
+1085
+01:36:38,720 --> 01:36:42,730
+And the target type is maybe
+the type of values in the map.
+
+1086
+01:36:43,130 --> 01:36:53,570
+I X is a traversal and, saw if the key is there, then
+it will focus on the value of the, with that key.
+
+1087
+01:36:54,010 --> 01:36:57,520
+But if the key is not there, then
+it simply won't focus on anything.
+
+1088
+01:36:59,160 --> 01:37:01,780
+And, then there's TSS price.
+
+1089
+01:37:02,080 --> 01:37:06,440
+Given the value will zoom into the price component.
+
+1090
+01:37:08,580 --> 01:37:13,000
+So that means if there's an entry for wallet V.
+
+1091
+01:37:13,000 --> 01:37:18,700
+So if we had started the token sale,
+then we will set the price to pay.
+
+1092
+01:37:19,390 --> 01:37:24,889
+And if volatility, he hasn't started the
+token sale yet, then nothing will happen.
+
+1093
+01:37:25,849 --> 01:37:32,660
+Let's play a bit with ed and I ex in the
+repl to see the difference and how they work.
+
+1094
+01:37:33,430 --> 01:37:33,780
+First.
+
+1095
+01:37:33,780 --> 01:37:36,540
+I need to come in port control lens.
+
+1096
+01:37:38,110 --> 01:37:40,320
+And because I want to play with maps.
+
+1097
+01:37:40,320 --> 01:37:45,889
+I also need a data map strict and that's qualified.
+
+1098
+01:37:50,590 --> 01:37:50,800
+Okay.
+
+1099
+01:37:50,800 --> 01:37:53,639
+And let's have a simple example map.
+
+1100
+01:37:57,590 --> 01:38:04,640
+So let's take a map with a string
+keys, let's say, and boolean values
+
+1101
+01:38:10,530 --> 01:38:11,460
+like this.
+
+1102
+01:38:13,020 --> 01:38:13,390
+Okay.
+
+1103
+01:38:13,390 --> 01:38:16,429
+And now for example, we can first play with it.
+
+1104
+01:38:16,580 --> 01:38:26,710
+So I can, for example, view the focus of the Atlanta
+at key, let's say Haskell and it gives me just true.
+
+1105
+01:38:26,950 --> 01:38:30,350
+So the, just because the key is
+present and then the value true.
+
+1106
+01:38:31,060 --> 01:38:39,570
+If I try this with a key, that's not present, then
+I will get nothing and I can also use it to set.
+
+1107
+01:38:40,369 --> 01:38:44,460
+So for example, I can
+
+1108
+01:38:50,160 --> 01:38:51,060
+try this.
+
+1109
+01:38:56,299 --> 01:39:04,840
+So by setting the airplanes at key pies into just
+faults, I am inserting this value into the map.
+
+1110
+01:39:06,030 --> 01:39:07,440
+If I instead use.
+
+1111
+01:39:08,510 --> 01:39:13,829
+Haskell too, just falls then now I've updated the key.
+
+1112
+01:39:13,920 --> 01:39:15,200
+It used to be Haskell true.
+
+1113
+01:39:15,200 --> 01:39:16,290
+Now it's Haskell faults.
+
+1114
+01:39:16,690 --> 01:39:28,420
+And finally, if I set to nothing, I'm removing the
+key Haskell from the map now for ILX, it's different.
+
+1115
+01:39:28,420 --> 01:39:42,410
+So if I try to set I X tool faults, that should
+work so I can update, but if I try this with Python,
+
+1116
+01:39:45,880 --> 01:39:47,490
+then simply nothing will happen.
+
+1117
+01:39:47,630 --> 01:39:55,670
+So this I X is a traversal and it will
+focus one by one on all keys given here,
+
+1118
+01:39:56,230 --> 01:39:58,120
+which of course can only happen zero or one.
+
+1119
+01:39:58,120 --> 01:39:59,650
+So either the key is there.
+
+1120
+01:39:59,920 --> 01:40:01,190
+Then it will focus on that.
+
+1121
+01:40:01,560 --> 01:40:02,420
+Or the key is not there.
+
+1122
+01:40:02,420 --> 01:40:04,349
+Then it will simply not focus on anything.
+
+1123
+01:40:05,110 --> 01:40:10,039
+So if I use an existing key, I can use
+this to update, but if I use a key that
+
+1124
+01:40:10,039 --> 01:40:12,309
+doesn't exist in simply nothing will happen.
+
+1125
+01:40:14,269 --> 01:40:14,639
+Okay.
+
+1126
+01:40:14,650 --> 01:40:17,870
+The next step is add tokens.
+
+1127
+01:40:17,930 --> 01:40:26,549
+So while the w tries to add tokens to the token,
+sales started by wallet V and the amount of tokens
+
+1128
+01:40:26,549 --> 01:40:33,010
+is N so first we check whether the token sale has
+started and for that, we use a helper function.
+
+1129
+01:40:33,010 --> 01:40:34,900
+So let's look at that first.
+
+1130
+01:40:35,550 --> 01:40:37,420
+It's actually these three hyper functions.
+
+1131
+01:40:38,570 --> 01:40:48,180
+So the first one get token sale, state
+prime takes a model state and a wallet
+
+1132
+01:40:48,180 --> 01:40:50,360
+and retrans, maybe the token sale state.
+
+1133
+01:40:51,140 --> 01:40:52,570
+And how does it do that?
+
+1134
+01:40:52,570 --> 01:41:01,159
+So it takes this model state, and then uses
+the operator, which takes a lens to zoom
+
+1135
+01:41:01,170 --> 01:41:07,520
+in and look up the values or contract state
+goes from a model state to the actual model.
+
+1136
+01:41:07,670 --> 01:41:10,280
+So this is now the type redefined.
+
+1137
+01:41:10,950 --> 01:41:13,300
+Then this TS model comes from us.
+
+1138
+01:41:13,310 --> 01:41:15,889
+So that takes the model and gives us the map.
+
+1139
+01:41:16,469 --> 01:41:21,439
+And finally again, the ed, which given the
+map and the key gives us maybe the value.
+
+1140
+01:41:22,670 --> 01:41:25,260
+So this is a simple application of optics.
+
+1141
+01:41:26,260 --> 01:41:29,345
+Now this get TS state does the same thing, but
+in the spec monads so only given the wallet.
+
+1142
+01:41:29,345 --> 01:41:29,402
+And how does it do that?
+
+1143
+01:41:29,402 --> 01:41:41,979
+We're in the spec, Mona Tessa, an operation called get
+model state, which allows us to get the model state.
+
+1144
+01:41:42,150 --> 01:41:48,190
+So we get the model state, and then we
+use our first hyper function to get maybe
+
+1145
+01:41:48,190 --> 01:41:51,800
+to the TS state for the given wallet.
+
+1146
+01:41:52,860 --> 01:41:55,689
+And then finally we can implement our has started.
+
+1147
+01:41:56,759 --> 01:42:00,319
+Taking a wallet and also in
+the spec monad, which are bool.
+
+1148
+01:42:00,780 --> 01:42:07,540
+And Debbie simply use this get TSS
+date that we just defined, but we don't
+
+1149
+01:42:07,540 --> 01:42:11,059
+care about the value of the TS state.
+
+1150
+01:42:11,059 --> 01:42:13,939
+We just care whether it's adjust or nothing.
+
+1151
+01:42:13,950 --> 01:42:16,690
+If it's adjust, then the entry is stay the map.
+
+1152
+01:42:16,690 --> 01:42:18,059
+And if it's a nothing, it's not.
+
+1153
+01:42:18,570 --> 01:42:24,110
+So there's a standard function from data
+that maybe is just which checks exactly that.
+
+1154
+01:42:24,110 --> 01:42:28,410
+And I have to F map it because this here
+it was in the spec Monat so I have to
+
+1155
+01:42:28,410 --> 01:42:30,420
+lift the is just into the spec mullet.
+
+1156
+01:42:31,210 --> 01:42:36,879
+So has started V in the spec mode I've given
+a wallet will tell me whether the entry in
+
+1157
+01:42:36,880 --> 01:42:40,360
+the map corresponding to V is in the model.
+
+1158
+01:42:40,960 --> 01:42:48,269
+And that means that the tokens sale
+has, okay, so this is the first line.
+
+1159
+01:42:48,269 --> 01:42:51,070
+Can we check whether the token sale has started?
+
+1160
+01:42:52,320 --> 01:42:59,410
+And if it hasn't, then we simply don't do anything
+and just white one step, but if it has started,
+
+1161
+01:42:59,480 --> 01:43:02,396
+and if we want to add a positive amount of tokens.
+
+1162
+01:43:02,396 --> 01:43:14,740
+So if this end is not zero negative,
+then we first ask for the balance change.
+
+1163
+01:43:15,440 --> 01:43:23,999
+We can look at this ask model state in
+the repl, ask one formation, and we see.
+
+1164
+01:43:25,780 --> 01:43:33,200
+That it takes function from model state to a,
+and then returns to a, so what it will do is it
+
+1165
+01:43:33,200 --> 01:43:38,650
+will look up the current model state in the spec
+monad then apply this given function to it and
+
+1166
+01:43:38,780 --> 01:43:42,500
+return the result and the model state itself.
+
+1167
+01:43:42,809 --> 01:43:48,930
+I asked for it information here and
+it looks a bit unwieldy that's because
+
+1168
+01:43:49,080 --> 01:43:51,100
+none of these things are exported.
+
+1169
+01:43:51,320 --> 01:43:54,050
+So they are all fully qualified here in the display.
+
+1170
+01:43:54,770 --> 01:44:00,239
+But nevertheless, we see model state is parameterized
+by one type Armita and debt incidentally
+
+1171
+01:44:00,240 --> 01:44:04,299
+will be our custom state that we defined.
+
+1172
+01:44:04,299 --> 01:44:09,880
+So in our case, it's this map
+from wallets to TS states.
+
+1173
+01:44:11,360 --> 01:44:18,360
+And one of the fields in the model state
+is indeed that that's why I could use the
+
+1174
+01:44:18,370 --> 01:44:21,309
+contract state lens earlier to zoom into that.
+
+1175
+01:44:22,809 --> 01:44:24,710
+But there is also more information.
+
+1176
+01:44:24,710 --> 01:44:29,769
+So occurrence look last lot
+balances, changes and mint it.
+
+1177
+01:44:30,290 --> 01:44:36,940
+So that's the information we have and they are
+all lenses available to, to get to these in
+
+1178
+01:44:36,940 --> 01:44:44,090
+particular, for this balance changes, we have
+an optic, it's not a lens is just to get us.
+
+1179
+01:44:44,090 --> 01:44:45,630
+So that means you can't set anything.
+
+1180
+01:44:45,630 --> 01:44:47,460
+You can just view it.
+
+1181
+01:44:49,030 --> 01:44:53,849
+And, so it's, it's a optic from model state.
+
+1182
+01:44:54,730 --> 01:44:56,050
+To a value.
+
+1183
+01:44:57,120 --> 01:45:04,910
+And this indicates how much the value, the balance
+of the it has changed during the course of the
+
+1184
+01:45:04,920 --> 01:45:08,410
+simulation during the course of the spec computation.
+
+1185
+01:45:08,970 --> 01:45:15,290
+Before we go back to the next state function, let's
+briefly look at some helper functions that are defined.
+
+1186
+01:45:15,740 --> 01:45:18,309
+So wallets are the wallets I'm using.
+
+1187
+01:45:18,309 --> 01:45:25,540
+So one wallet two, then the idea is that
+talk valid one will sell a different
+
+1188
+01:45:25,540 --> 01:45:28,230
+token then wallet two in its token sale.
+
+1189
+01:45:29,120 --> 01:45:35,049
+So I define two currency symbols, a
+and P B and two token names, a and P.
+
+1190
+01:45:35,660 --> 01:45:44,110
+So the idea is wallet run versus sell token
+AA a and for the two we'll sell token BB B.
+
+1191
+01:45:44,580 --> 01:45:49,249
+So with these other currency
+symbols, these are the token names.
+
+1192
+01:45:49,259 --> 01:45:50,950
+These are the asset classes.
+
+1193
+01:45:54,279 --> 01:45:57,790
+This is actually the token sale
+apart meter for the two wallets.
+
+1194
+01:45:58,800 --> 01:46:01,260
+So it has the volatile public key.
+
+1195
+01:46:01,800 --> 01:46:06,269
+And then I look up in this tokens
+map, the correct token that's on sale.
+
+1196
+01:46:06,290 --> 01:46:10,869
+And as I said before, I'm not
+using the thread token mechanism.
+
+1197
+01:46:10,910 --> 01:46:12,330
+So I provide nothing here.
+
+1198
+01:46:14,450 --> 01:46:18,280
+Finally, there's this constant token amount 1000.
+
+1199
+01:46:18,740 --> 01:46:30,549
+So when we set up the simulation, we specify an initial
+distribution and I give everyone 1,000 ADA and the
+
+1200
+01:46:30,550 --> 01:46:35,600
+thousand, that's this token amount of both tokens.
+
+1201
+01:46:36,400 --> 01:46:44,820
+So both wallets will have thousand ADA and 1,000 of
+the AA, a token, and the thousand of the BBB token.
+
+1202
+01:46:46,290 --> 01:46:56,020
+If we now go back to next state to the case
+where we were add tokens, so we already discussed
+
+1203
+01:46:56,030 --> 01:46:59,700
+this line and this one, now we were here.
+
+1204
+01:47:00,080 --> 01:47:03,900
+So what this does it ask for
+the model state and then view.
+
+1205
+01:47:03,900 --> 01:47:09,490
+It's just a function that you can use
+instead of this carrot dot operator.
+
+1206
+01:47:09,590 --> 01:47:15,610
+So to get the result of zooming into an optic.
+
+1207
+01:47:16,550 --> 01:47:24,730
+So what this line does, it tells us how
+much did the valence of wallet w change.
+
+1208
+01:47:25,850 --> 01:47:27,610
+Then I just expense this tokens map.
+
+1209
+01:47:27,610 --> 01:47:31,490
+So this is the token that wallet V is selling.
+
+1210
+01:47:32,580 --> 01:47:37,399
+And now we want to check that actually
+while the w has and tokens to it.
+
+1211
+01:47:37,660 --> 01:47:39,879
+So that's why we need all this information.
+
+1212
+01:47:40,309 --> 01:47:44,540
+So we just calculate whether it has enough
+tokens, so token amount, which is 1,000,
+
+1213
+01:47:44,840 --> 01:47:47,860
+is how many tokens it had in the beginning.
+
+1214
+01:47:49,580 --> 01:47:54,879
+Then we used this better change
+and add that to the initial amount.
+
+1215
+01:47:55,099 --> 01:47:58,769
+So maybe while w now has more or less token.
+
+1216
+01:47:58,770 --> 01:48:01,530
+So this is captured here in
+the BC and the balance change.
+
+1217
+01:48:02,270 --> 01:48:10,440
+So the sum is how many of those tokens wallet w has
+at this moment and whether it must be greater or
+
+1218
+01:48:10,490 --> 01:48:13,030
+equal than the amount of tokens with wants to add.
+
+1219
+01:48:15,290 --> 01:48:15,690
+Okay.
+
+1220
+01:48:15,900 --> 01:48:23,920
+So if all these conditions are satisfied, then
+what will happen is wallet w will add these tokens.
+
+1221
+01:48:23,930 --> 01:48:27,219
+So they will disappear out of the wallet.
+
+1222
+01:48:27,870 --> 01:48:32,640
+And for that, we have another function in
+the spec will not it's called withdraw.
+
+1223
+01:48:33,330 --> 01:48:37,980
+So the concept is simplified
+version of what's really going on.
+
+1224
+01:48:38,300 --> 01:48:43,740
+So in the spec monad every wallet
+has a certain balance of value and.
+
+1225
+01:48:44,840 --> 01:48:49,330
+It can withdraw from that balance or add to it deposit.
+
+1226
+01:48:49,360 --> 01:48:56,080
+So later you'll see the case of deposit, but other
+addresses are not modeled in the spec or not.
+
+1227
+01:48:56,330 --> 01:48:58,220
+So that's like a black box.
+
+1228
+01:48:58,400 --> 01:49:01,710
+So they are only the wallets and this black box.
+
+1229
+01:49:02,139 --> 01:49:05,169
+So it doesn't matter where the funds disappeared.
+
+1230
+01:49:05,429 --> 01:49:06,980
+They just disappear out of the wallet.
+
+1231
+01:49:06,980 --> 01:49:13,630
+So withdraw means after the step wallet
+w should have end tokens less because
+
+1232
+01:49:13,680 --> 01:49:15,220
+they have been added to the contract.
+
+1233
+01:49:16,850 --> 01:49:20,010
+And finally we update the model states.
+
+1234
+01:49:20,010 --> 01:49:25,550
+So again, we use an optics or
+TS model to get to home map.
+
+1235
+01:49:26,090 --> 01:49:36,540
+And I X V to get to the token set, run by V then
+TSS token to zoom into the field that tells us
+
+1236
+01:49:36,540 --> 01:49:40,099
+how many tokens are at the UTxO at the moment.
+
+1237
+01:49:40,980 --> 01:49:43,789
+And this is another operator
+coming from the spec Walnut.
+
+1238
+01:49:44,080 --> 01:49:50,320
+So instead of setting, assigning what we saw earlier,
+if you use the Stoller tilt operator, we can specify
+
+1239
+01:49:50,320 --> 01:49:52,269
+function, and then that function will be applied.
+
+1240
+01:49:52,780 --> 01:49:55,909
+So, plus end means we increase in the model.
+
+1241
+01:49:57,020 --> 01:50:02,400
+This value, how many tokens are in
+the token sale, run by V by end.
+
+1242
+01:50:03,220 --> 01:50:10,680
+So the end tokens disappear from all the
+w and they are now in the model accounted
+
+1243
+01:50:10,880 --> 01:50:17,359
+for, because we increased the number in the
+model by N and finally, we wait one step.
+
+1244
+01:50:18,540 --> 01:50:20,750
+The next case is by tokens.
+
+1245
+01:50:20,870 --> 01:50:26,510
+So from the token sale run by
+V w wants to buy in tokens.
+
+1246
+01:50:27,130 --> 01:50:29,280
+So first we check that and is positive.
+
+1247
+01:50:29,300 --> 01:50:31,129
+And if not, we just wait.
+
+1248
+01:50:31,660 --> 01:50:37,750
+If it is, we use the helper function V
+justice cust, to get maybe the token sale.
+
+1249
+01:50:38,929 --> 01:50:43,030
+So if that is nothing, then V
+hasn't started the token sale yet.
+
+1250
+01:50:43,420 --> 01:50:55,870
+So we also don't do anything, but if it is just tea,
+and if there are at least end tokens on sale, then
+
+1251
+01:50:55,870 --> 01:51:01,399
+we look up the price, calculate the total price.
+
+1252
+01:51:01,700 --> 01:51:10,190
+So the price per token times the number of tokens,
+then we use withdraw again to take this total price
+
+1253
+01:51:10,450 --> 01:51:18,200
+out of the wallet of w and then we use the posit that
+I mentioned earlier, which puts money back into a
+
+1254
+01:51:18,320 --> 01:51:22,600
+wallet to put the end port talk tokens into the wallet.
+
+1255
+01:51:22,960 --> 01:51:24,740
+And finally, we have to update the model.
+
+1256
+01:51:25,280 --> 01:51:31,640
+So we have to increase the amount of lovelace
+by L and decrease the amount of tokens by.
+
+1257
+01:51:33,020 --> 01:51:36,219
+Finally, we have the withdrawal case.
+
+1258
+01:51:37,010 --> 01:51:44,700
+So talk and say run by V while it w wants
+to withdraw and tokens and L lovelace.
+
+1259
+01:51:45,820 --> 01:51:51,499
+So first we check the w equals V because only
+the owner of the token Sarah can withdraw.
+
+1260
+01:51:52,850 --> 01:51:54,460
+If not, we don't do anything in trust.
+
+1261
+01:51:54,460 --> 01:51:54,869
+Wait.
+
+1262
+01:51:55,740 --> 01:51:59,720
+So if that condition is satisfied,
+we look up the state again.
+
+1263
+01:51:59,740 --> 01:52:04,040
+And if it's nothing, then we know
+that token sale hasn't started.
+
+1264
+01:52:04,040 --> 01:52:11,269
+So there's nothing to withdraw, but if it's just,
+we check that there are at least end tokens and at
+
+1265
+01:52:11,270 --> 01:52:14,290
+least a lovelace, otherwise we also don't do anything.
+
+1266
+01:52:15,500 --> 01:52:23,659
+And now we deposit the lovelace and the tokens
+back in the wallet and we update the state.
+
+1267
+01:52:23,670 --> 01:52:30,870
+So we remove the lovelace and we remove the
+tokens and that completes the next state function.
+
+1268
+01:52:31,140 --> 01:52:36,560
+So this is, as I said, the most complex
+one to set up this model to describe the
+
+1269
+01:52:36,560 --> 01:52:39,130
+effect the actions should have on the model.
+
+1270
+01:52:40,770 --> 01:52:45,780
+So right now the model is just some
+conception model that has nothing to do with
+
+1271
+01:52:45,780 --> 01:52:47,789
+the actual contracts we've wrote earlier.
+
+1272
+01:52:47,940 --> 01:52:50,590
+I mean, the names of course are suggestive.
+
+1273
+01:52:51,010 --> 01:52:56,259
+I gave the names, the same name says
+were used in the redeemer, but there is
+
+1274
+01:52:56,260 --> 01:52:59,150
+no link whatsoever until now between.
+
+1275
+01:52:59,849 --> 01:53:04,690
+This model here and the actual contracts
+and the actual endpoints we've wrote.
+
+1276
+01:53:05,309 --> 01:53:11,390
+And this link is provided by yet another
+methods in this class that we have to implement.
+
+1277
+01:53:11,770 --> 01:53:14,660
+And that's the perform function.
+
+1278
+01:53:14,900 --> 01:53:22,859
+If we check the type of perform in the repor
+is see, it takes something called  fund state.
+
+1279
+01:53:23,639 --> 01:53:25,100
+I'd explain that in a moment.
+
+1280
+01:53:25,550 --> 01:53:33,219
+Then it takes the model state, and it takes the action
+we are performing, and I don't need the model state.
+
+1281
+01:53:33,319 --> 01:53:38,720
+In this example, the handle will give me
+access to the actual contract handles.
+
+1282
+01:53:38,720 --> 01:53:42,149
+So let's see, look at an example.
+
+1283
+01:53:42,360 --> 01:53:50,769
+So we have, we make a pattern metter
+on the case distinction on the command.
+
+1284
+01:53:51,559 --> 01:53:58,629
+So if it's start w so that means I, the
+action is starting the the start contract
+
+1285
+01:53:58,629 --> 01:54:02,809
+for wallet w and now this is now the link.
+
+1286
+01:54:02,970 --> 01:54:04,945
+So this is now actual emulator code.
+
+1287
+01:54:05,620 --> 01:54:09,950
+So how would this action
+manifest itself in the emulator?
+
+1288
+01:54:11,040 --> 01:54:19,050
+So in order to do this, I must call the start
+endpoint on w and recall the argument I need
+
+1289
+01:54:19,060 --> 01:54:23,840
+here is this instance, so in the emulator,
+I'll start a contract instance and I'll get
+
+1290
+01:54:23,840 --> 01:54:25,780
+a handle and now must provide this handle.
+
+1291
+01:54:25,780 --> 01:54:28,960
+And this is exactly what the first argument is for.
+
+1292
+01:54:30,420 --> 01:54:37,460
+so this H argument given a key, these are the keys,
+these contracts instance keys we defined earlier.
+
+1293
+01:54:37,460 --> 01:54:44,070
+So given a key, it will give me the handle that
+I need to give, to call endpoint in order to
+
+1294
+01:54:44,090 --> 01:54:46,290
+actually reach the right contract instance.
+
+1295
+01:54:47,139 --> 01:54:50,560
+And in this case, the key is start key.
+
+1296
+01:54:50,570 --> 01:54:59,900
+W that's exactly what we defined this key
+for, for the start contract on the w wallet.
+
+1297
+01:55:00,150 --> 01:55:07,100
+So giving that to the H we got, we get a handle
+that we can provide to the call endpoint function.
+
+1298
+01:55:07,520 --> 01:55:13,570
+And now we must provide the arguments to the stripper
+consisting of the currency symbol of the token.
+
+1299
+01:55:13,580 --> 01:55:19,280
+We are selling the token name of the token we
+are selling and then true or false, depending on
+
+1300
+01:55:19,300 --> 01:55:21,589
+whether we want to use the thread token mechanism.
+
+1301
+01:55:22,160 --> 01:55:27,389
+And as I said several times now, already,
+we don't want to use it in this test.
+
+1302
+01:55:27,410 --> 01:55:28,729
+So we provide faults.
+
+1303
+01:55:29,699 --> 01:55:39,809
+And additionally, I do a delay of one slot afterwards,
+and this delays just as, it's nothing new, just to
+
+1304
+01:55:39,809 --> 01:55:46,559
+have a function here, which uses our well-known weight
+and slots that we have used all the time already.
+
+1305
+01:55:47,490 --> 01:55:49,730
+So just the shorter work of that.
+
+1306
+01:55:51,710 --> 01:55:52,040
+Okay.
+
+1307
+01:55:52,040 --> 01:55:54,740
+And all the other side principle, very similar.
+
+1308
+01:55:55,740 --> 01:56:01,960
+For example, set price quotes to set price
+endpoint, but now the key is not start key.
+
+1309
+01:56:01,960 --> 01:56:02,799
+It's a use key.
+
+1310
+01:56:02,880 --> 01:56:08,640
+And because he wants to set price while w wants
+to set the price on the talk and say, provide
+
+1311
+01:56:08,650 --> 01:56:20,219
+by V . If I use key V w here, and the argument
+is P and the others are exactly the same are
+
+1312
+01:56:20,219 --> 01:56:28,957
+the endpoints finally, and this is now the last
+method I must provide, to, to implement it.
+
+1313
+01:56:28,957 --> 01:56:31,980
+All of this is precondition.
+
+1314
+01:56:32,320 --> 01:56:38,624
+So I have the option to say that certain actions
+are not supposed to be randomly generated at a
+
+1315
+01:56:38,670 --> 01:56:44,530
+certain point, so I can define preconditions and,
+which it is acceptable to provide this action.
+
+1316
+01:56:45,290 --> 01:56:53,530
+And, the preconditions I define here is that
+I say, okay, start the precondition for start.
+
+1317
+01:56:53,540 --> 01:56:58,779
+Is that the model that this
+token sale hasn't yet started?
+
+1318
+01:56:58,990 --> 01:57:03,510
+So the S the first argument of
+precondition is again, this model state.
+
+1319
+01:57:03,750 --> 01:57:10,529
+So precondition model state, It's a
+condition that I can put that says, okay,
+
+1320
+01:57:10,530 --> 01:57:13,730
+in this state, is this action possible?
+
+1321
+01:57:14,490 --> 01:57:17,129
+So this says a start is only possible.
+
+1322
+01:57:17,400 --> 01:57:19,335
+If I haven't yet started the token sale for
+w and for the others, I do the opposite.
+
+1323
+01:57:19,335 --> 01:57:31,610
+So I say, this is only possible
+if it has already started.
+
+1324
+01:57:33,450 --> 01:57:33,700
+Okay.
+
+1325
+01:57:33,700 --> 01:57:41,970
+And this now finally completes the definition
+of this contract model class for our TS model.
+
+1326
+01:57:43,530 --> 01:57:44,750
+And now they are stressed.
+
+1327
+01:57:44,910 --> 01:57:50,800
+I need eat and show instances for
+my contract instance, key, type.
+
+1328
+01:57:51,450 --> 01:57:59,090
+And I wanted to arrive them, but because it's a
+GDT, sometimes arriving doesn't work as nicely
+
+1329
+01:57:59,090 --> 01:58:03,780
+as it does with other Haskell data types, but
+there is something called standalone deriving.
+
+1330
+01:58:03,780 --> 01:58:10,440
+So instead of writing this deriving eco or
+deriving show directly behind the data type
+
+1331
+01:58:10,440 --> 01:58:13,519
+definition, I can have this standalone lions.
+
+1332
+01:58:13,580 --> 01:58:20,820
+And this index is like this deriving instance,
+eat and thriving instance show that needs
+
+1333
+01:58:20,860 --> 01:58:24,090
+actually a GHT extensions, the laundry arriving.
+
+1334
+01:58:27,630 --> 01:58:27,960
+Okay.
+
+1335
+01:58:27,960 --> 01:58:29,929
+And I think that is it.
+
+1336
+01:58:30,000 --> 01:58:31,820
+So now not quite.
+
+1337
+01:58:31,820 --> 01:58:33,360
+So this sets up everything.
+
+1338
+01:58:33,730 --> 01:58:38,030
+One more thing we need, we must provide
+the instant specs we actually want to run.
+
+1339
+01:58:38,050 --> 01:58:47,179
+So we define these keys, but now we must somehow link
+them to actual contracts that we haven't done yet.
+
+1340
+01:58:47,959 --> 01:58:49,009
+And this happens here.
+
+1341
+01:58:49,010 --> 01:58:54,889
+So this is a list of contract instances
+we want to run and such an contract
+
+1342
+01:58:54,900 --> 01:58:58,760
+instance, spec type takes three arguments.
+
+1343
+01:58:58,809 --> 01:59:00,000
+The first is the key.
+
+1344
+01:59:00,389 --> 01:59:01,549
+The second is the wallet.
+
+1345
+01:59:01,799 --> 01:59:06,179
+And the third is the actual contract
+that is supposed to be invoked with it.
+
+1346
+01:59:06,900 --> 01:59:08,400
+So we have two cases.
+
+1347
+01:59:08,400 --> 01:59:10,280
+We have these stock keys and the use keys.
+
+1348
+01:59:10,280 --> 01:59:13,419
+So for the start key, w so that's the key.
+
+1349
+01:59:14,190 --> 01:59:18,629
+The wallet is w and the associated
+contract is the start and part.
+
+1350
+01:59:18,679 --> 01:59:23,030
+And we do this for both wallets and the use keys.
+
+1351
+01:59:23,359 --> 01:59:34,449
+So the key is use key V w the wallet, it runs on this
+w and the contract is you was endpoints and require use
+
+1352
+01:59:34,449 --> 01:59:37,180
+endpoints, takes a parameter, namely the token sale.
+
+1353
+01:59:37,759 --> 01:59:46,119
+So we'll look up the token sale, belonging to
+vomit, and we do this for all pairs of wallets.
+
+1354
+01:59:47,099 --> 01:59:51,280
+So there would be four of these infix and two of those.
+
+1355
+01:59:52,730 --> 01:59:52,759
+Okay.
+
+1356
+01:59:53,070 --> 01:59:55,910
+And this, we have seen this way, I've seen.
+
+1357
+01:59:56,849 --> 02:00:02,259
+And now finally, we can define a quick check property.
+
+1358
+02:00:03,660 --> 02:00:09,410
+So this is now the link between all of
+this work in this model and quick check.
+
+1359
+02:00:10,240 --> 02:00:20,110
+And there's a function in Plutus dot contract
+dot test from prop run action with options.
+
+1360
+02:00:20,870 --> 02:00:27,210
+So if you check the type of prop run actions
+with options, you see first it takes the
+
+1361
+02:00:27,540 --> 02:00:30,339
+check options type that we have seen before.
+
+1362
+02:00:30,370 --> 02:00:37,639
+When we did the emulator trace based
+testing, then it takes this instance specs
+
+1363
+02:00:37,640 --> 02:00:39,610
+or the contract instances we want to run.
+
+1364
+02:00:41,470 --> 02:00:47,340
+Then it takes something from
+model state to trace predicate.
+
+1365
+02:00:47,350 --> 02:00:51,269
+So this would allow us to insert additional tests.
+
+1366
+02:00:52,289 --> 02:01:01,190
+And finally it produces a function from actions,
+which is basically just a list of actions to property.
+
+1367
+02:01:01,200 --> 02:01:02,580
+Property is like a beef.
+
+1368
+02:01:02,940 --> 02:01:04,370
+Well, you can think of that.
+
+1369
+02:01:04,740 --> 02:01:05,949
+It's a quick check thing.
+
+1370
+02:01:06,300 --> 02:01:10,089
+So it's a brilliant, that has some
+additional capabilities for it's
+
+1371
+02:01:10,090 --> 02:01:11,960
+mostly for logging and deep packing.
+
+1372
+02:01:12,910 --> 02:01:14,870
+So how do we use this here?
+
+1373
+02:01:15,080 --> 02:01:19,950
+So as options view is the same
+as before, which allows us to.
+
+1374
+02:01:20,349 --> 02:01:22,660
+Specify the initial coin distributions.
+
+1375
+02:01:23,219 --> 02:01:30,764
+And what we do is we get each wallet,
+1,000 ADA and 1,000 of both tokens ANP.
+
+1376
+02:01:30,929 --> 02:01:31,009
+Okay.
+
+1377
+02:01:32,770 --> 02:01:37,460
+As second argument, we provide these
+instance specs that we define the buff
+
+1378
+02:01:37,970 --> 02:01:41,179
+and we don't add any additional checks.
+
+1379
+02:01:41,960 --> 02:01:43,420
+So this is just pure.
+
+1380
+02:01:43,900 --> 02:01:44,330
+True.
+
+1381
+02:01:44,480 --> 02:01:49,000
+True is just another word for return
+comes from applicative if you check again.
+
+1382
+02:01:49,000 --> 02:01:53,090
+So we provide the first three arguments.
+
+1383
+02:01:53,590 --> 02:02:00,679
+So the result of this is now functioned from
+action state to property and provided quick
+
+1384
+02:02:00,679 --> 02:02:04,170
+check can provide, compute random actions.
+
+1385
+02:02:05,500 --> 02:02:07,100
+It will be able to test it.
+
+1386
+02:02:07,120 --> 02:02:13,680
+So this is not something quick check
+can handle, so we can actually try this
+
+1387
+02:02:17,800 --> 02:02:23,759
+and we can use sample to generate
+us sample action sequences.
+
+1388
+02:02:24,150 --> 02:02:28,560
+So, and again, we see this pattern that
+we saw with Intellus before that it starts
+
+1389
+02:02:28,570 --> 02:02:33,779
+simple and gets more and more complex for the
+first one, here would just have one action.
+
+1390
+02:02:33,790 --> 02:02:38,630
+If we just started token sale for one to two
+second, and third would even be the empty list.
+
+1391
+02:02:38,630 --> 02:02:40,150
+So no actions whatsoever.
+
+1392
+02:02:41,480 --> 02:02:45,760
+And then we see more complex
+scenario, start the token sale for
+
+1393
+02:02:48,800 --> 02:02:53,160
+Then wallet two tries to add six
+tokens to its own token sale.
+
+1394
+02:02:53,900 --> 02:02:59,010
+Then wallet, it tries to set the price
+of wallet to stoking say and so on.
+
+1395
+02:03:00,449 --> 02:03:09,150
+And you see that we get quite complex
+scenarios and what will this property be?
+
+1396
+02:03:09,200 --> 02:03:11,720
+I mean, what will be tested, where it will be tested?
+
+1397
+02:03:11,790 --> 02:03:17,329
+What I tried to explain to the diagram that for
+all these randomly generated action sequences,
+
+1398
+02:03:17,609 --> 02:03:20,650
+the properties we specified in the model.
+
+1399
+02:03:21,000 --> 02:03:26,050
+So how the funds flow correspond to
+what actually happens in the emulator.
+
+1400
+02:03:26,650 --> 02:03:30,140
+And if there's a discrepancy, then the test will fail.
+
+1401
+02:03:30,140 --> 02:03:33,389
+We can actually try this with quick check properties.
+
+1402
+02:03:33,809 --> 02:03:41,005
+So, which is called test here and we see tests are
+run, but we also see that it takes quite a while.
+
+1403
+02:03:41,300 --> 02:03:49,370
+So now I test run 18 tests and it will run
+a hundred, probably it's more interesting
+
+1404
+02:03:49,380 --> 02:03:54,740
+to implement a back in the actual code
+and see whether these tests will find it.
+
+1405
+02:03:54,960 --> 02:04:00,910
+For example, here in the set price
+case, as a constraint, we had that
+
+1406
+02:04:00,970 --> 02:04:02,913
+that must be signed by the sellers.
+
+1407
+02:04:02,913 --> 02:04:06,979
+Only the seller can set the price,
+but let's say we forgot that.
+
+1408
+02:04:07,009 --> 02:04:07,496
+So we forgot this constraint.
+
+1409
+02:04:07,496 --> 02:04:15,530
+So if I run the test again with this wrong code, now
+
+1410
+02:04:23,200 --> 02:04:31,790
+then we'd see that quick trick indeed found a buck and
+we see it did 19 tests in this case in five shrinks.
+
+1411
+02:04:32,960 --> 02:04:37,285
+So it simplified the action sequence that it
+originally found, and that produced a buck.
+
+1412
+02:04:37,430 --> 02:04:40,389
+So let's look at this action sequence.
+
+1413
+02:04:41,480 --> 02:04:44,350
+So first wallet two starts at token sale.
+
+1414
+02:04:46,139 --> 02:04:50,990
+Then wallet one sets the price of
+wallet tools, token sale to 18.
+
+1415
+02:04:51,510 --> 02:04:56,000
+Now recall in the model, you specified
+that in this case, nothing should happen.
+
+1416
+02:04:57,309 --> 02:04:59,310
+Setting the price would only change anything.
+
+1417
+02:04:59,770 --> 02:05:02,940
+If the wallet that started
+the sale actually changes it.
+
+1418
+02:05:03,469 --> 02:05:07,710
+But now in the actual
+implementation, we remove this check.
+
+1419
+02:05:07,710 --> 02:05:13,960
+So if you forgot the check, so this will actually
+have an effect and indeed set the price to 18.
+
+1420
+02:05:15,889 --> 02:05:23,140
+So now followed two it's 14 tokens,
+and then it's another nine tokens.
+
+1421
+02:05:24,670 --> 02:05:28,540
+And finally buys from its own token C say 17.
+
+1422
+02:05:30,260 --> 02:05:32,809
+So according to the model, the prices zero.
+
+1423
+02:05:33,270 --> 02:05:36,490
+So these 17 should be for free.
+
+1424
+02:05:37,110 --> 02:05:39,160
+So, they are, what is it?
+
+1425
+02:05:39,420 --> 02:05:41,549
+23 in the sale.
+
+1426
+02:05:42,029 --> 02:05:45,070
+And then 70 bought 17 bought back.
+
+1427
+02:05:45,490 --> 02:05:51,230
+So six should still be in the sale, 17 back
+in the wallet, but no ADA or should have
+
+1428
+02:05:51,230 --> 02:05:55,459
+been spent no, a have, should have been
+spent because the price should still be zero.
+
+1429
+02:05:55,820 --> 02:06:05,090
+So expected from the point of view of the
+model is that the, there are six total BS less.
+
+1430
+02:06:05,090 --> 02:06:06,820
+Now that's correct.
+
+1431
+02:06:06,830 --> 02:06:08,340
+23 minus 17.
+
+1432
+02:06:09,550 --> 02:06:12,520
+And the, and the fees are ignored
+and no effect on the lovelace.
+
+1433
+02:06:13,730 --> 02:06:20,250
+But the actual code found that 306 lovelace was spent.
+
+1434
+02:06:21,120 --> 02:06:25,850
+So probably 18 times 17.
+
+1435
+02:06:27,900 --> 02:06:28,559
+Let's see.
+
+1436
+02:06:30,090 --> 02:06:32,870
+So 18 times 17.
+
+1437
+02:06:35,350 --> 02:06:35,979
+Yes, that's 306.
+
+1438
+02:06:40,170 --> 02:06:44,070
+So in the real implementation,
+now the price was set to 18.
+
+1439
+02:06:44,559 --> 02:06:51,619
+And so for this buying wallet, van had to pay 306
+lovelace that are not missing from the voltage.
+
+1440
+02:06:52,889 --> 02:07:00,370
+So there's a discrepancy between the expectation
+from the model and the actual funds in the vault
+
+1441
+02:07:00,550 --> 02:07:06,900
+with the actual implementation and fake check
+has spotted that discrepancy and reported it.
+
+1442
+02:07:07,780 --> 02:07:09,399
+And so this is very nice.
+
+1443
+02:07:09,400 --> 02:07:16,810
+If we get the action sequence, we get the discrepancy
+and we also get the emulator lock of this run.
+
+1444
+02:07:18,100 --> 02:07:21,730
+Now, by default, this is all
+that the quick check tests do.
+
+1445
+02:07:21,820 --> 02:07:27,484
+So it only checks the flow of funds, whether
+that agrees at each point with what we
+
+1446
+02:07:27,540 --> 02:07:33,420
+specified in the model, but it is possible
+to to add additional checks and it is also
+
+1447
+02:07:33,420 --> 02:07:36,330
+possible to influence these action sequences.
+
+1448
+02:07:36,330 --> 02:07:43,719
+So right now they're just random actions, of course,
+checking the preconditions that we defined, but
+
+1449
+02:07:43,719 --> 02:07:51,710
+it's also possible to do some more unit tests,
+like scenarios, where we specify certain flows of,
+
+1450
+02:07:51,740 --> 02:07:56,640
+actions to steer the tests into certain directions.
+
+1451
+02:07:57,090 --> 02:08:02,110
+So that's called dynamic logic and it's
+yet another monad, but I think that
+
+1452
+02:08:02,290 --> 02:08:04,509
+would go too far to talk about this now.
+
+1453
+02:08:06,479 --> 02:08:13,190
+And, I should mention that, of course, this, even
+though it's very powerful also has its limitations.
+
+1454
+02:08:13,580 --> 02:08:16,049
+So one thing is that, of course it only tests.
+
+1455
+02:08:16,309 --> 02:08:22,580
+the Contracts that we provide it doesn't
+test all possible off-chain code.
+
+1456
+02:08:23,459 --> 02:08:29,590
+So of course it's possible that, with the provided
+off-chain code that we write everything is fine,
+
+1457
+02:08:30,010 --> 02:08:37,960
+but some party could write their own off-chain code
+that allows them to steal funds from our contract.
+
+1458
+02:08:38,920 --> 02:08:45,670
+And obviously this quick check model can't
+detect it because it has to use the contracts.
+
+1459
+02:08:45,670 --> 02:08:48,120
+We give it in the perform method.
+
+1460
+02:08:48,410 --> 02:08:51,730
+And the second problem is concurrency.
+
+1461
+02:08:52,010 --> 02:08:56,889
+I mean, we carefully edit this delay
+of one slot to each action to make sure
+
+1462
+02:08:56,889 --> 02:08:59,250
+that everything is nicely sequenced.
+
+1463
+02:09:00,390 --> 02:09:07,650
+So all the actions happen in sequence, but of course,
+in the real blockchain, also in the emulator, wallets
+
+1464
+02:09:07,650 --> 02:09:11,450
+can have concurrent submissions of transactions.
+
+1465
+02:09:12,460 --> 02:09:17,720
+And in principle, we could try to do that with
+this model as well, but then we somehow must in
+
+1466
+02:09:17,720 --> 02:09:21,120
+the model specify what should happen in this case.
+
+1467
+02:09:21,170 --> 02:09:25,610
+And that might really depend on in which order
+the transactions are processed and so on.
+
+1468
+02:09:25,610 --> 02:09:27,700
+So that might get very complicated.
+
+1469
+02:09:28,370 --> 02:09:33,900
+So there are limitations, but nevertheless,
+it's a powerful way to test plutus contracts.
+
+1470
+02:09:33,920 --> 02:09:41,410
+Finally, I should mention how all of this integrates
+with tasty and there's a function coming from
+
+1471
+02:09:41,420 --> 02:09:44,050
+the tasty library, called property that takes.
+
+1472
+02:09:44,050 --> 02:09:49,660
+a Description as string and
+then a quick check property.
+
+1473
+02:09:49,730 --> 02:09:51,400
+So we can use our prop underscore
+
+1474
+02:09:51,400 --> 02:09:59,350
+TS here and now we get the test tree that tasty
+can understand actually how this is now set up.
+
+1475
+02:10:00,260 --> 02:10:01,500
+If you look at the cabal file.
+
+1476
+02:10:01,500 --> 02:10:07,473
+So we have the library with the three
+modules We saw the token sale and the
+
+1477
+02:10:07,473 --> 02:10:09,655
+quick check and the lens examples.
+
+1478
+02:10:10,190 --> 02:10:13,540
+And I provided an additional
+stanza in the . cabal file.
+
+1479
+02:10:14,120 --> 02:10:18,259
+That's now not library and not executable
+what we have seen before, but a test suite.
+
+1480
+02:10:18,900 --> 02:10:24,460
+And, this means that the tests
+work by running executables.
+
+1481
+02:10:25,309 --> 02:10:29,770
+And if there's an exit code, that's
+not zero the test concept fail.
+
+1482
+02:10:31,100 --> 02:10:35,429
+So the rest is quite similar to how we
+specify an executable in a cabal file.
+
+1483
+02:10:35,520 --> 02:10:37,940
+So we provide a main, this spec HS.
+
+1484
+02:10:38,190 --> 02:10:39,290
+I haven't shown you that yet.
+
+1485
+02:10:40,040 --> 02:10:45,190
+And a folder other modules with these
+other two test models we have looked at.
+
+1486
+02:10:45,190 --> 02:10:47,160
+So this is the one with the emulator trace.
+
+1487
+02:10:47,180 --> 02:10:48,960
+This is the one we discussed just now.
+
+1488
+02:10:50,260 --> 02:10:58,470
+So let's find a look at this spec dot HS,
+and this simply imports the two models
+
+1489
+02:10:58,470 --> 02:11:05,149
+that modules contain the test and tasty and
+use this default main and set up a test.
+
+1490
+02:11:05,160 --> 02:11:05,519
+tree.
+
+1491
+02:11:06,540 --> 02:11:12,956
+I can again provide some name and then just use this
+dot tests we defined for the emulator trace and the
+
+1492
+02:11:13,040 --> 02:11:21,600
+test we now defined for the model and all of this can
+then from the command line, we run with cabal test.
+
+1493
+02:11:22,940 --> 02:11:29,830
+If we do that, then after compiling,
+it will run all the tests.
+
+1494
+02:11:29,980 --> 02:11:31,630
+So in our case two.
+
+1495
+02:11:31,890 --> 02:11:34,000
+the emulator trace test and the quick check test.
+
+1496
+02:11:42,080 --> 02:11:48,019
+for homework, I want you to modify the token sale contract
+to accept an additional transition called close.
+
+1497
+02:11:48,030 --> 02:11:54,990
+That can be called by the seller, and only
+by the seller to actually close the contract
+
+1498
+02:11:55,020 --> 02:12:02,360
+close to UTXO, collect all the remaining tokens
+and lovelace in the contract and the NFT.
+
+1499
+02:12:03,230 --> 02:12:07,020
+And this time I don't provide an extra module for that.
+
+1500
+02:12:07,030 --> 02:12:13,599
+So you can either just modify this
+token sale module or copy it and create
+
+1501
+02:12:13,759 --> 02:12:16,799
+a new model with this separate logic.
+
+1502
+02:12:17,629 --> 02:12:24,130
+Of course, you will have to think about the datum type.
+
+1503
+02:12:24,130 --> 02:12:26,650
+So right now it was integer, but now we
+have this new state, this close state.
+
+1504
+02:12:27,559 --> 02:12:32,160
+So one option would be to use
+maybe integer instead, where just.
+
+1505
+02:12:32,910 --> 02:12:38,500
+some integer just prize means the contract is
+still active and nothing means it has been closed.
+
+1506
+02:12:38,870 --> 02:12:46,859
+And if you feel ambitious, you can also
+modify the trace and the model in order to
+
+1507
+02:12:46,860 --> 02:12:49,679
+accommodate for this additional operation.
+
+1508
+02:12:49,960 --> 02:12:58,350
+So for the model, you could add a new action
+close and for the trace for the emulator trace,
+
+1509
+02:12:58,470 --> 02:13:01,980
+as well as a last step, provide the close action.
+

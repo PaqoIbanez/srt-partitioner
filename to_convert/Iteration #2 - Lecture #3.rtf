@@ -1,0 +1,348 @@
+{\rtf1\ansi\deff0
+\margl1800\margr1800\margb1440\margt1440\deflang1033\lndscpsxn
+{\colortbl;
+}
+{\fonttbl;
+{\f0 Arial}
+}
+{\pard  \line \par}
+{\b\fs36 [00:00:00] 0301 Introduction\b0}
+{\pard  \line \par}
+{Before I start with today's lecture, I want to point out that there is a recent development in the playground that fixes an issue that many of you have been complaining about. Namely that sometimes the timeout that was hard-coded into the playground was too short. So sometimes your simulations failed because the simulation just took more time than this timeout specified.}
+{\pard  \line \par}
+{And it was very difficult to change the timeout because it was hard-coded. So you would have to change the source code and then recompile it. And now there's an option when you start the Plutus playground server and -i and then you can specify something like 120 seconds to set the timeout to two minutes.}
+{\pard  \line \par}
+{\b\fs36 [00:00:55] 0302 Script contexts\b0}
+{\pard  \line \par}
+{When I explained the extended UTxO model in the first lecture, I explained it in order to unlock a script address, the script attached to the address is run. And that script gets three pieces of input, the datum, the redeemer and the context. And in the second lecture, we saw examples of that and we saw how that actually works in Haskell.}
+{\pard  \line \par}
+{We saw the low level implementation where all three arguments, datum, redeemer, and context are represented by the data type. But I also mentioned that in practice that is not used and we use instead the typed version, where datum and redeemer can be customed types, as long as they implement the is data type class and where the third argument, the context is of type script context.}
+{\pard  \line \par}
+{And the example we have seen so far only looked at the datum and the redeemer, but we have always ignored the context. But the context is of course very important. So in this lecture, we want to start looking at the context and this script context type it's defined in package plutus-ledger-api which is a package that until now we haven't needed, but now we do need it and I also included it in this week's cabal file. }
+{\pard  \line \par}
+{And the context is in module Plutus.V1.Ledger.Contexts and we see the definition here, so the type script context. And we see it as a record type with two fields, one of type Tx info, which is the most interesting one. And then the second field of type script purpose and the script purpose type is defined in the same module here.}
+{\pard  \line \par}
+{And it describes for which purpose the script is run. So the most important purpose for us will be this one, the spending purpose. So this is what we have talked about until now in the context of the extended UTxO model. So this is when a script is run in order to validate spending input for a transaction, but there are three other purposes.}
+{\pard  \line \par}
+{The second most important one is the minting one. So that comes into play when you want to define a native token and then this purpose of this script would be to describe under which circumstances the native token can be minted or burned. And then there are two more purposes, rewarding and certifying.}
+{\pard  \line \par}
+{So rewarding seems to be related to staking and certifying to certificates like delegation certificates. But first we will concentrate on the spending purpose. So now the actual context is in this field of type Tx info, which is defined also in the same module here. And this basically describes, I mean, it's an abbreviation for a transaction info, so it describes the spending transaction. }
+{\pard  \line \par}
+{I always say that in the UTxO model that Cardano uses, the context of validation is the spending transaction. So the transaction and its inputs and outputs. And that is expressed in this Tx info type. So there are a couple of fields that are basically global to the transaction.}
+{\pard  \line \par}
+{And then in particular, we have the list of all the inputs of the transaction and the list of all the outputs of the transaction. And these Tx in info and Tx out types, again have lots of fields to allow you to drill into each individual input respectively output. }
+{\pard  \line \par}
+{So let's go through the Tx info fields briefly, so Tx info inputs the inputs, Tx info outputs the outputs, Tx info fee is the fee, the transaction fee, Tx info forge is the amount of newly forged native tokens or if it's a negative amount, newly burned native tokens. So we'll come to that in a later lecture, then we have a list of certificates, something like delegation certificates. }
+{\pard  \line \par}
+{Then staking withdrawals, so withdrawals from rewards. Then Tx info valid range denotes the time range in which this transaction will be valid. And we'll talk about that in much more detail in a minute. Then the Tx info signatories, that's the list of public keys that have signed this transaction. }
+{\pard  \line \par}
+{Tx info data, I mentioned before that spending transactions, I mean, transactions that spend a script output need to include the datum of that script output whereas producing transactions that send money to a script address have an output at the script address, only have to include the hash. So this field Tx info data is basically a dictionary from datum hash to data to include the fully datum values belonging to a given hash.}
+{\pard  \line \par}
+{There's also mentioned before, spending transactions always have to include the datum of the inputs they spent, but producing transactions optionally can also do that. And finally, Tx info id is the id of this transition. }
+{\pard  \line \par}
+{\b\fs36 [00:07:04] 0303 Handling time\b0}
+{\pard  \line \par}
+{This brings us to an interesting dilemma. I have stressed several times that one of the big advantages that the Cardano UTxO model has over something like Ethereum is the fact that validation can help them in the wallet.}
+{\pard  \line \par}
+{So as I explained before, transactions can still fail because a transaction can consume an input that when the transaction arrives on the blockchain at the node for validation has already been consumed by somebody else. But in that case, the transaction simply fails without having to pay fees, but what can never happen or should never happen under normal circumstances is that a validation script runs and then fails because you can always run the script under exactly the same conditions in the wallet already.}
+{\pard  \line \par}
+{So you see that it would fail before you ever submit it. And that is a very important and a very nice feature. But if you think about it, it's not clear how to manage time in that context, because time is obviously important because we want to be able to express validation logic that says that a certain transaction is only valid.}
+{\pard  \line \par}
+{After a certain time has been reached or before certain time has been reached. You saw an example of that in the very first example, the auction example, where bids are only allowed until the deadline has been reached and the close endpoint can only be called after the deadline has passed. And if you think about that, that seems to be a contradiction because time is obviously flowing.}
+{\pard  \line \par}
+{So when you try to validate a transaction that you're constructing in your wallet, the time that you do that in the wallet can of course be different to the time that the transaction arrives at a node for validation. So it's not clear how to bring these two together to on the one hand handle time. But on the other hand guarantee that validation is deterministic in the sense that if it even only if it succeeds in the wallet, it will also succeed in the node.}
+{\pard  \line \par}
+{And the way Cardano solves that is by adding this POSIX time range field. Tx info valid range field to a transaction and what that specifies, so it's... we you will look at that type in detail in a moment, but basically it gives a valid time interval, it is a time interval. So it says this transaction is valid between this and that time.}
+{\pard  \line \par}
+{And that is specified in the transaction, and now when the transaction gets sent to the blockchain, submitted to the blockchain and validated by a node then before any scripts are run some general checks are done for example, that all the inputs are present and that the balances at up and so on that the fees are included and run of those checks that happens before validation is that the time range has changed.}
+{\pard  \line \par}
+{So when a node is validating, one of these pre-checks before validation is the node checks the current time and compares it to the time range specified in the transaction. And if the current time does not fall into this time range, then validation fails immediately without ever running the validator scripts.}
+{\pard  \line \par}
+{But that also means that if these pre-checks succeed, then we can assume that the current time does fall into this interval. And then validation is completely deterministic again. This is just a static piece of data attached to the transaction. So the result of validation does not depend on when it is run, whether it's run in the wallet before submission or in one of the nodes when validating a transaction.}
+{\pard  \line \par}
+{And this makes it possible to resolve this apparent contradiction between having deterministic validation on the one hand and taking time into account on the other hand. So the trick is to do the time check before validation is run, and then during the execution of the validator scripts, we don't have to worry about it anymore and if we can just assume that the current time falls into this interval, because if it wouldn't then validation wouldn't even run in the first place, because then validation of the transaction would have failed before. By default all transactions use the infinite time range that starts at the beginning of time or at the Genesis block and lasts for all eternity.}
+{\pard  \line \par}
+{So such transactions will always be valid no matter at what time they arrive at a node for validation. The only exceptions we have seen so far were those in the auction example, because the bid and the close couldn't use the infinite interval, because we made sure that the bid happens before the deadline and the close after the deadline, but by default all transactions, including those that you send from Daudalus for example, always use the infinite time range. There's one slight complication with this. And that is that or bores itself the consensus protocol powering Cardano doesn't use POSIX time, time... it uses slots. So it counts slots and each slot there's lottery happens where a slot there's determined, and it's got to be, that can produce a block and so on. So a slot is the native measure of time when Cardano, but Plutus uses.}
+{\pard  \line \par}
+{So some of this has to be converted. So we need to be able to convert back and forth between real time and slots. And this is no problem as long as the slot length is fixed, right now it is one second. So right now it's easy to go back and forth between real time and slot numbers, but this could change in future.}
+{\pard  \line \par}
+{So there could be a hard fork, some parameter change that will change the slot time. And of course, we can't know that in advance, that may be a decision that is made years in the future. So we don't know right now what the slot length will be in 10 years, for example. And that means that slot intervals specify the transactions mustn't have a definite upper bound that is to find the future.}
+{\pard  \line \par}
+{It must only be... as fine the future as it is possible to know what the slot length will be. And that happens to be something like 36 hours. We know what the slot length will be in the next 36 hours, because if there's a hard fork, if there's a change in protocol parameters, then we know that at least 36 hours in advance.}
+{\pard  \line \par}
+{So that is something to keep in mind, you can't specify arbitrary time ranges there, in the transaction interval. It must only be at most 36 hours in the future, or it can be indefinite, so for all eternity, that's also fine. But if it's a fixed time, like the deadline in our auction example when we submit a transaction, the deadline basically mustn't be farther than 36 hours in the future, then we submit that, or the deadline could be, but then we must specify the deadline is upper bound, but some other time that lives before the deadline that is at most 36 hours in the future. So that's a slight complication that arises from the fact that Plutus uses a different concept of time then all boards itself.}
+{\pard  \line \par}
+{Of course, it's more convenient to use real time, especially for real world contracts where you may want to specify deadlines in real time dates, for example. But in order to translate back and forth between time and slots, you have to be a bit careful when you submit a transaction, when you construct transactions and set the slot interval or the time range.}
+{\pard  \line \par}
+{So let's look at this POSIX time range type. And we see it's defined in module Plutus.V1.Ledger.Time and it's just a type synonym for interval POSIX time, so let's look at the interval type. We see interval type, the one type parameter, and we see it's specified by a lower bound and upper bound. We can drill into those types as well. So in lower bound has one construct, a lower bond, and then extended a and closure.}
+{\pard  \line \par}
+{Let's first look at closure, that's just another name for bool and it specifies whether that boundary is included in the interval or not. And let's look at this extended, so this extended can just be an A, defined constructor, or it can be negative infinity or positive infinity. Now, if we scroll down here, we see there are a couple of convenience functions.}
+{\pard  \line \par}
+{So member for example, allows us to check whether a given A is included in interval A. Provided A is the ord constraint is an instance of the ord class, which means that you can compare two As whether one is less than or greater than or equal to the other. So POSIX time, for example, is an instance of ord as our slots.}
+{\pard  \line \par}
+{Interval is a smart constructor for intervals that just gives us an interval with these two As as lower and upper bound included. Then we have from and to, to construct an interval that starts at A and last until eternity. And to, the opposite an interval that stops at A, then always is the interval that is used by default, that includes all times, never is the empty interval, singleton is an interval that only contains this one A. Hull is the smallest interval that contains the two given intervals. Intersection as the name suggests intersects two intervals, the result will again be an interval. Overlaps checks whether two intervals have an element in common. }
+{\pard  \line \par}
+{Contains checks whether one interval is contained in the other, so we must just check which will round, so I think the second one must be included in the first one. Is empty checks whether an interval is empty. Before checks whether the given time is before everything in this interval. After the opposite, whether the given time is after everything in this interval.}
+{\pard  \line \par}
+{These are just convenience functions to construct strict lower and upper bounds. We can play with intervals a bit, so let's start a repl.}
+{\pard  \line \par}
+{And let's import Plutus V1 ledger interval. Now, for example, we can use this interval smart constructor and as A let's just use integers for simplicity, so for example, the interval between 10 and 20, let me see. Okay, it says the lower bound is finite 10, 10 is included, the upper bound is finite 20, 20 is included. So for example, we can now check with member whether nine is a member of this interval, it's not. But 10 should be. It is. So it should be 12 and 20, but 21 shouldn't. Or let's use the from, so we have from 30, 21 is not included in that, 30 should be. And now everything larger than 30 should also be. Right, and to, let's try the to.}
+{\pard  \line \par}
+{So 31 still shouldn't be included. 30 should be, and everything lower than 30 as well.}
+{\pard  \line \par}
+{Okay, so that seems to work. Let's try one more thing, maybe the intersection, so let's intersect this one from 10 to 20 with the one from, I don't know, 18 to 30 and as expected we get the interval from 18 to 20. Let's also try the contains and the overlap. So for example, contains to 100 interval 30 80. True. So what does that mean? That means the interval that starts at 30 and ends at 80 is contained, fully contained in the interval that starts at the beginning of time and goes to 100. If you now change this 80 to 100 should still be true, but if you change it to 101, it's no longer true.}
+{\pard  \line \par}
+{But if we check overlaps, then it is true because for example, 40 is contained in this interval and also in that one. So overlaps is true, but contains is false because the second interval is not fully contained in the first one, the 101 is in the second one, but not in the first one. If we, however, use something like 101 to 110.}
+{\pard  \line \par}
+{Then it's false, then it don't overlap any longer. So now let's look at an example for using this time range.}
+{\pard  \line \par}
+{\b\fs36 [00:22:33] 0304 A vesting example\b0}
+{\pard  \line \par}
+{One of my colleagues at input output bought some ADA for his nephews and nieces. And of course, I don't know any details about that, but just imagine you want to make a gift of ADA to a child. So you want the child to own the ADA, but you only want the child to have access to the ADA when he, or she turns 18 or 21 or whatever.}
+{\pard  \line \par}
+{And using Plutus, this is a very easy to implement a scheme like that, a vesting scheme like that. So I copied the is data contract and Into a new module that are called vesting. And as our first example of validator that actually uses the context. I want to try to implement this vesting idea.}
+{\pard  \line \par}
+{So you put money into a script and only the dedicated person can retrieve it, but only once a certain deadline has been reached. So the first step is to think about the types of datum and redeemer. And the datum, I think in this case, it makes sense to have exactly these two pieces of information, the beneficiary and the deadline.}
+{\pard  \line \par}
+{So let's define this type, let's call it vesting datum. Let's make it a record type with those two fields, beneficiary of type, well... How do we identify the beneficiary by his or her public key or to be more precise, public key hash. And then we need the deadline that will be of type POSIX time.}
+{\pard  \line \par}
+{We can derive a show instance, might be useful for debugging, we don't need the my silly redeemer anymore. But we do need an is data instance of our vesting datum.}
+{\pard  \line \par}
+{Right, so the first argument is the datum. So that's now of type vesting datum. So for redeemer, do we need any information in the redeemer? What do we need in order to check whether a transaction is allowed to spent this script output. We need to know that it has been signed by the beneficiary and we must know that it's only submitted after the deadline, but those two pieces of information are both contained in the transaction itself.}
+{\pard  \line \par}
+{So we don't need anything in addition to that in the redeemer. So we can just use unit for the redeemer. So first argument now we need it. so, let's call it dat for datum. So the redeemer is just unit, and now we can't any longer ignore the context. So let's give it a name, right? So now we need to check two conditions. That the transaction is signed by the beneficiary and that, it has been submitted or that the current time is after the deadline. So let's delegate the helper functions, let's just write the general structure. So let's say beneficiary's signature missing. So this is the error message we get in case it's false and let's call it something like signed by beneficiary.}
+{\pard  \line \par}
+{And so we need the second condition that the deadline has been reached. So dead line not reached, let's call that, deadline reached. Okay. Now, of course these two signed by beneficiary and deadline reached be must defined. And for both, we will need this Tx info. So let's first define that, of type Tx info.}
+{\pard  \line \par}
+{And that, I am here in the repl and I imported ledger and asked for the information on the script context again. So in order to get the Tx info from the script in context, we must use this field name script context Tx info. So that script context TX info of our context, now we can define the two conditions.}
+{\pard  \line \par}
+{Let's first do the signed by beneficiary of type bool. Okay. How do we check that?}
+{\pard  \line \par}
+{Well, if we check in the repl again there's a function called Tx signed by the takes a Tx info, which we now have and the pub key hash, and then says whether that transaction that had Tx info has been signed by this public key hash. So we can use that.}
+{\pard  \line \par}
+{Tx signed by info, which I just defined and now we need the public key hash of the beneficiary and that we have, because we have the datum, dat. And this is of type vesting datum and we have the beneficiary there, so I can do beneficiary of that. So that's our first condition. And the second condition, deadline reached, was of type bool.}
+{\pard  \line \par}
+{So how do we check that? So if we look at this crew diagram, so this is time, and let's say the deadline is here and let's consider a transaction with, let's first say this validity interval. So recall what that means before the validator script is run. Other checks are made including the time check.}
+{\pard  \line \par}
+{So the node checks whether the current time falls into the valid range of the transaction and only then it's the validator run. So we know now that we are in the validator, the current time lives somewhere in the validity interval. But if this here, the first one would be the validity interval, then the current time could be for example, here, which would be fine.}
+{\pard  \line \par}
+{It would be after the deadline, but it could also be here, which would not be fine. It would be before the deadline. So this validity interval is no good for us. We mustn't declare the transaction to be valid. If this is the validity interval. This one, the other hand is fine, we still don't know where the current time exactly is, it can be anywhere in this interval, but no matter where it is, it's after the deadline. }
+{\pard  \line \par}
+{So we must check that we have this situation that the whole interval is to the right of the deadline. And one way to do is to use this contains function that you played with earlier. And look at this interval, the half open interval that starts at the deadline and stretches into infinity.}
+{\pard  \line \par}
+{And if this interval contains the validity interval of the transaction, then we are good. Then we know no matter where the current time is, it will be after the deadline. So we can use contains. Now the interval starting at the deadline is from, and the deadline we can get from the datum. And now we need the validity interval of the transaction and that if we look here at the information of the Tx info, then this was called Tx info valid range of the info, and that should be it. }
+{\pard  \line \par}
+{Next let's look at this dummy typed that wraps up datum and redeemer type. Typed is not a good name. Let's call it vesting and the datum type is now our vesting datum type and the of our vesting.}
+{\pard  \line \par}
+{And the redeemer type it's just unit. Okay, this is just boiler plate.}
+{\pard  \line \par}
+{We must just put the right types here. So vesting, datum and unit, that should be fine. Now, of course we also have to change the off-chain part, but as before, because the focus of this lecture is on-chain validation. I already prepared that and we just briefly go through it. And I should also mention that at the top of the module, I added some additional GHC extensions, like derive any class and derive generic and also added some imports like to json, from json generic and so on.}
+{\pard  \line \par}
+{So let's briefly look at the off-chain part. So, this type here, vesting schema defines the endpoints that we want to expose to the user. And as before in our silly example from last week call the give and grab. So give is for the person that wants to set up this vesting contract and then grab for the beneficiary to collect.}
+{\pard  \line \par}
+{So what parameters do we need? For give, I mean, what this endpoint will do is it will create a UTxO at the vesting address with the specified amount and the correct datum. And if you recall our vesting datum contains the beneficiary and the deadline. So this give endpoint must in particular know those, the beneficiary and the deadline.}
+{\pard  \line \par}
+{So this is here and we also of course, have to specify how much money we want to put at this UTxO, therefore I need a third field, the amount. The grab endpoint on the other hand, doesn't need any parameters because the beneficiary will just look for UTxOs sitting at the vesting address and then can check whether he is the beneficiary.}
+{\pard  \line \par}
+{And whether the deadline has already passed and can then pick those UTxOs and consume them. And we know from the way that we've wrote the validator, that will then succeed and no additional information has to be supplied. Let's briefly look at the endpoints, first at give. }
+{\pard  \line \par}
+{So it takes the give parameters and first I compute the datum I want to use. So recall I need the beneficiary and the deadline, then I can get those simply from reading it from the give parameters now for the transaction. I need as constraint that I want to create a transaction that has an output at this script address. That's why I use this must pay to the script with the data, my justified, and then I must provide the value.}
+{\pard  \line \par}
+{So I take the value, the amount from the give parameters, and then use this function here to convert that to a value in lovelace. The rest is as before I just changed the log message. So I mention the amount, the beneficiary and the deadline. Now for the grab, that's a bit more involved because there can be many UTxOs at this vesting address.}
+{\pard  \line \par}
+{And some of them might not be suitable for me, either because I am not the beneficiary or because the deadline has not yet passed. So I grab the current time, I lookup my own public key and computes hash, and then I look at all UTxOs sitting at the script address, but I filter those and the filter is defined here.}
+{\pard  \line \par}
+{So I get such a UTxO and then I first check the datum hash whether.}
+{\pard  \line \par}
+{So I first check the datum hash and if I find it it's this H, then I try to lookup the corresponding datum and recall what I said several times before, the producing transaction. So in our case, the one that has been produced by the give endpoint, doesn't necessarily have to contain the datum. It can all only contain the datum hash, but if that was the case, then I would have a problem here in grab, I wouldn't be able to find the datum that corresponds to the UTxO that I find. But by using this must pay to the script constraint, I make use of the option to include the datum into the transaction. So this transaction will actually optionally contain the datum. }
+{\pard  \line \par}
+{So it will contain the datum and that's why I should be able to find it here, look at up here. So I have this datum and then I must deserialize it. So this is of the data type, but I want the vesting datum type. So that's the last step. So if all of this succeeds, then I can check whether the beneficiary of the datum is myself and whether the deadline doesn't lie in the future.}
+{\pard  \line \par}
+{So at this point the UTxOs are only UTxOs sitting at this vesting address where I am the beneficiary and where the deadline has been reached. And if I find no such UTxOs I just log a message that nothing is available and don't do anything else. And if there's at least one, then I construct one transaction that consumes all of them as inputs and paste the money in there, to my own wallet. So, I have to as look-ups provide these UTxOs, and I also have to provide the validator script. Recall, if a transaction wants to spend a UTxO sitting at the script address. The script must be provided by this spending transaction. So this lookup here takes care of that.}
+{\pard  \line \par}
+{And this here I basically just go over the list of all UTxOs and say "I want to spend that one". And as I said, by default, the time range of a transaction will be this always, the time range it start and Genesis and goes on forever. So if I don't do anything, I would use that. And that wouldn't be good because then validation would fail because recall validation checks that the deadline has passed.}
+{\pard  \line \par}
+{And It only knows that the current time lives in this validity interval. So if the validity interval is from the beginning of time, to the end of time, I have no information and then I wouldn't be able to be sure that the deadline has passed. So I must provide the different validity interval that I can do with this must validate in constraint.}
+{\pard  \line \par}
+{And here I picked from now, it's just important that everything interval that I provide here is after the deadline. But so I could, for example, just use the Singleton interval now, but then I would have a problem if the transaction doesn't get there in the same slot to the node for validation.}
+{\pard  \line \par}
+{So if it only reaches their slot later, then the current time at that point would already not be in this interval anymore, which only contains now. So the best is to make it as large as possible. So I started now, but then get it last into eternity and the rest is same as before, and then I just bundled them up in this endpoints contract and some boiler plate for the playground.}
+{\pard  \line \par}
+{Let's try it in the playground. So we see that the playground has changed earlier. Last week, we saw that the default amount was 10 lovelace, which is too low. Because fees are now included and the fees are normally higher than 10 lovelace. So this default was no longer adequate. So now it's, what is it? 100 ADA is the default value.}
+{\pard  \line \par}
+{So let's add a third wallet and I want wallet one to make gifts to wallet two and wallet three. Okay. So wallet one starts, makes a gift and normally it will be possible to submit all three give transactions in the same slot. So I wouldn't need a wait action, but the way I implemented it, the give endpoint after submitting the transaction, I wait for confirmation.}
+{\pard  \line \par}
+{Maybe I shouldn't have done that, but it is what it is. And that means we, before this give endpoint returns, the transaction must be confirmed. So we do have to wait. So let's wait one block. And the second give, let's wait another block. In the third give.}
+{\pard  \line \par}
+{Oh, okay. So the idea is wallet one makes two gives to wallet two with different deadlines and one give to wallet three. So now we have our first problem. What is the public key hash of wallet two and of wallet three? There is a way to find out what it is. So let's switch to the repl. Let's load our module, let's import ledger and let's import Wallet.Emulator.}
+{\pard  \line \par}
+{Now, first of all, we have a wallet type and we see wallet it's just a newtype wrap around integer. Secondly, we have something called wallet pub key, given a wallet gives us a pub key. And finally, we have pub key hash, given a pub key gives us the pub key hash. So, putting all of these together, we can do pub key hash of wallet pub key of wallet two.}
+{\pard  \line \par}
+{And there we have the hash and wallet three. So let's grab the pub key hash of wallet two and let's put it in the first two gives. Let's grab the pub key hash of wallet three. And put it in the third give.}
+{\pard  \line \par}
+{Next problem is the deadline. In last lecture, I showed you how to convert between slots and deadlines or POSIX times. But unfortunately, this has changed in the meantime. So back then you just needed a slot and out came a POSIX time. Now there's a second argument. If you go back to the repl and import ledger time slot, then there's a function slot to begin, begin POSIX time.}
+{\pard  \line \par}
+{And this now takes a slot config and the slot to give us a POSIX time, by the way, there are versions with begin and end. This is because a slot has, it's not just a point in time. It's, it's a duration in time. So it has a beginning and an end, so these two are for that, so what's this lot config? That contains the slot length and the zero slot time.}
+{\pard  \line \par}
+{So that POSIX time at which sc zero starts. So now we have to find out what slot config to use for the playground. Luckily it's the default slot config. So what's the default slot config? For that we need to import yet another module, Data.Default. And that defines a class called default, lots of instances.}
+{\pard  \line \par}
+{And we see a def method of type A. So if a type A implement, is an instance of class default, then by using def we get an A, so the idea is that, that is then the default value. And if you check slot config again, then now that we imported Data.Default, we see it is indeed an instance of default.}
+{\pard  \line \par}
+{So by using def and telling the compiler what type we're interested in, we get the default slot config. So we see slot length is 1000. So that means POSIX time is obviously in milliseconds. So the 1000 is one second and we see when in the playground slot zero starts. So now we can use the slot to begin POSIX time and can use def as our slot config.}
+{\pard  \line \par}
+{And now we can, for example, see what POSIX time slot 10 begins and slot 20. So let's take the POSIX time for slot 10. Let's say the first give to wallet two has a deadline of 10 and the give to wallet three has a deadline of 10. And to take the POSIX time for 20 and say the second give to wallet two has deadline 20.}
+{\pard  \line \par}
+{Now let's add the amount, let's say 10 ADA each.}
+{\pard  \line \par}
+{Okay. And now let's first check the scenario where everything works perfectly. So let's say wallet three grabs at slot 10 when the deadline for wallet three has passed, don't need any parameters or arguments for grab. And let's say that... Oh, it's wait until not wait for and here as well wait until slot 20.}
+{\pard  \line \par}
+{And now wallet two grabs. So both give to wallet two at that point should be available. And finally, we'll wait one more block for giving it a chance to process and end up on the blockchain and evaluate. Okay, let's look at the transactions. So as always slot zero first one is the Genesis transaction that distributes the initial funds.}
+{\pard  \line \par}
+{So wallet 2, 1, 3, all get a hundred ADA. Slot one is the gift from wallet one to wallet two with deadline 10. So we see almost 90 ADA changed go back to wallet one and 10 are locked by the script address. So the second one is the give to wallet two with deadline 20. So now the change is 80, so wallet one has 80 left, another 10 go into a different UTxO in the script, at that script address. }
+{\pard  \line \par}
+{Finally, the third gift. Now wallet one ends up with 70 and another 10 go into a third UTxO at the same address. Now in slot 10, this is now where three grabs and that succeeds. So the third UTxO is the input, is spent. Some fees are paid and wallet three ends up with roughly 10 ADA. Finally slot 20, wallet two picks up the two UTxOs that were for wallet two, both deadlines have passed at 10 and 20. }
+{\pard  \line \par}
+{Some fees paid roughly twice because now two validators have to run for each script input. And wallet two ends up with roughly 20 ADA. And the final balances should reflect that, that wallet one has 70 left, wallet two has roughly 1.20, wallet one has roughly 1.10, so that all works as expected. Let's try what happens if wallet two doesn't grab at slot 20, but only at slot 15.}
+{\pard  \line \par}
+{Okay. So the first transaction should be the same and now the transaction slot 15, only one input because the second UTxO, the one with deadline 20 is not yet available. So only one input and wallet two only ends up with 10. And we see that still 10 are still locked at the script address. So those can only be claimed by wallet two after slot 20.}
+{\pard  \line \par}
+{There's one thing I should point out that I've wrote the off-chain code, the wallet code in a way that only submits a transaction, if it can actually grab the UTxO, if you recall, I filled out the UTxO to check that, I am the beneficiary and the deadline has passed. Which means that we don't really exercise the validator because we only send transactions to the blockchain that then get validated, that will pass validation. }
+{\pard  \line \par}
+{That's how we wrote the wallet code. So if you want to actually test the validator, you would have to modify the wallet code. If you like, you can do that as an option homework. So remove these checks in the wallet and just try to grab everything, and then it should fail if you are not the beneficiary or if the deadline has not yet been reached and then it should fail you in validation, not already just in the wallet, not even submitting the transaction.}
+{\pard  \line \par}
+{So you always have to be careful or keep that in mind. Everybody of course can write off-chain code. So, even though now it works as long as you use the grab endpoint that I provided. I mean, I wrote it in a way that you never try to claim something that's not for you, but of course, somebody else could write different piece of off-chain code that doesn't try that.}
+{\pard  \line \par}
+{And then if your validator is not correct, if it for example, forgets to check the beneficiary or the deadline, then something could go horribly wrong. So we must keep that in mind that only because it works for the endpoints you have provided doesn't mean that somebody else couldn't come up with other endpoints where it doesn't work.}
+{\pard  \line \par}
+{Okay. So this is the vesting example where we made use of the context for the first time and where we made use of this valid time interval in the transaction to implement a deadline. }
+{\pard  \line \par}
+{\b\fs36 [00:51:54] 0305 Parameterized contracts\b0}
+{\pard  \line \par}
+{I copied the code of the vesting module into a new model called parameterized. And I want to talk about parameterized contracts next.}
+{\pard  \line \par}
+{So note that in this example, we used this vesting datum type as datum, but the datum was just fixed, that was just sitting there, it didn't change. And alternatively, we could bake it into the contract, so to speak. So we can write a contract where the script itself already contains this information, beneficiary and deadline.}
+{\pard  \line \par}
+{So all the examples of contracts we have seen so far, they were always fixed. So we had this type validator, and that was just of type typed validator, so it's a constant, a compile time constant actually. So the idea of parameterized scripts is that you can have a parameter. So depending on the value of the parameter, you get different values of typed validator.}
+{\pard  \line \par}
+{So instead of just defining one script, you, so to say, define a family of scripts that are parameterized by a given parameter. So I want to demonstrate how we can do this here by instead of using datum for these two pieces of information, using a parameter so that the contract will be parameterized by this.}
+{\pard  \line \par}
+{So in order to do that, vesting datum is no longer appropriate name. So let's call it vesting param instead, and then we don't need the datum is data instance anymore, so let's remove that. Now this has to change, this now gets an additional parameter, namely the parameter of the script. So vesting datum, and now comes the datum and because all the information we needed until now in the datum is now contained in this param here.}
+{\pard  \line \par}
+{We can simply use the unit type as datum. So this is now one parameter more, the parameter of this script. So, by picking a specific value of this parameter, I get what I had before, of type signature datum, redeemer context to bool. And the code of course has to change a little bit, but not much.}
+{\pard  \line \par}
+{So let's call the parameter argument P and instead of dat, we now just have unit. And now all I have to do is I have to exchange all the dats for Ps. So here P and here.}
+{\pard  \line \par}
+{Okay. So small change, now these vesting type also has to change because now the datum type is no longer a vesting datum, it's simply unit. Now we have to think what to do here. So this is now no longer, just a constant, this typed validator, it now takes the parameter, so vesting param.}
+{\pard  \line \par}
+{So let's put that here. And now the question is what to do with this. So the function make typed validator expects as its first argument, the compiled code of something of type datum to redeemer, to context to bool. But now this make validator doesn't have this type anymore because it has this extra parameter P so this wouldn't work like that.}
+{\pard  \line \par}
+{What we would like to do. Oh, and before I forget, I must change this to unit as well. So what we would like to do is put a P here. Now that the type would be correct or it looks like that because P is this vesting param type. So if we apply, make validator to P we apply the first argument here, and what we are left with is something of type unit to unit to script context to bool which is a suitable type for this make type validator function.}
+{\pard  \line \par}
+{Let's leave it like this for the moment, and let's just change the rest because now all these things are no longer constance, validator now also takes a parameter.}
+{\pard  \line \par}
+{And instead of doing this, we have to compose it with typed validator. So actually, I mean, to write that like more explicitly, we would have this P here and then it would have to apply the P first to type validator to get a typed validator. And then we can apply validator script, but in Haskell in simpler cases like that, we like to do a pointfree, so we use function composition instead,, same for validator hash that now also takes the vesting param type and same thing. Let's replace it with function composition and script address as well. It's now also parameterized by this parameter. However, if we go to the repl, then we get a compiler error and it says "reference to a name which is not a local, a builtin, or an external inlinable function: variable P no unfolding".}
+{\pard  \line \par}
+{And the problem is this. And as I explained, when I explained the template Haskell and these Oxford brackets and the use of this inlinable Pragma, I said that everything in the Oxford brackets must be known at compile time. It must be explicitly known. So normally it would even have to be explicitly included, written inside these brackets.}
+{\pard  \line \par}
+{But by using this inlinable Pragma, we can also have it in external functions, like our make validator. But it must still be known as at compile time because that's how template Haskell works. If it is run it's executed before the main compiler, the Haskell compiler is run. So at compiler time, template Haskell in order to do this, to compile to Plutus core must know what is inside these brackets, but the P of course is not known at compile time because we intend to at run time, provide some arbitrary value of type vesting param and then apply this function type validator to it.}
+{\pard  \line \par}
+{So the P will only be known at run time. And therefore this can't possibly work, even though the types look correct. Luckily there's a way around that, so what's the situation? On the Haskell side, we have our make validator function and we have the P of type vesting param. And we could apply the one to the other like this and that would have the right type.}
+{\pard  \line \par}
+{Now in the Plutus core side, we can compile this because make validator is known at compile time. And I don't know how to write this let's for example, put it into angular brackets to indicate that this is the compiled to Plutus core version of the Haskell function make validator. And I want this, I want make validator P compiled, but I can't apply compile here because the P is not known at compile time, so template Haskell won't work for P so I can't do that.}
+{\pard  \line \par}
+{So now the idea is, in Plutus this angular brackets make validator is also a function. It's not a Haskell function anymore, it's a Plutus core function, but the function nevertheless, that you can apply to arguments. So if I could get my hands on the compile version of P, then what I could do, I can't do this here directly, but then I can simply apply the make validator compiled.}
+{\pard  \line \par}
+{And actually that is called apply code in Plutus to P, that would then be what I want. That would be the same as this, but this looks as if it doesn't solve anything because we still need a compiled version of P and we have the same problem that P is not known at compile time, but only at run time.}
+{\pard  \line \par}
+{However, P is not some arbitrary Haskell code, it's data, so it doesn't contain any function types. And as we would see for such types, there is a way if we make the type of P in instance of a type class called lift, that's called lift code, that does work at runtime. So using lift code, we can compile P at run time to Plutus core, and then using apply code, we can apply this function, this Plutus core function to this Plutus core value to get this.}
+{\pard  \line \par}
+{Which is exactly what we want. Let's briefly look at the lift class. It has one method lift, but we won't use that method directly as I mentioned before, we will use something called lift code, but lift code is available for types A that implement this lift class. And we see these... A bunch of instances for it. We can ignore this uni type parameter here, but we see it's all for data, it's characters, byte strings, integers, booleans, unit, data, I don't actually know what sqrt does... lists of things that have an instance, maybe ratio and so on. Either pairs, maps, triples, quadruplets, quintuples but no functions. And that's the reason why we can't use lift code all the time. Not for compiling Haskell validators to Plutus core validators, but we can use it for these data, like types that are similar to the data type that we use to express our datum and redeemers and the script context.}
+{\pard  \line \par}
+{So for those sort of types that are data like, and not function like instances for the lift class are available and then we can use lift code. So let's have a brief look at lift code. We can ignore these, the second and the third precondition here. So if you have lift of A, then we have a function from A to compile code of A.}
+{\pard  \line \par}
+{And that's exactly what we need. So if we go back to the code, we can't do this, as I said. But we can use Plutus Tx apply code and now lift code P. However, this won't compile, or it's probably Plutus Tx lift code. However, this won't compile because now the compiler complaints that we don't have a lift instance for vesting param, but there something similar as true as what I said about is data, there is a template Haskell mechanism to automatically get such an instance. So we can do Plutus Tx make lift and vesting param.}
+{\pard  \line \par}
+{Now we get another error, illegal instance declaration, use multi param type classes. It is because we saw this lift class had additional type parameters. So in standard Haskell 98, you can only have one type parameter for a class, but lift uses more and that is enabled by this extension. So we have to add this to our extensions.}
+{\pard  \line \par}
+{Try again, it compiles. Now let's briefly look at the off-chain code, which hasn't changed much, but somewhat. So the give parameters are still the same. I must know the beneficiary, the deadline and the amount. The schema has slightly changed, the one for give is still the same, but for grab, we now need to know the deadline.}
+{\pard  \line \par}
+{Because in order to find the UTxOs of gifts that are locked at the script. Now, because the script address depends on these parameters, the beneficiary and the deadline. We need those in order to find the UTxOs. We know the beneficiary, that will be the pub key hash of the wallet that calls grab, but we can't know the deadline.}
+{\pard  \line \par}
+{So I made that parameter here. So the give endpoint is very similar, but instead of computing the datum, we just define something of type vesting param and then this must pay to the script, now the datum is just unit, and here when we submit the transaction, now we... typed validator is no longer constant, so we provide this parameter P that we define, the rest is the same. Grab is now different, recall, earlier we got all the UTxOs sitting at this one script address.}
+{\pard  \line \par}
+{And that could be for arbitrary beneficiaries and for arbitrary deadlines. So we had to filter those UTxOs that were for us and where the deadline had been reached. Now, the situation is different. So we, again, check what is now and we check our own public key. And now we do know the deadline in advance because it's a parameter to this grab.}
+{\pard  \line \par}
+{So we can immediately see whether the deadline has been reached or not. So if it has not yet been reached, we simply log a message that it's too early and stop. If it has been reached, we can compute the vesting params. We have the beneficiary and the deadline, and we lookup the UTxOs at this address. Now address again is not a constant anymore, but takes this parameter.}
+{\pard  \line \par}
+{So now we will only get UTxOs that are for us and for this deadline D and we know that all of them are available, so we don't have to filter anything because we already checked that the deadline has passed. So, all we do is, we check whether there are none and if they are none, we don't even bother and just say no gifts available.}
+{\pard  \line \par}
+{And if there is, then we do more or less what we did before. So we defined the lookups that define these UTxOs and the script. And the constraint is that we want to spend all those UTxOS that we found. And that it must validate in the right validity interval. And we submit as before, wait for confirmation and log a message. The endpoint is only slightly different now here in grab, because we have this one parameter. }
+{\pard  \line \par}
+{Let's test this in the playground. I copied the code into the editor and compiled, and I already added the third wallet and did exactly the same give actions as before. So wallet one gives 10 ADA each, twice to wallet two, once to wallet three.}
+{\pard  \line \par}
+{And for wallet two the deadlines are slot 10 and slot 20 and for wallet three it's slot 20. Now the grab is slightly different because in our earlier implementation, one beneficiary, one wallet could grab different deadlines provided that had passed, but now the deadline is part of the script parameter.}
+{\pard  \line \par}
+{So it's also part of the parameter for the endpoint, so we have to specify the deadline. So, wallet two can't grab the gift for slot 10 and 20 at the same time, the way I implemented it. So let's see. So first we can wait until slot 10 and then wallet two should be able to grab the first gift and wallet three the only gift. }
+{\pard  \line \par}
+{So let's add a grab for wallet two and three, and we don't have to wait in between because it's to different wallets. So if the one blocks until it's confirmed, the other ones should still work. So now we need one parameter, namely the deadline, which in this case is slot 10. So that's this value here.}
+{\pard  \line \par}
+{Okay. Now let's wait for slot 20. Well, now wallet two can grab, second time, as parameter we need slot 20. That should be this one. We need to wait for one more block and check whether works. It seems to have worked. So let's go through the transactions quickly again, Genesis in the beginning. Now this is the first gift from wallet one to wallet two.}
+{\pard  \line \par}
+{And take note of the script address, it starts with a58. Now the second transaction is from wallet one to wallet two with the slot 20 deadline. And this script address is now different, so earlier in our first version, the script address was a constant. So all our gift ended up at the same script address and only the datum in those three UTxO was different, with different beneficiary and different deadline.}
+{\pard  \line \par}
+{Now the datum is just unit and the beneficiary and the deadline are included as part of this script itself, so the addresses are different now, depending on beneficiary and deadline. So this is the second gift to wallet two, this is the gift to wallet three, again, a different address. Now in slot 10, we see concurrently both wallet two and three grabs.}
+{\pard  \line \par}
+{So this is the one of wallet three. So this is deterministic in which order they are processed. So wallet three gets this one gift that was for wallet three and grabs it. And wallet two gets the first gift and grabs it. And finally in slot 24, wallet two gets the second gift and successfully grabs it.}
+{\pard  \line \par}
+{We see the balances at app, so wallet one ends up with roughly 70, wallet two with roughly 120 and wallet three with roughly 110.}
+{\pard  \line \par}
+{\b\fs36 [01:11:09] 0306 Homework\b0}
+{\pard  \line \par}
+{For the first part of this week's homework, I've taken the vesting contract and changed the vesting datum. So I added a second beneficiary. So now we have two and the deadline. And the idea of validation should now be that up till the deadline, beneficiary one can grab. And once the deadline has passed beneficiary two can grab.}
+{\pard  \line \par}
+{So it's like you make a gift to beneficiary one, but beneficiary one only has time till the deadline to retrieve it, otherwise you can get it back if you self are beneficiary too. Of course it's more general here. So your task is simply to write the correct logic here. Everything else should be complete.}
+{\pard  \line \par}
+{And I also modified the give and grab. So the give simply sets the given beneficiary as beneficiary one and the wallet itself as beneficiary two. So the giver can get or can grab back once the deadline has been reached and passed. And grab now filters the UTxOs into two different UTxOs sets. One checks that this wallet is beneficiary one and the deadline has not yet passed.}
+{\pard  \line \par}
+{And the second checks that this wallet is beneficiary two and the deadline has passed. And then it generates transactions accordingly could be one or two transactions. So one transaction for the UTxOs in the first group and one transaction for the UTxOs in the second group. }
+{\pard  \line \par}
+{I need two different transactions because the validation interval must be different. For the first group I must use two now, I must make sure that the deadline has not yet been reached or has reached, but not passed. And for the second group of UTxOs if I want to grab them, I must use a different validity interval from now. }
+{\pard  \line \par}
+{To try this out in the playground to see the expected behavior. I copied my solution in the editor and compiled. Now only need need two wallets with the initial 100 ADA. By doing two gives, one from wallet one, one from wallet two in the same slot. So the beneficiary of wallet one's gift is wallet two and the beneficiary of wallet two's gift is wallet one.}
+{\pard  \line \par}
+{The deadline of the first gift is slot 10. The deadline of the second gift is slot 5. So what does that mean? That means here until slot 10 wallet two can grab it. And after that, wallet one can get it back and here until slot 5, wallet one can get it and after slot 5, wallet two can get it back, So now I wait until slot 6.}
+{\pard  \line \par}
+{So that means this deadline, here the first deadline has not yet been reached so wallet two can still grab. But the second deadline has already passed. So wallet two can get it back, so at that point slot 6 wallet two should be able to grab both gifts. So I do a grab and wait for another block and then evaluate, and we see that it has worked.}
+{\pard  \line \par}
+{So let's go through the transactions. As always Genesis transaction, initial funds, then the two gives. This is the one from wallet two to wallet one. So 50 ADA are locked at the script address. And this is the one from wallet one to wallet two, again 50 ADA locked. And these other two grabs from wallet two.}
+{\pard  \line \par}
+{So, wallet two collects the one donation. This is the one, this one, the one from wallet two, so from itself, it gets it back. And that one is the give from wallet one. So indeed as expected, wallet one ends up with roughly 50 ADA and wallet two with 150 ADA. And I just want to point out that we can also nicely see the different validity intervals.}
+{\pard  \line \par}
+{So, this grab uses the one that starts at slot 6. And that grab uses the one that ends at stop six. For the second part of the homework, I want you to revisit the vesting, the original vesting once again. And remember we had two versions of the original one to one with one beneficiary and one deadline.}
+{\pard  \line \par}
+{The unparameterized version where the datum carried both beneficiary and deadline, and then a parameterized version where both beneficiary and deadline were now the parameter and the datum turned into unit. And for this homework, I would like you to do another parameterized version where we split beneficiary and deadline between parameter of the contract and datum.}
+{\pard  \line \par}
+{So the signature of the validator, make validator function will be like this. Pub key hash is the parameter of the contract and deadline is the datum. So we split these two pieces of information into parameter. So then you have to implement this. So the logic is the same, but now the data just comes from these two different sources.}
+{\pard  \line \par}
+{And then just write this boiler plate. And I adopted the wallet endpoints, the wallet contracts accordingly. So now it's actually nicer again, the grab, or it depends how you look at it, but the grab now, again, doesn't need a parameter, because it gets the beneficiary by just taking its own public key hash. And it does no longer need the deadline in order to construct the address, because now the deadline is no longer part of the address because it's no longer part of the parameter.}
+{\pard  \line \par}
+{And I had to change the logic a bit, but actually it gets much simpler. So maybe this is actually the right way to do it, to take the beneficiary in the, as a parameter of the contract, but put the deadline into the datum. To try this in the playground, I have two wallets. And wallet one makes two gifts, so I have to wait for one block in between.}
+{\pard  \line \par}
+{Both gifts are to wallet two, so this is the pub key hash of wallet two, but different deadlines and different amounts. So this is slot 10 and this is slot 20 and 40 ADA and 30 ADA. So after slot 10, this should be available and after slot 20 this. Then I wait until slot 10 and wallet two does a grab. So it should be able to grab the first gift, but not yet the second.}
+{\pard  \line \par}
+{And I wait until slot 20 and wallet two grabs again, and now should be able to retrieve this gift as well and I wait for one more block. So let's go through the transactions, initial distribution of funds, then the first gift... locking 40. So this is the one for with deadline 10. The second gift with deadline 20 30. The first grab of wallet two, it picks up the first gift, but not the second and collects the roughly 40 ADA.}
+{\pard  \line \par}
+{And then in slot 20 wallet two picks up the other gift and collects the 30 ADA.}
+{\pard  \line \par}
+{If instead, I immediately wait until slot 20, then I can remove the second grab.}
+{\pard  \line \par}
+{And this final wait and try again.}
+{\pard  \line \par}
+{Then the first three transactions are the same, here the first gift, the second gift. But then in slot 20 wallet two was able to grab both of them simultaneously. The 30 and the 40 gift and collect 70 in one transaction. }
+{\pard  \line \par}
+{\b\fs36 [01:20:20] 0307 Summary\b0}
+{\pard  \line \par}
+{So this concludes the third lecture and we have now looked at validation scripts that actually look at the context.}
+{\pard  \line \par}
+{We have looked at the type that defines the context, and we have seen examples of how to use it, in this, in the form of this vesting contract. And we have particular discussed how time sensitive contracts or validation logic can be written in Plutus. And we have seen how to write parameterized contracts.}
+}

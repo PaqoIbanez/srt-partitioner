@@ -1,0 +1,3752 @@
+﻿1
+00:00:06,730 --> 00:00:10,720
+Welcome to the last lecture
+of the Plutus Pioneer Program.
+
+2
+00:00:11,500 --> 00:00:16,630
+And in this lecture, I don't want to
+introduce any new topics or concepts,
+
+3
+00:00:16,870 --> 00:00:23,170
+but instead demonstrate another walk
+through end to end through a demo I wrote
+
+4
+00:00:23,320 --> 00:00:30,510
+some months ago that clones the very
+popular Uniswap contract from Ethereum.
+
+5
+00:00:31,120 --> 00:00:33,910
+So I'll demonstrate that
+and then explain that.
+
+6
+00:00:34,210 --> 00:00:38,250
+And the one new think I want
+to show following a very
+
+7
+00:00:38,250 --> 00:00:39,890
+requests that some of you had.
+
+8
+00:00:40,180 --> 00:00:45,460
+Is I want to show how you can query
+the endpoints created by the PAB with
+
+9
+00:00:45,810 --> 00:00:48,660
+curl commands just from the console.
+
+10
+00:00:49,369 --> 00:00:53,090
+So for those of you who haven't
+heard of Uniswap, what is Uniswap?
+
+11
+00:00:54,480 --> 00:01:01,410
+Uniswap is so-called DeFi for the
+centralized finance application that
+
+12
+00:01:01,410 --> 00:01:05,999
+allows swapping of tokens in the
+case of Ethereum it's ERC20 tokens on
+
+13
+00:01:06,090 --> 00:01:09,480
+Ethereum without any central authority.
+
+14
+00:01:09,510 --> 00:01:14,010
+So you don't need a centralized exchange,
+the traditional way to exchange tokens
+
+15
+00:01:14,040 --> 00:01:18,870
+or other crypto assets, but everything
+is governed by smart contracts and works
+
+16
+00:01:18,900 --> 00:01:20,579
+fully automatically on the blockchain.
+
+17
+00:01:21,180 --> 00:01:28,470
+And another interesting feature of Uniswap
+is that it doesn't discover prices the usual
+
+18
+00:01:28,470 --> 00:01:34,410
+way with the so-called order book, but uses
+a different automatic price discovery system.
+
+19
+00:01:34,790 --> 00:01:38,660
+And the idea is that people can
+create so-called liquidity pools.
+
+20
+00:01:39,170 --> 00:01:45,620
+So if they want other users to be able to
+swap two different tokens, then somebody can
+
+21
+00:01:45,620 --> 00:01:50,390
+create a liquidity pool and put a certain
+amount of those two tokens in this liquidity
+
+22
+00:01:50,390 --> 00:01:56,430
+pool, and then return the creator of the
+pool will receive so-called liquidity tokens
+
+23
+00:01:56,450 --> 00:02:02,560
+that are specific to this one pool, and
+then other users can use that pool to swap.
+
+24
+00:02:02,650 --> 00:02:07,210
+So they take some amount of one of
+the tokens out in exchange for putting
+
+25
+00:02:07,480 --> 00:02:10,060
+an amount of the other token back in.
+
+26
+00:02:10,420 --> 00:02:16,610
+Additionally, people can also add liquidity
+to the pool and receive liquidity tokens
+
+27
+00:02:16,630 --> 00:02:22,510
+as well, or they can also burn liquidity
+tokens in exchange for tokens from the pool.
+
+28
+00:02:22,840 --> 00:02:27,880
+And all these features are also implemented
+in the version of Uniswap that works on
+
+29
+00:02:27,880 --> 00:02:30,070
+Cardano that I'm going to demonstrate now.
+
+30
+00:02:30,160 --> 00:02:33,550
+So let's look at the various
+operations that are available in turn.
+
+31
+00:02:34,330 --> 00:02:38,500
+It all starts by somebody
+setting up the whole system.
+
+32
+00:02:39,280 --> 00:02:44,410
+So some organization or entity that
+wants to offer this Uniswap service.
+
+33
+00:02:45,100 --> 00:02:51,760
+So it starts with a transaction that creates
+a UTXO at this script address that is
+
+34
+00:02:51,760 --> 00:02:54,339
+here called factory for Uniswap factory.
+
+35
+00:02:55,300 --> 00:03:01,209
+And it contains an NFT that identifies the
+factory, same trick that we have used a
+
+36
+00:03:01,209 --> 00:03:08,140
+couple of times before and as datum, it will
+contain the list of all liquidity pools.
+
+37
+00:03:08,260 --> 00:03:12,670
+So in the beginning, when the factory is
+just being created, that list will be empty.
+
+38
+00:03:13,120 --> 00:03:17,860
+Now let's assume that one
+user, Alice wants to create a
+
+39
+00:03:17,860 --> 00:03:20,800
+liquidity pool for tokens A and B.
+
+40
+00:03:21,220 --> 00:03:28,059
+A pool that allows others to swap A against
+B or B against A, so she has to provide
+
+41
+00:03:28,059 --> 00:03:30,010
+some initial liquidity for the pool.
+
+42
+00:03:30,490 --> 00:03:34,000
+So she needs some amount of token
+A and some amount of token B,
+
+43
+00:03:34,480 --> 00:03:36,949
+let's say she has 1,000A and 2000B.
+
+44
+00:03:37,839 --> 00:03:42,890
+And it's important to note here that the
+ratio between A and B reflects Alice's
+
+45
+00:03:42,910 --> 00:03:45,369
+belief in the relative value of the tokens.
+
+46
+00:03:45,790 --> 00:03:50,920
+So if she wants to set up a pool with
+1000A and 2000B, then she believes
+
+47
+00:03:50,920 --> 00:03:58,480
+that one A is as value as much as two
+Bs in order to create the liquidity
+
+48
+00:03:58,480 --> 00:04:03,220
+pool, she will create a transaction
+with two inputs and three outputs.
+
+49
+00:04:03,789 --> 00:04:07,299
+The two inputs will be the
+liquidity she wants to provide.
+
+50
+00:04:07,360 --> 00:04:14,350
+So the 1000A and 2000B and the
+Uniswap factory invoked with the
+
+51
+00:04:14,409 --> 00:04:20,080
+create redeemer and the three outputs
+will be the newly created pool.
+
+52
+00:04:21,070 --> 00:04:25,960
+We call it pool AB here to indicate
+that it contains tokens AB, which
+
+53
+00:04:25,960 --> 00:04:32,040
+will contain the liquidity that Alice
+provided the 1000A and the 2000B and
+
+54
+00:04:32,320 --> 00:04:40,210
+a freshly minted token that identifies
+this pool, an NFT, I call it AB NFT here.
+
+55
+00:04:40,870 --> 00:04:47,530
+And the datum of the pool, the 1,415 will
+be the amount of liquidity tokens that
+
+56
+00:04:47,530 --> 00:04:51,820
+Alice receives in return for setting up
+this pool and providing the liquidity.
+
+57
+00:04:52,360 --> 00:04:57,340
+And if you wonder about the number that
+is the square root of the product of
+
+58
+00:04:57,370 --> 00:05:04,450
+1000 and 2000, so that's how the initial
+amount of liquidity tokens is calculated.
+
+59
+00:05:04,889 --> 00:05:08,380
+It doesn't really matter, you
+could scale it arbitrarily.
+
+60
+00:05:09,009 --> 00:05:11,259
+But that's the way Uniswap does it.
+
+61
+00:05:12,700 --> 00:05:17,120
+The second output is the Uniswap
+factory again, with the same NFT
+
+62
+00:05:17,120 --> 00:05:18,820
+as before that identifies it.
+
+63
+00:05:19,120 --> 00:05:21,190
+And now the datum has been updated.
+
+64
+00:05:21,220 --> 00:05:25,029
+So in this list that was empty before
+the list of all liquidity pools.
+
+65
+00:05:25,420 --> 00:05:28,540
+There is now an entry for
+the newly created AB pool.
+
+66
+00:05:29,649 --> 00:05:34,810
+Finally, there's a third output for Alice,
+where she receives the freshly minted
+
+67
+00:05:34,810 --> 00:05:39,690
+liquidity tokens that I called AB here to
+indicate that they belong to the pool AB.
+
+68
+00:05:41,110 --> 00:05:46,750
+Now that the liquidity pool has been
+set up, other users can use it to swap.
+
+69
+00:05:47,139 --> 00:05:52,240
+So let's assume that Bob
+wants to swap 100A against B.
+
+70
+00:05:53,140 --> 00:05:54,400
+So what will Bob do?
+
+71
+00:05:54,400 --> 00:05:58,300
+He will create a transaction that
+has two inputs and two outputs.
+
+72
+00:05:59,079 --> 00:06:06,640
+The two inputs are the 100A he wants to
+swap and the pool with the swap redeemer.
+
+73
+00:06:07,720 --> 00:06:10,569
+And the outputs are the Bs he gets in return.
+
+74
+00:06:10,569 --> 00:06:16,240
+In this example, that would be
+181 piece and the pool updated.
+
+75
+00:06:16,840 --> 00:06:21,730
+So the pool now has the one hundred
+A, that Bob provided additionally.
+
+76
+00:06:21,730 --> 00:06:23,670
+So now it's 1,100A.
+
+77
+00:06:24,430 --> 00:06:28,120
+And it has 181 B fewer than before.
+
+78
+00:06:28,360 --> 00:06:33,400
+It still, of course, has the NFT that
+identifies the pool and the datum hasn't
+
+79
+00:06:33,400 --> 00:06:38,350
+changed because the amount of liquidity
+tokens that have been minted hasn't changed.
+
+80
+00:06:39,070 --> 00:06:43,000
+So now of course, the question
+is, where does this 181 come from?
+
+81
+00:06:43,480 --> 00:06:47,790
+And this is this ingenious idea, how
+price discovery works in Uniswap.
+
+82
+00:06:48,340 --> 00:06:52,210
+So the rule is roughly that the
+product of the amounts of the
+
+83
+00:06:52,210 --> 00:06:54,700
+two tokens must never decrease.
+
+84
+00:06:54,910 --> 00:07:02,440
+So initially we have 1000 As and 2000 Bs
+and the product is one times 2 million.
+
+85
+00:07:02,440 --> 00:07:03,310
+So 2 million.
+
+86
+00:07:04,150 --> 00:07:09,850
+And if you do the calculation, then you
+will see that after the swap 1,100 times,
+
+87
+00:07:09,850 --> 00:07:13,360
+1,819 will be larger than 2 million.
+
+88
+00:07:14,520 --> 00:07:20,680
+And if you think about it and maybe try a
+couple of examples by yourself, then you
+
+89
+00:07:20,680 --> 00:07:28,704
+will see that in principle, you will always
+pay this ratio of the As and Bs in the pool.
+
+90
+00:07:28,885 --> 00:07:30,505
+At least if you swap small amounts.
+
+91
+00:07:30,714 --> 00:07:37,355
+So originally the ratio from A to B was one
+to two, 1000 to 2,000 and 100 is relatively
+
+92
+00:07:37,405 --> 00:07:40,105
+small in comparison to the 1,000 liquidity.
+
+93
+00:07:40,645 --> 00:07:46,165
+So Bob should roughly get
+200 Bs, but he does get less.
+
+94
+00:07:46,555 --> 00:07:48,025
+So there are two reasons for that.
+
+95
+00:07:48,415 --> 00:07:53,065
+One is that the amount of
+tokens in the liquidity pool
+
+96
+00:07:53,095 --> 00:07:55,135
+is never allowed to go to zero.
+
+97
+00:07:55,435 --> 00:07:59,995
+And the more of one sort you
+take out, the more expensive, it
+
+98
+00:07:59,995 --> 00:08:02,135
+gets the less you get in return.
+
+99
+00:08:02,835 --> 00:08:07,560
+So 100 depletes the pool a bit of As.
+
+100
+00:08:08,230 --> 00:08:12,880
+So he doesn't get the full factor two
+out, he gets a little bit less out.
+
+101
+00:08:12,910 --> 00:08:15,460
+That's exactly how this
+product formula works.
+
+102
+00:08:15,490 --> 00:08:20,830
+If you think about it, and this also makes
+it too ingenious because it automatically
+
+103
+00:08:21,340 --> 00:08:23,110
+accounts for supply and demand.
+
+104
+00:08:23,290 --> 00:08:28,360
+So if the next person, now would also want
+to swap 100A, he would get even less out.
+
+105
+00:08:28,450 --> 00:08:35,350
+So the idea is if a lot of people want
+to put A in and want to get B in return,
+
+106
+00:08:35,350 --> 00:08:37,480
+that means the demand for B is high.
+
+107
+00:08:38,165 --> 00:08:41,614
+And that means the price of B
+in relation to A should raise.
+
+108
+00:08:42,185 --> 00:08:43,955
+And that is exactly what's happening.
+
+109
+00:08:43,985 --> 00:08:49,255
+So the more people do a swap in this
+direction, put A in and get B out, the less
+
+110
+00:08:49,275 --> 00:08:52,564
+of the gap because the price of B rises.
+
+111
+00:08:53,255 --> 00:08:56,705
+If there were swaps in the other direction,
+you would have the opposite effect.
+
+112
+00:08:56,885 --> 00:09:02,435
+So if there's an equal amount of swaps from
+A to B and B to A, then this ratio between
+
+113
+00:09:02,435 --> 00:09:04,175
+the two amounts would roughly stays the same.
+
+114
+00:09:05,225 --> 00:09:09,725
+And there's an additional reason why
+Bob doesn't get the full 200 that
+
+115
+00:09:09,725 --> 00:09:12,005
+he might expect and that is fees.
+
+116
+00:09:12,304 --> 00:09:16,834
+So we want to incentivize Alice to
+set up the pool in the first place.
+
+117
+00:09:16,895 --> 00:09:20,225
+She won't just do that for fun.
+
+118
+00:09:20,584 --> 00:09:21,935
+She wants to profit from that.
+
+119
+00:09:22,175 --> 00:09:25,025
+So she wants to earn on
+swaps that people make.
+
+120
+00:09:25,475 --> 00:09:33,130
+So this original product formula is modified
+a bit to insist that the product doesn't
+
+121
+00:09:33,190 --> 00:09:38,740
+only not decrease, but that it increases
+by a certain amount, a certain percentage,
+
+122
+00:09:38,740 --> 00:09:40,960
+depending on how much people swap.
+
+123
+00:09:41,020 --> 00:09:48,910
+So that's, I think open 3% in this
+example of the 100A that Bob swaps, and it
+
+124
+00:09:48,910 --> 00:09:50,919
+would be the same if you swap B instead.
+
+125
+00:09:51,669 --> 00:09:55,150
+So this is basically added
+on top of this product.
+
+126
+00:09:55,780 --> 00:10:01,540
+So anytime somebody swaps the product
+actually increases, not only does it
+
+127
+00:10:01,540 --> 00:10:03,910
+not decrease, it actually increases.
+
+128
+00:10:04,240 --> 00:10:07,330
+And the more people swap,
+the more it increases.
+
+129
+00:10:08,410 --> 00:10:14,530
+And the idea is that if Alice now would close
+the pool by burning her liquidity tokens, she
+
+130
+00:10:14,530 --> 00:10:16,450
+gets all the remaining tokens in the pool.
+
+131
+00:10:17,020 --> 00:10:21,490
+And that would be more, the product would
+be higher than what she originally put in.
+
+132
+00:10:22,090 --> 00:10:25,540
+And that's her incentive to set
+up the pool in the first place.
+
+133
+00:10:26,200 --> 00:10:32,169
+The next operation we look at is the
+add operation where somebody supplies
+
+134
+00:10:32,169 --> 00:10:34,689
+the pool with additional liquidity.
+
+135
+00:10:35,260 --> 00:10:41,110
+So let's say that Charlie also believes that
+the ratio from A to B should be one to two
+
+136
+00:10:41,439 --> 00:10:44,730
+and he wants to contribute 400A and 800B.
+
+137
+00:10:45,040 --> 00:10:48,160
+He could also have tokens
+in a different ratio.
+
+138
+00:10:48,669 --> 00:10:53,260
+Basically the ratio reflects his belief
+in the true relative value of the tokens.
+
+139
+00:10:53,800 --> 00:10:58,810
+So Charlie wants to add 400 As and
+800 Bs, and he creates a transaction
+
+140
+00:10:58,810 --> 00:11:00,370
+with two inputs and two outputs.
+
+141
+00:11:00,460 --> 00:11:08,570
+The inputs are the pool and his contribution,
+his additional liquidity and the outputs
+
+142
+00:11:08,919 --> 00:11:15,850
+are the updated pool where now his As
+and Bs have been added to the pool tokens
+
+143
+00:11:17,080 --> 00:11:21,790
+and note that now the datum has changed.
+
+144
+00:11:21,820 --> 00:11:28,945
+So we had 1,415 liquidity tokens
+before, and now we have 1,982, and
+
+145
+00:11:28,945 --> 00:11:32,575
+the difference the 567 go to Charlie.
+
+146
+00:11:32,575 --> 00:11:34,705
+So that's the second
+output of this transaction.
+
+147
+00:11:34,705 --> 00:11:39,415
+And that's the reward to Charlie
+for providing this liquidity,
+
+148
+00:11:39,415 --> 00:11:40,855
+this additional liquidity.
+
+149
+00:11:41,785 --> 00:11:45,355
+And there the formula is a bit
+complicated, but in principle,
+
+150
+00:11:45,355 --> 00:11:47,215
+it also works with the product.
+
+151
+00:11:47,395 --> 00:11:54,085
+So you check how much the product was
+before and after the tokens have been added.
+
+152
+00:11:54,745 --> 00:11:57,925
+And you take into account, how
+many have already been minted?
+
+153
+00:11:58,765 --> 00:12:04,135
+And that also ensures that now basically
+Alice profits from the fees that Bob
+
+154
+00:12:04,165 --> 00:12:06,415
+paid with the swap and Charlie doesn't.
+
+155
+00:12:06,445 --> 00:12:11,425
+So this is taking into account, but
+the specific formula doesn't matter.
+
+156
+00:12:11,935 --> 00:12:13,825
+The idea is just that it's fair.
+
+157
+00:12:14,335 --> 00:12:19,855
+So people should receive liquidity tokens
+proportional to their contribution,
+
+158
+00:12:20,575 --> 00:12:26,500
+but, if they only add liquidity after a
+couple of swaps have already happened,
+
+159
+00:12:26,800 --> 00:12:31,390
+then they shouldn't profit from the fees
+that have accumulated in the meantime.
+
+160
+00:12:33,130 --> 00:12:38,110
+The next operation we look at is called
+removed and it allows owners of liquidity
+
+161
+00:12:38,110 --> 00:12:40,600
+tokens for a pool to burn some of them.
+
+162
+00:12:41,050 --> 00:12:45,250
+So in this example, let's assume that Alice
+wants to burn all her liquidity tokens.
+
+163
+00:12:45,595 --> 00:12:50,095
+She could also keep some, she doesn't have
+to burn on, but in this example, she wants
+
+164
+00:12:50,095 --> 00:12:53,905
+to burn all her 1,415 liquidity tokens.
+
+165
+00:12:54,415 --> 00:12:59,305
+So for that, she creates another transaction
+with two inputs and two outputs, the inputs
+
+166
+00:12:59,305 --> 00:13:01,435
+are the liquidity token she wants to burn.
+
+167
+00:13:02,055 --> 00:13:05,265
+And of course the pool again
+with the remove redeemer.
+
+168
+00:13:05,845 --> 00:13:10,785
+And The outputs are the tokens from the
+pool that she receives in return, so in
+
+169
+00:13:10,785 --> 00:13:15,705
+this case, she would get 1078 A and 1,869 B.
+
+170
+00:13:17,085 --> 00:13:19,980
+And the updated pool is the second output.
+
+171
+00:13:20,250 --> 00:13:27,240
+So the 1078 A and 1,869 Bs have been
+removed from the pool and the datum has
+
+172
+00:13:27,240 --> 00:13:32,320
+been updated, so the 1,415 liquidity
+tokens that Alice burnt are now
+
+173
+00:13:32,370 --> 00:13:35,669
+subtracted from the 1,982 we had before.
+
+174
+00:13:36,270 --> 00:13:41,940
+And we see that 567 are remaining which
+are exactly those that Charlie owns.
+
+175
+00:13:42,810 --> 00:13:47,340
+And the formula for how many tokens
+Alice gets for burning liquidity
+
+176
+00:13:47,340 --> 00:13:51,810
+tokens, is again, somewhat complicated,
+but it's basically just proportional.
+
+177
+00:13:52,410 --> 00:13:58,650
+So we know how many liquidity tokens
+there are in total 1,982 from the datum.
+
+178
+00:13:59,100 --> 00:14:05,850
+And she basically just gets
+1,415 over 1,982 of the pool.
+
+179
+00:14:06,300 --> 00:14:11,160
+And she gets the tokens in the
+ratio that they are in now.
+
+180
+00:14:12,040 --> 00:14:20,229
+So the 1072, 1,869 should be the
+same ratio as the 1,500 to 2,619.
+
+181
+00:14:20,560 --> 00:14:24,070
+So by burning, you don't
+change the ratio of the pool.
+
+182
+00:14:24,850 --> 00:14:31,660
+The last operation is close and it is for
+completely closing a pool and removing it.
+
+183
+00:14:32,229 --> 00:14:37,570
+And this can only happen when the last
+remaining liquidity tokens are burnt.
+
+184
+00:14:38,199 --> 00:14:43,570
+So in our example, Charlie holds all
+the remaining 567 liquidity tokens, and
+
+185
+00:14:43,570 --> 00:14:46,719
+therefore he can close down the pool.
+
+186
+00:14:46,900 --> 00:14:50,590
+And in order to do that, he creates
+a transaction with three inputs.
+
+187
+00:14:50,919 --> 00:14:57,355
+One is the factory and note that we only
+involve the factory when we created the
+
+188
+00:14:57,355 --> 00:15:01,615
+pool and now when we close it again,
+which also means that the contention
+
+189
+00:15:01,615 --> 00:15:03,415
+on the factory is not very high.
+
+190
+00:15:03,685 --> 00:15:08,515
+So the factory only gets involved when
+new pools are created, when pools are
+
+191
+00:15:08,545 --> 00:15:13,165
+closed down, but once they exist and
+as long as they are not closed, the
+
+192
+00:15:13,165 --> 00:15:15,145
+operations are independent of the factory.
+
+193
+00:15:15,745 --> 00:15:19,045
+But if you just need the factory, when
+we want to update the list of existing
+
+194
+00:15:19,045 --> 00:15:24,805
+pools, and by the way, this list is used to
+ensure that there won't be duplicate pools.
+
+195
+00:15:24,955 --> 00:15:31,045
+So the create operation that we looked
+at in the beginning will fail if somebody
+
+196
+00:15:31,045 --> 00:15:35,485
+tries to create a pool that already exists
+for a pair of tokens that already exist.
+
+197
+00:15:35,935 --> 00:15:40,675
+So there will always for any given
+pair of tokens, be at most one pool
+
+198
+00:15:40,825 --> 00:15:42,835
+that country against those two tokens.
+
+199
+00:15:44,199 --> 00:15:46,929
+Okay, so let's go back
+to the close operation.
+
+200
+00:15:46,929 --> 00:15:52,900
+So the first input is the factory with
+the close redeemer, second the input
+
+201
+00:15:53,169 --> 00:15:55,030
+is the pool that we want to close.
+
+202
+00:15:55,360 --> 00:16:00,910
+And third input are all the remaining
+liquidity tokens, and we get two
+
+203
+00:16:00,910 --> 00:16:02,770
+outputs, one is the updated factory.
+
+204
+00:16:02,800 --> 00:16:04,570
+So in this case we only had one pool.
+
+205
+00:16:04,570 --> 00:16:09,160
+So the list only contains this one pool, and
+this is now removed from the list, and the
+
+206
+00:16:09,160 --> 00:16:13,990
+second output contains of all the remaining
+tokens, all the tokens that were still in
+
+207
+00:16:13,990 --> 00:16:16,510
+the pool by the time it gets closed down.
+
+208
+00:16:16,750 --> 00:16:21,280
+So the remaining liquidity tokens
+are burnt and Charlie gets all the
+
+209
+00:16:21,280 --> 00:16:23,919
+remaining tokens from the pool.
+
+210
+00:16:24,105 --> 00:16:28,275
+The code for Uniswap is actually
+part of the Plutus repository.
+
+211
+00:16:28,335 --> 00:16:32,295
+And it's contained in the
+Plutus use cases package.
+
+212
+00:16:33,885 --> 00:16:39,645
+And it's in the Plutus dot contracts
+dot Uniswap module, which just
+
+213
+00:16:39,675 --> 00:16:42,225
+re-exports these five modules here.
+
+214
+00:16:42,785 --> 00:16:45,495
+On-chain, off-chain, types, pool, and trace.
+
+215
+00:16:46,155 --> 00:16:51,944
+And as the name suggests on-chain contains
+the on-chain validation, off-chain the
+
+216
+00:16:51,944 --> 00:16:58,005
+off-chain code, types contains common
+types that are used by the other modules.
+
+217
+00:16:58,965 --> 00:17:00,705
+Pool contains the business logic.
+
+218
+00:17:00,735 --> 00:17:05,595
+So the calculations, how many liquidity
+tokens does the create a pool get,
+
+219
+00:17:05,954 --> 00:17:11,055
+how many liquidity tokens do I get if
+I add liquidity, how many tokens do I
+
+220
+00:17:11,055 --> 00:17:17,895
+get back when I burned liquidity and
+under which conditions is a swap valid.
+
+221
+00:17:18,825 --> 00:17:22,815
+Finally trace contains an
+example emulator trace.
+
+222
+00:17:24,155 --> 00:17:30,525
+As I said, nothing here uses any Plutus
+techniques that we haven't seen before.
+
+223
+00:17:30,855 --> 00:17:35,310
+So I don't want to spend too much
+time looking at the code, but
+
+224
+00:17:35,400 --> 00:17:37,440
+let's at least have a brief look.
+
+225
+00:17:38,070 --> 00:17:40,470
+So let's look at the types module first.
+
+226
+00:17:40,800 --> 00:17:48,540
+You represents the Uniswap coin, the one
+that identifies the factory A and B are used
+
+227
+00:17:48,540 --> 00:17:56,190
+for pool operations where we have these two
+sorts of tokens inside the pool, pool state
+
+228
+00:17:56,400 --> 00:18:05,850
+is the token that identifies a pool, actually
+in the diagram earlier I said it's an NFT.
+
+229
+00:18:06,240 --> 00:18:10,650
+And by definition, NFT is something that
+only exists once actually here in the
+
+230
+00:18:10,650 --> 00:18:17,160
+implementation for each pool, an identical
+coin is created that identifies that pool.
+
+231
+00:18:17,820 --> 00:18:19,910
+So it's not strictly speaking NFT.
+
+232
+00:18:21,180 --> 00:18:29,670
+So all the liquidity pools have
+one coin of that sort and liquidity
+
+233
+00:18:29,670 --> 00:18:34,680
+is used for the liquidity tokens
+that the liquidity providers gets.
+
+234
+00:18:35,505 --> 00:18:38,355
+And all these types are then
+used in the coin A type.
+
+235
+00:18:38,355 --> 00:18:42,585
+So A is a type parameter,
+that's a so-called Phantom type.
+
+236
+00:18:43,275 --> 00:18:46,395
+So that means it has no
+representation at run time.
+
+237
+00:18:46,635 --> 00:18:53,355
+It's just used to not mix up the various
+coins to make it easier to see what goes
+
+238
+00:18:53,355 --> 00:19:01,545
+where, so in the datum, a coin is simply
+an asset class that we have seen before.
+
+239
+00:19:01,575 --> 00:19:05,865
+So asset class recall is a combination
+of currency symbol and token name.
+
+240
+00:19:08,415 --> 00:19:14,184
+then amount is just a wrapper around
+integer that also contains such a Phantom
+
+241
+00:19:14,184 --> 00:19:20,865
+type parameter, so that we don't confuse
+amounts for token A and token B for example.
+
+242
+00:19:23,835 --> 00:19:28,595
+Then we have some helper
+functions, constructing a
+
+243
+00:19:28,595 --> 00:19:31,015
+value from coin and the amount.
+
+244
+00:19:32,085 --> 00:19:36,945
+And here, for example, we see the use
+of this Phantom type, that's actually a
+
+245
+00:19:36,945 --> 00:19:41,325
+common trick in Haskell because now if
+you have, for example, pool operations
+
+246
+00:19:41,345 --> 00:19:45,795
+that has two different coins and two
+different amounts for the different coins.
+
+247
+00:19:46,305 --> 00:19:52,725
+And if the one is tag with this type capital
+A and the other with capital B, then normally
+
+248
+00:19:52,725 --> 00:19:58,205
+one could easily confuse them and somehow do
+operations with the one coin, with the amount
+
+249
+00:19:58,205 --> 00:20:00,195
+for the other, and then make a mistake.
+
+250
+00:20:00,735 --> 00:20:04,605
+And here the type system
+enforces that we don't do that.
+
+251
+00:20:04,665 --> 00:20:08,985
+So we can only use this value of
+function, for example, if we a coin and
+
+252
+00:20:09,015 --> 00:20:11,815
+the amount with the same tag type tag.
+
+253
+00:20:12,585 --> 00:20:17,925
+So as I said, that's a common trick
+in Haskell that some lightweight type
+
+254
+00:20:17,925 --> 00:20:22,545
+level programming that is doesn't
+need any fancy GHC extensions.
+
+255
+00:20:24,654 --> 00:20:29,755
+Unit Value creates one
+amount of the given coin.
+
+256
+00:20:31,394 --> 00:20:37,095
+Is unity checks whether this coin is
+contained in the value exactly once,
+
+257
+00:20:37,615 --> 00:20:42,075
+then amount checks how often the
+coin is contained in the value, and
+
+258
+00:20:42,075 --> 00:20:46,085
+finally make coin turns a currency
+symbol into a token name, into a coin.
+
+259
+00:20:48,395 --> 00:20:54,185
+And we have the Uniswap type which
+identifies the instance of the
+
+260
+00:20:54,185 --> 00:20:55,535
+Uniswap system we are running.
+
+261
+00:20:55,835 --> 00:21:00,515
+So of course, nobody can stop anybody from
+setting up a competing Uniswap system with
+
+262
+00:21:00,515 --> 00:21:06,185
+the competing factory, but the value of
+this type identifies a specific system.
+
+263
+00:21:06,995 --> 00:21:11,705
+And all the operations that are
+specific to pool will be parameterized
+
+264
+00:21:11,705 --> 00:21:18,605
+by a value of this type, but it's
+just a wrapper around the coin U.
+
+265
+00:21:19,925 --> 00:21:23,374
+And that is just the NFT
+that identifies the factory.
+
+266
+00:21:25,380 --> 00:21:30,600
+Then we have a type for liquidity
+pools, and that is basically just
+
+267
+00:21:30,870 --> 00:21:33,410
+two coins, the two coins in there.
+
+268
+00:21:34,010 --> 00:21:38,900
+However, there is one slight
+complication, only the two types
+
+269
+00:21:38,900 --> 00:21:40,650
+of tokens inside the pool matter.
+
+270
+00:21:40,790 --> 00:21:47,510
+Not the order, there is no first or
+second token, a pool that has coin
+
+271
+00:21:47,510 --> 00:21:52,100
+A, A and coin B, B should be the same
+as one where A and B are swapped.
+
+272
+00:21:53,060 --> 00:21:59,900
+And in order to achieve that, the eq
+instance has a special implementation.
+
+273
+00:21:59,900 --> 00:22:03,260
+So it's not the standard, we don't
+just compare if we want to compare two
+
+274
+00:22:03,260 --> 00:22:07,570
+liquidity pools, we don't just compare
+the first field with the first field of
+
+275
+00:22:07,570 --> 00:22:12,470
+other, and the second with the second,
+but we also try the other way round.
+
+276
+00:22:12,920 --> 00:22:18,570
+So liquidity pool tokens AB would be the
+same as liquidity pool with tokens BA.
+
+277
+00:22:19,370 --> 00:22:21,440
+So that's the only slight complication here.
+
+278
+00:22:24,690 --> 00:22:28,220
+Then we define the actions,
+that's basically the redeemers.
+
+279
+00:22:29,630 --> 00:22:35,810
+So create with argument liquidity
+pool is for creating a new liquidity
+
+280
+00:22:35,810 --> 00:22:39,890
+pool closes for closing one, swap is
+for swapping, remove is for removing
+
+281
+00:22:39,890 --> 00:22:42,170
+liquidity and add is for adding liquidity.
+
+282
+00:22:42,860 --> 00:22:46,760
+Note that in the diagrams I
+showed earlier for simplicity, I
+
+283
+00:22:46,760 --> 00:22:48,950
+called the redeemer simply create.
+
+284
+00:22:49,040 --> 00:22:53,360
+So I didn't mention this
+argument of type liquidity pool.
+
+285
+00:22:55,730 --> 00:22:59,120
+The datum is a bit more complex
+than we have seen before.
+
+286
+00:22:59,120 --> 00:23:02,300
+So it's not just a simple
+integer or similarly simple
+
+287
+00:23:02,300 --> 00:23:05,610
+type, it's a type Uniswap datum.
+
+288
+00:23:06,050 --> 00:23:10,310
+And there are two constructors, one
+for the factory and one for each pool.
+
+289
+00:23:10,670 --> 00:23:15,330
+So the factory will use the
+factory constructor and the pool
+
+290
+00:23:15,440 --> 00:23:16,730
+will use the pool constructor.
+
+291
+00:23:16,970 --> 00:23:21,800
+And as I explained before,
+the datum contains...
+
+292
+00:23:21,930 --> 00:23:26,580
+for the factory contains a list of all
+liquidity pools that currently exist.
+
+293
+00:23:27,660 --> 00:23:35,430
+And the datum for pool contains the liquidity
+pool that I didn't mention in the diagram.
+
+294
+00:23:36,750 --> 00:23:41,070
+And what I did mention in the diagram,
+it contains the amount of liquidity
+
+295
+00:23:41,070 --> 00:23:43,290
+that has been minted for this pool.
+
+296
+00:23:44,280 --> 00:23:48,810
+Remember that gets updated when somebody
+adds liquidity or removes liquidity.
+
+297
+00:23:49,680 --> 00:23:53,910
+Next let's look at the pool module,
+which as I explained before, contains
+
+298
+00:23:53,910 --> 00:23:55,770
+the business logic, the calculations.
+
+299
+00:23:56,580 --> 00:23:58,890
+So we have calculate initial liquidity.
+
+300
+00:23:58,890 --> 00:24:03,090
+It gets the initial amount of token
+A and B that I put into the pool and
+
+301
+00:24:03,090 --> 00:24:08,670
+returns the liquidity tokens that
+are returned in exchange for those.
+
+302
+00:24:09,690 --> 00:24:13,600
+Then calculate additional liquidity for
+the case that the pool already exists and
+
+303
+00:24:13,620 --> 00:24:15,990
+somebody provides additional liquidity.
+
+304
+00:24:16,620 --> 00:24:20,250
+So the first two arguments are the
+amount of token already in there.
+
+305
+00:24:20,910 --> 00:24:25,060
+Then the third one is the liquidity that
+has already been minted for the pool, the...
+
+306
+00:24:25,700 --> 00:24:29,490
+not the liquidity, the liquidity
+tokens that have already been minted.
+
+307
+00:24:30,330 --> 00:24:33,870
+And the next two arguments are how
+many As and Bs are added to the pool.
+
+308
+00:24:34,110 --> 00:24:39,000
+And the result is how many liquidity
+tokens will be minted in exchange
+
+309
+00:24:39,000 --> 00:24:40,680
+for this additional amount.
+
+310
+00:24:40,740 --> 00:24:42,030
+That's additional liquidity.
+
+311
+00:24:43,810 --> 00:24:47,250
+Calculate removal is for the opposite case.
+
+312
+00:24:48,090 --> 00:24:54,330
+So given how many tokens are in the pool
+how much liquidity tokens have been minted.
+
+313
+00:24:54,750 --> 00:24:57,660
+How many liquidity tokens to be removed?
+
+314
+00:24:58,290 --> 00:25:01,410
+It gives how many token's
+A and B remain in the pool.
+
+315
+00:25:02,880 --> 00:25:06,660
+Check swap is arguably the
+central function of the whole
+
+316
+00:25:06,660 --> 00:25:11,420
+Uniswap system, calculates a swap.
+
+317
+00:25:11,540 --> 00:25:18,170
+So this, and this is how many As and
+Bs are originally in the pool and
+
+318
+00:25:18,200 --> 00:25:22,600
+this and this says how many As and
+Bs are after the swap in the pool.
+
+319
+00:25:23,480 --> 00:25:26,180
+And it just returns
+whether that's okay or not.
+
+320
+00:25:26,300 --> 00:25:31,550
+So in principle, it just checks that
+the product of the last two arguments is
+
+321
+00:25:31,550 --> 00:25:33,220
+larger than the product of the first two.
+
+322
+00:25:33,440 --> 00:25:36,260
+And as I explained before, it's
+a bit more complicated because
+
+323
+00:25:36,260 --> 00:25:37,730
+the fee is taken into account.
+
+324
+00:25:37,730 --> 00:25:40,490
+So in this case, it's Oh, 0.3%.
+
+325
+00:25:40,760 --> 00:25:44,630
+So you can see this is
+taking into account here.
+
+326
+00:25:45,770 --> 00:25:49,130
+It also makes sure that none of
+the amounts ever drops to zero.
+
+327
+00:25:49,280 --> 00:25:56,320
+So it's not allowed to remove all coins,
+have one sort or both from a pool.
+
+328
+00:25:56,320 --> 00:26:00,825
+And that also makes sense because
+of this product, if one of the
+
+329
+00:26:00,825 --> 00:26:04,815
+factors was zero, then of course it
+couldn't be larger than it was before.
+
+330
+00:26:06,374 --> 00:26:08,985
+Finally, there's this LP ticker function.
+
+331
+00:26:09,075 --> 00:26:13,005
+It's just a helper function that
+given a liquidity pool, computes a
+
+332
+00:26:13,005 --> 00:26:16,124
+token name for the liquidity token.
+
+333
+00:26:17,205 --> 00:26:21,075
+And the idea here is that this
+token name should only depend on the
+
+334
+00:26:21,075 --> 00:26:22,785
+liquidity pool and should be unique.
+
+335
+00:26:22,874 --> 00:26:27,225
+So each pair of tokens should
+result in a unique token name.
+
+336
+00:26:28,095 --> 00:26:33,585
+And in principle it just takes the currency
+symbols and the token names of the two
+
+337
+00:26:34,395 --> 00:26:40,965
+tokens or coins, concatenates all of them
+and hashes that, and then uses the hash
+
+338
+00:26:40,965 --> 00:26:48,135
+of the concatenation just to get something
+unique and a slight complication is here
+
+339
+00:26:48,135 --> 00:26:52,920
+that again must make sure that the order
+of coins in the pool doesn't matter.
+
+340
+00:26:53,220 --> 00:26:55,200
+So this way there's a condition here.
+
+341
+00:26:55,530 --> 00:26:58,470
+So it's checked that they are
+sorted and if they are not
+
+342
+00:26:58,470 --> 00:27:00,720
+sorted, then you swap them around.
+
+343
+00:27:01,440 --> 00:27:06,980
+So the, this function should return the same
+token name for liquidity pool with token A
+
+344
+00:27:06,980 --> 00:27:12,090
+and B and for liquidity  pool, with token B
+and A which also corresponds to what I said
+
+345
+00:27:12,120 --> 00:27:15,120
+earlier about equality for liquidity pools.
+
+346
+00:27:16,380 --> 00:27:18,510
+Now let's look at the on-chain part.
+
+347
+00:27:19,530 --> 00:27:26,020
+Only two functions are exported to
+make the validator for the Uniswap
+
+348
+00:27:26,040 --> 00:27:30,030
+both factory and pools, because
+they share the same script address.
+
+349
+00:27:30,630 --> 00:27:36,030
+They address distinguished by the
+datum and by the coins that identify
+
+350
+00:27:36,030 --> 00:27:39,900
+them and validate liquidity forging.
+
+351
+00:27:39,910 --> 00:27:47,740
+So that's the monetary policy script
+for the liquidity tokens, but there...
+
+352
+00:27:48,120 --> 00:27:49,560
+it's a lot of code in this module.
+
+353
+00:27:50,430 --> 00:27:54,720
+And as I said, I don't want to
+go through it in detail, let's
+
+354
+00:27:54,720 --> 00:27:56,250
+rather look at the structure.
+
+355
+00:27:58,020 --> 00:28:01,380
+So this is the make
+Uniswap validator function.
+
+356
+00:28:02,550 --> 00:28:07,650
+And this function contains all
+the cases for factories and
+
+357
+00:28:07,650 --> 00:28:09,960
+pools and the various redeemers.
+
+358
+00:28:11,010 --> 00:28:13,770
+And we have the function validated
+liquidity forging, which is the
+
+359
+00:28:13,770 --> 00:28:16,240
+monetary policy for liquidity tokens.
+
+360
+00:28:17,490 --> 00:28:22,500
+And the idea here is that it doesn't
+contain any logic and simply delegates
+
+361
+00:28:22,500 --> 00:28:25,150
+the logic to the Uniswap validator.
+
+362
+00:28:25,740 --> 00:28:30,120
+And the way it does that is it checks
+the inputs of the forging transaction
+
+363
+00:28:30,750 --> 00:28:37,080
+and checks that it's either contains a
+factory or contains a pool, because if
+
+364
+00:28:37,080 --> 00:28:41,160
+it does, then this validator will run.
+
+365
+00:28:41,160 --> 00:28:44,070
+We know that this validator will
+run and then the validator can
+
+366
+00:28:44,070 --> 00:28:45,750
+check that the forging is okay.
+
+367
+00:28:46,710 --> 00:28:49,090
+And the way it does check with the...
+
+368
+00:28:49,480 --> 00:28:53,490
+Either the factory bool is an
+input is why are the coins that
+
+369
+00:28:53,490 --> 00:28:55,140
+identify a factory or pool?
+
+370
+00:28:55,170 --> 00:29:00,000
+So it checks whether this Uniswap
+factory coin is in the input or whether
+
+371
+00:29:00,270 --> 00:29:02,580
+one of the pool coins is in the input.
+
+372
+00:29:04,080 --> 00:29:09,770
+And then we just have helper functions for
+all the various cases and they haven't looked
+
+373
+00:29:09,770 --> 00:29:13,890
+quite long but it's all straightforward.
+
+374
+00:29:13,950 --> 00:29:18,840
+And it's basically what I explained
+in the diagram, just spelled out in
+
+375
+00:29:18,840 --> 00:29:24,690
+detail that all these conditions are
+satisfied for all the different cases.
+
+376
+00:29:26,400 --> 00:29:29,280
+One thing I should mention is
+I didn't use state machines
+
+377
+00:29:29,700 --> 00:29:31,680
+and I'm not sure it's possible.
+
+378
+00:29:31,770 --> 00:29:36,000
+I was thinking about that and it wasn't
+obvious to me, the problem is, I mean, one
+
+379
+00:29:36,000 --> 00:29:42,360
+should think that both the factory and the
+individual pools behave like state machines.
+
+380
+00:29:42,510 --> 00:29:48,450
+I mean, they are identified by their tokens
+and they are these legal transitions and
+
+381
+00:29:48,450 --> 00:29:50,280
+then the data gets updated and so on.
+
+382
+00:29:50,790 --> 00:29:54,690
+But the problem are, is that sometimes
+we have both of them invoice the
+
+383
+00:29:54,690 --> 00:29:56,430
+factory and one of the pools.
+
+384
+00:29:57,090 --> 00:30:00,330
+And it's not obvious to me
+whether that's possible with the
+
+385
+00:30:00,330 --> 00:30:02,970
+current state machine machinery.
+
+386
+00:30:03,630 --> 00:30:07,080
+So I basically did it by
+hand and I've wrote this.
+
+387
+00:30:07,540 --> 00:30:09,860
+Finally, let's look at the off-chain code.
+
+388
+00:30:11,950 --> 00:30:17,350
+Also no surprises here, it's the usual boiler
+plate, be defined two different schemas.
+
+389
+00:30:17,380 --> 00:30:22,450
+The idea is that one is for the entity
+that creates the Uniswap factory.
+
+390
+00:30:22,895 --> 00:30:25,985
+And that only has one endpoint
+start and no parameters.
+
+391
+00:30:26,885 --> 00:30:31,985
+And then once that is created a second
+schema for people that make use of this
+
+392
+00:30:31,985 --> 00:30:38,625
+Uniswap system, and all the contracts in
+here will be parameterized by the uniswap
+
+393
+00:30:38,645 --> 00:30:41,585
+instance that this first action creates.
+
+394
+00:30:43,605 --> 00:30:46,135
+we make use of the state mechanism.
+
+395
+00:30:46,195 --> 00:30:53,065
+So of this monad writer mechanism that
+is accessible via tell, and basically for
+
+396
+00:30:53,065 --> 00:31:00,205
+all the user operations, we have our own
+state, we call it user contract state.
+
+397
+00:31:01,045 --> 00:31:06,525
+So there will be a helper contract
+that queries for all existing pools.
+
+398
+00:31:06,805 --> 00:31:13,045
+So then the state would be using this pools
+constructor and return a list of pools in
+
+399
+00:31:13,045 --> 00:31:19,435
+a simplified form, it's just a nested pair
+of pairs of coin and amount in each pool.
+
+400
+00:31:20,425 --> 00:31:24,695
+Now the helper function to query the
+existing funds of a wallet that will
+
+401
+00:31:24,695 --> 00:31:29,555
+just return a value and then construct
+us for all the other operations.
+
+402
+00:31:29,585 --> 00:31:33,815
+So if they have happened, then
+one of those will be the state.
+
+403
+00:31:34,205 --> 00:31:38,285
+So for example, if we did a
+swap, then afterwards the status
+
+404
+00:31:38,285 --> 00:31:39,875
+will be updated to swapped.
+
+405
+00:31:40,745 --> 00:31:45,125
+If we removed liquidity, it will
+be updated to removed and so on.
+
+406
+00:31:46,405 --> 00:31:50,705
+Then some names for the various tokens,
+so you need swap for, with the token
+
+407
+00:31:50,705 --> 00:31:56,375
+name of the NFT in the Uniswap factory,
+pool state will be the token name for the
+
+408
+00:31:57,065 --> 00:31:59,895
+coins that identify the liquidity pools.
+
+409
+00:32:00,515 --> 00:32:07,985
+Then our usual boiler plate to
+actually get a script instance and
+
+410
+00:32:08,345 --> 00:32:12,635
+the policy for the liquidity tokens.
+
+411
+00:32:16,535 --> 00:32:21,900
+Some various helper functions, then
+all the parameters for the endpoints.
+
+412
+00:32:22,040 --> 00:32:27,410
+So for example, if we want to create a pool
+we need to know the tokens and the amounts.
+
+413
+00:32:27,980 --> 00:32:32,090
+If you want to swap, it must know
+the tokens and how much to swap and
+
+414
+00:32:32,090 --> 00:32:36,110
+the idea is here that one of these
+two last fields should be zero.
+
+415
+00:32:36,110 --> 00:32:41,000
+So if you want to put in A and get our
+B we've would specify the SP amount, how
+
+416
+00:32:41,000 --> 00:32:46,340
+many As we want to put in, but we would
+leave the B at zero and the other way
+
+417
+00:32:46,340 --> 00:32:48,720
+round if we want to swap B against As.
+
+418
+00:32:49,760 --> 00:32:54,380
+Close if you want to close a pool,
+we just have to specify which pool.
+
+419
+00:32:54,500 --> 00:32:56,900
+So we give to two tokens that are in there.
+
+420
+00:32:57,800 --> 00:33:04,100
+Remove you have to specify the pool and
+how much liquidity we want to burn and
+
+421
+00:33:04,190 --> 00:33:09,920
+add again, identify the pool and how
+many As and how many Bs we want to add.
+
+422
+00:33:11,360 --> 00:33:12,890
+Now here we have the implementation.
+
+423
+00:33:13,250 --> 00:33:18,800
+So start, as I said, sets up the whole
+system and did again, makes use of this
+
+424
+00:33:18,800 --> 00:33:23,990
+other use case we have used before,
+the currency forge contract to mint
+
+425
+00:33:24,020 --> 00:33:28,650
+this NFT, the factory NFT that's then
+used to identify the Uniswap factory.
+
+426
+00:33:31,270 --> 00:33:35,380
+Create it's the contract that
+creates a liquidity pool.
+
+427
+00:33:35,800 --> 00:33:39,910
+And we see all of these will be,
+as I mentioned before, identified
+
+428
+00:33:40,000 --> 00:33:45,730
+by the Uniswap value, which is the
+result of this start contract here.
+
+429
+00:33:48,220 --> 00:33:52,060
+So if we have create, we have
+close, again parameterized by
+
+430
+00:33:52,060 --> 00:33:59,170
+Uniswap, remove, add, and swap.
+
+431
+00:34:00,290 --> 00:34:05,130
+And all these functions also make
+use of the functions from the pools
+
+432
+00:34:05,150 --> 00:34:07,940
+module, that contain the business logic.
+
+433
+00:34:07,970 --> 00:34:13,820
+So that will be used both in the validator,
+on the on-chain side, as well as on the
+
+434
+00:34:13,820 --> 00:34:16,350
+off chain side in these contracts here.
+
+435
+00:34:20,410 --> 00:34:20,890
+Swap.
+
+436
+00:34:23,350 --> 00:34:26,620
+Pools as I said just
+curious the existing pools.
+
+437
+00:34:26,890 --> 00:34:31,750
+So it looks for the factory UTXO
+and checks the datum of that.
+
+438
+00:34:31,960 --> 00:34:37,000
+And as we know, the datum of the
+factory contains the list of all pools.
+
+439
+00:34:37,510 --> 00:34:42,970
+And finally funds just checks our own funds,
+the funds in the wallet and returns them.
+
+440
+00:34:44,140 --> 00:34:48,310
+So these all return values or I
+mean, funds for example returns
+
+441
+00:34:48,310 --> 00:34:50,710
+value, pools returns a list of this.
+
+442
+00:34:51,370 --> 00:34:55,540
+But I mentioned earlier, we want to
+write that in the state, and this is now
+
+443
+00:34:55,570 --> 00:35:00,200
+done in, in these endpoint definitions.
+
+444
+00:35:00,290 --> 00:35:04,550
+So first we have the owner endpoint
+for setting up the whole system,
+
+445
+00:35:05,810 --> 00:35:08,660
+which just uses the stop contract.
+
+446
+00:35:08,900 --> 00:35:13,490
+And then we have the user
+endpoints, which combined all these
+
+447
+00:35:13,490 --> 00:35:15,080
+operations that a user can do.
+
+448
+00:35:15,620 --> 00:35:20,120
+And now there is no return value anymore,
+and instead we make use of the state.
+
+449
+00:35:20,150 --> 00:35:22,160
+So we use the last monoid again.
+
+450
+00:35:22,160 --> 00:35:25,850
+So only the last toll state will be kept.
+
+451
+00:35:26,510 --> 00:35:28,070
+And we also allow for error.
+
+452
+00:35:28,070 --> 00:35:31,880
+So if there's an error in one of these
+contracts, then we will catch that error,
+
+453
+00:35:32,270 --> 00:35:34,940
+but use a left to write it in the state.
+
+454
+00:35:35,030 --> 00:35:41,540
+And if there was no error we write the
+appropriate user contract state value in the
+
+455
+00:35:41,540 --> 00:35:43,910
+state with the right constructor for either.
+
+456
+00:35:44,810 --> 00:35:46,430
+So this is done here.
+
+457
+00:35:47,240 --> 00:35:53,780
+Finally, we also have a stop endpoint
+that simply stops, it doesn't do anything.
+
+458
+00:35:54,560 --> 00:35:59,780
+Just, if you look at the definition
+here at any time you can invoke stop
+
+459
+00:35:59,959 --> 00:36:06,140
+or one of the others, and if it was
+one of the others then recursively user
+
+460
+00:36:06,140 --> 00:36:10,320
+endpoints is called again, but in the
+case of stop not, so if stop endpoint
+
+461
+00:36:10,340 --> 00:36:13,129
+is ever called then the contract stops.
+
+462
+00:36:14,120 --> 00:36:20,570
+There are also tests for Uniswap contained
+in this Plutus use cases library,
+
+463
+00:36:20,990 --> 00:36:23,240
+but I don't want to look at them now.
+
+464
+00:36:24,470 --> 00:36:31,829
+Let's rather look at the Plutus PAB path and
+how you can write a front-end for Uniswap.
+
+465
+00:36:33,350 --> 00:36:36,469
+There is actually one also
+contained in the Plutus repo.
+
+466
+00:36:36,620 --> 00:36:45,720
+It's in the Plutus PAB library and there in
+the examples folder, so there's a Uniswap
+
+467
+00:36:45,720 --> 00:36:53,570
+folder that contains the simulation monad
+path of, of an example, how to do that.
+
+468
+00:36:54,110 --> 00:37:00,560
+And I took this and copied it into
+our Plutus pioneer program repo and
+
+469
+00:37:00,560 --> 00:37:04,820
+slightly modified it to make it more
+suitable for what I wanted to show you.
+
+470
+00:37:05,540 --> 00:37:11,110
+When we look at the cabal file for this
+week's code, there are two executables.
+
+471
+00:37:11,780 --> 00:37:19,110
+One Uniswap minus PAB, which will run the
+PAB Memphis solver, and then one Uniswap
+
+472
+00:37:19,130 --> 00:37:26,100
+minus client, which is a simple console
+based front-end for the Uniswap application.
+
+473
+00:37:27,130 --> 00:37:32,610
+And you see, in the other modules
+field there is a module Uniswap
+
+474
+00:37:32,630 --> 00:37:34,280
+and that's listed in both.
+
+475
+00:37:34,640 --> 00:37:39,710
+So that will contain some common
+definitions that are used by both paths.
+
+476
+00:37:41,000 --> 00:37:42,650
+So let's first look at that.
+
+477
+00:37:44,705 --> 00:37:50,195
+First of all, as I explained when I
+presented the Oracle demo, we need some
+
+478
+00:37:50,195 --> 00:37:55,985
+data type that captures the various
+instances we can run for the wallets.
+
+479
+00:37:56,555 --> 00:37:59,795
+And in this case, I have three in it.
+
+480
+00:38:00,635 --> 00:38:02,735
+Hasn't been mentioned before.
+
+481
+00:38:02,735 --> 00:38:04,975
+That has nothing specifically
+to do with Uniswap.
+
+482
+00:38:05,435 --> 00:38:09,785
+This is just used to create some example
+tokens and distribute them in the beginning.
+
+483
+00:38:10,565 --> 00:38:17,660
+Then Uniswap start correponds to the
+Uniswap start or Uniswap owner schema
+
+484
+00:38:17,660 --> 00:38:22,770
+that I showed you just now for setting
+up the whole system and Uniswap user
+
+485
+00:38:23,180 --> 00:38:27,170
+corresponds to the other path, to the various
+endpoints to interact with the system.
+
+486
+00:38:27,470 --> 00:38:33,410
+And this task construct is parameterized
+by a value of type Uniswap,
+
+487
+00:38:34,130 --> 00:38:35,990
+which is the result of starting.
+
+488
+00:38:36,140 --> 00:38:41,810
+So after having started the system, the
+result would be of type Uniswap and this
+
+489
+00:38:41,810 --> 00:38:44,450
+is then needed to parameterize the client.
+
+490
+00:38:45,830 --> 00:38:53,290
+This is just boiler plate, this is this init
+contract that distributes the initial funds.
+
+491
+00:38:54,160 --> 00:38:58,310
+So it again makes use of the forge
+contract that we have seen before.
+
+492
+00:38:59,270 --> 00:39:07,630
+And it now producers tokens with token
+names A, B, C, D and 1 million of each.
+
+493
+00:39:08,530 --> 00:39:12,740
+And actually it also multiplies
+that by the number of wallets.
+
+494
+00:39:12,740 --> 00:39:17,420
+So in this case, I want to use four wallets,
+wallets one to four, it's actually 4 million
+
+495
+00:39:17,420 --> 00:39:19,580
+of each of the tokens will be forged.
+
+496
+00:39:20,390 --> 00:39:26,870
+And once they have been forged, I sent
+from the forging wallet to all the
+
+497
+00:39:26,870 --> 00:39:29,420
+other wallets, 1 billion of the tokens.
+
+498
+00:39:30,050 --> 00:39:34,880
+So one wallet forges 4 million of
+each, and then loops over the other
+
+499
+00:39:34,880 --> 00:39:38,060
+wallets and sends them 1 million each.
+
+500
+00:39:38,780 --> 00:39:43,550
+So this is just needed to set
+up example tokens and distribute
+
+501
+00:39:43,550 --> 00:39:44,900
+them amongst the wallets.
+
+502
+00:39:46,790 --> 00:39:51,110
+This is just a helper function because
+in order to communicate the various
+
+503
+00:39:51,110 --> 00:39:56,990
+contract instance IDs and other things
+I need, I just use helper files and this
+
+504
+00:39:56,990 --> 00:39:59,420
+is the file name for a given wallet.
+
+505
+00:40:01,065 --> 00:40:05,825
+Finally this instance here
+has of class has definitions.
+
+506
+00:40:06,545 --> 00:40:10,595
+This has changed from the last
+time I did a walk through and show
+
+507
+00:40:10,595 --> 00:40:12,865
+the PAB with the Oracle example.
+
+508
+00:40:13,924 --> 00:40:18,995
+This is the link between this type
+here, this Uniswap contract type,
+
+509
+00:40:19,025 --> 00:40:21,415
+which basically defines the API.
+
+510
+00:40:21,665 --> 00:40:27,725
+Reifies the contracts I want to be
+able to run and the actual contracts.
+
+511
+00:40:27,755 --> 00:40:31,355
+So now this link happens with
+this type class has definitions.
+
+512
+00:40:32,465 --> 00:40:34,805
+And here we...
+
+513
+00:40:34,995 --> 00:40:38,045
+the important parts are the get
+schema and the get contract.
+
+514
+00:40:38,105 --> 00:40:45,935
+So the get schema links this type, the three
+constructors with the corresponding schemas.
+
+515
+00:40:46,595 --> 00:40:50,325
+So for Uniswap user it's
+our Uniswap user schema.
+
+516
+00:40:50,325 --> 00:40:52,985
+For Uniswap start it's
+our Uniswap owner schema.
+
+517
+00:40:53,315 --> 00:40:58,290
+And for init it's the empty schema
+we don't need any endpoints there.
+
+518
+00:40:59,220 --> 00:41:04,529
+And this get contract links this
+type against the actual contracts.
+
+519
+00:41:05,250 --> 00:41:11,880
+So Uniswap user parameterized by
+value of type Uniswap, will call this
+
+520
+00:41:11,910 --> 00:41:14,640
+user endpoints with that parameter.
+
+521
+00:41:15,060 --> 00:41:18,100
+Uniswap start calls the owner endpoint.
+
+522
+00:41:18,750 --> 00:41:22,070
+And init calls this init contract here.
+
+523
+00:41:24,000 --> 00:41:27,680
+So now let's look at the PAB part.
+
+524
+00:41:29,040 --> 00:41:34,500
+So in the simulator monad,
+we execute certain things.
+
+525
+00:41:35,940 --> 00:41:41,760
+So first we set up the whole
+system, we start the server and get
+
+526
+00:41:41,760 --> 00:41:43,560
+the handle to shut it down again.
+
+527
+00:41:43,920 --> 00:41:48,960
+And then in the end we just
+wait until the user types a key
+
+528
+00:41:48,960 --> 00:41:50,190
+and then we shut it down again.
+
+529
+00:41:51,510 --> 00:41:51,690
+Okay.
+
+530
+00:41:51,690 --> 00:41:56,580
+So first thing we do is wallet
+one activates this init contract.
+
+531
+00:41:56,940 --> 00:42:00,570
+So we know from looking at the code
+what that will do, it will mint all
+
+532
+00:42:00,570 --> 00:42:06,300
+these example tokens, ABCD, 4 million
+of each, and then distribute them.
+
+533
+00:42:06,300 --> 00:42:10,440
+So that wallets one to four end
+up with 1 million of each of the
+
+534
+00:42:10,440 --> 00:42:15,230
+four different tokens and we wait.
+
+535
+00:42:15,680 --> 00:42:21,470
+So, I mean, this will concurrently start this
+contract, but then immediately continue at
+
+536
+00:42:21,470 --> 00:42:27,440
+one block, so we use this wait for state that
+I explained when we talked about Oracles to
+
+537
+00:42:27,440 --> 00:42:35,459
+wait until init returns and what init will
+do is it will write the currency symbol of
+
+538
+00:42:35,459 --> 00:42:38,280
+the forged example tokens into the state.
+
+539
+00:42:39,030 --> 00:42:45,780
+So we wait until we see that and
+then we remember it and we wait until
+
+540
+00:42:45,780 --> 00:42:47,760
+this init contract has finished.
+
+541
+00:42:48,240 --> 00:42:53,500
+And then we write the currency symbol
+into a file that I called symbol dot json.
+
+542
+00:42:53,550 --> 00:42:58,019
+And we just use encode that comes
+from data dot aeson, the json
+
+543
+00:42:58,019 --> 00:42:59,880
+standard json library for Haskell.
+
+544
+00:43:00,450 --> 00:43:06,120
+So we take this currency symbol and
+encode it to json and write it in
+
+545
+00:43:06,120 --> 00:43:09,720
+this file and we write a log message.
+
+546
+00:43:10,530 --> 00:43:14,040
+Then again for wallet one,
+we start the Uniswap system.
+
+547
+00:43:15,330 --> 00:43:22,260
+So we use the Uniswap start constructor and
+we again use wait for state to wait until we
+
+548
+00:43:22,260 --> 00:43:26,620
+get the result and the result of the Uniswap
+start, I explained it earlier will be a value
+
+549
+00:43:26,620 --> 00:43:32,490
+of type Uniswap, and we need that value in
+order to parameterize the user contracts.
+
+550
+00:43:33,810 --> 00:43:41,250
+So we wait until we get this, I called
+it US and will log and now Uniswap, the
+
+551
+00:43:41,250 --> 00:43:45,900
+system is running and now we can start
+the user instances for all the wallets.
+
+552
+00:43:46,620 --> 00:43:52,530
+So I loop all our wallets and activate
+the Uniswap user contract which is
+
+553
+00:43:52,530 --> 00:44:01,080
+now parameterized by the US value
+I got in the previous step here.
+
+554
+00:44:02,940 --> 00:44:03,620
+Okay.
+
+555
+00:44:04,100 --> 00:44:11,555
+Now I have these handles and in order to
+interact, to communicate from the front-end
+
+556
+00:44:11,625 --> 00:44:13,365
+with the server, I need these handles.
+
+557
+00:44:13,845 --> 00:44:17,545
+So I write them into a file and this
+is where you says helper function
+
+558
+00:44:17,565 --> 00:44:19,635
+CID file that I showed you earlier.
+
+559
+00:44:20,205 --> 00:44:28,905
+So I will end up with four files W one
+dot CID until W four dot CID, which
+
+560
+00:44:28,905 --> 00:44:38,415
+contains these contract instance IDs
+for the four contracts, log message, and
+
+561
+00:44:38,415 --> 00:44:42,645
+then I just wait until the user types
+a key and I can shut down the server.
+
+562
+00:44:43,160 --> 00:44:51,260
+Let's try this out with cabal run Uniswap
+minus PAB, and now a lot of stuff is
+
+563
+00:44:51,260 --> 00:44:58,490
+happening, remember, first we forge these
+example tokens ABCD, and then we need
+
+564
+00:44:58,490 --> 00:45:02,090
+to distribute them to the other wallets.
+
+565
+00:45:03,365 --> 00:45:06,005
+Then we have to start the Uniswap system.
+
+566
+00:45:06,005 --> 00:45:11,375
+And for that, we again have to first forge
+the Uniswap NFT that identifies the factory
+
+567
+00:45:12,065 --> 00:45:18,875
+and then create the initial UTXO for the
+factory that contains an empty list of pools.
+
+568
+00:45:20,030 --> 00:45:25,370
+And now we see that all the Uniswap
+user contracts have started for
+
+569
+00:45:25,370 --> 00:45:26,690
+wallets one, two, three, four.
+
+570
+00:45:27,250 --> 00:45:32,320
+If we look, we see the various files
+that I wrote, so we can look at those.
+
+571
+00:45:32,740 --> 00:45:39,880
+So symbol dot json is the currency
+symbol of the example tokens I created.
+
+572
+00:45:40,240 --> 00:45:41,950
+So I need that to refer to them.
+
+573
+00:45:42,550 --> 00:45:45,080
+And then we have these W one to W four.
+
+574
+00:45:45,100 --> 00:45:52,000
+So if you look at one of those, that's
+the contract instance IDs for the
+
+575
+00:45:52,090 --> 00:45:55,060
+contract instances for the four wallets.
+
+576
+00:45:55,810 --> 00:46:00,755
+And in order to find the correct
+HTTP endpoints to communicate
+
+577
+00:46:00,755 --> 00:46:02,555
+with them, I need these.
+
+578
+00:46:03,760 --> 00:46:05,800
+Let's look at the client next.
+
+579
+00:46:06,280 --> 00:46:12,610
+So as for the Oracle, I also wrote that
+in Haskell using the same library for
+
+580
+00:46:12,610 --> 00:46:20,230
+doing HTTP requests and in the main
+program, first of all, I expect one
+
+581
+00:46:20,260 --> 00:46:25,670
+command line parameter, just a number
+from one to four, so that the main program
+
+582
+00:46:25,690 --> 00:46:27,490
+knows for which wallet it's running.
+
+583
+00:46:28,540 --> 00:46:34,330
+Then I read the corresponding CID file to
+get the contract instance ID for that wallet.
+
+584
+00:46:35,260 --> 00:46:40,670
+And I read this symbol dot json file to get
+the currency symbol of the example tokens.
+
+585
+00:46:40,690 --> 00:46:47,830
+I read that with something, read file
+coming from the byte string library, and
+
+586
+00:46:47,860 --> 00:46:54,260
+decode comes from the aeson library to
+decode the json back to Haskell data type,
+
+587
+00:46:55,620 --> 00:46:58,240
+I just check whether there was an error.
+
+588
+00:46:59,020 --> 00:47:06,440
+And if not, I invoke this go function where
+give as parameters the CID, the contracts
+
+589
+00:47:06,460 --> 00:47:09,220
+instance ID and the currency symbol.
+
+590
+00:47:10,480 --> 00:47:15,970
+And here it's just a loop, I read a
+command from the console, we get to the
+
+591
+00:47:15,970 --> 00:47:21,140
+commands a second, and then depending
+on the command, I involve various helper
+
+592
+00:47:21,190 --> 00:47:25,450
+functions and the commands exactly
+correspond to the endpoints we have,
+
+593
+00:47:25,480 --> 00:47:27,880
+except for stop, I didn't implement stop.
+
+594
+00:47:29,620 --> 00:47:35,050
+So we can carry our funds, we can look for
+existing pools, we can create a pool, we
+
+595
+00:47:35,050 --> 00:47:41,450
+can add liquidity to a pool, we can remove
+liquidity from a pool, we can close a pool,
+
+596
+00:47:42,100 --> 00:47:44,550
+and we can swap, which is the whole point.
+
+597
+00:47:45,840 --> 00:47:48,400
+And commands, it's just this.
+
+598
+00:47:48,400 --> 00:47:56,680
+So for each of those, we have a command
+and in order to enter amounts and currency
+
+599
+00:47:57,530 --> 00:48:01,120
+tokens, currency symbols and token names.
+
+600
+00:48:01,510 --> 00:48:06,320
+Because the currency symbol will always be
+the CS, we are only using our example tokens,
+
+601
+00:48:06,340 --> 00:48:11,350
+I don't need that and for the token name,
+because the token names for ABCD I just use
+
+602
+00:48:11,350 --> 00:48:14,740
+a character for that, it's easier to type.
+
+603
+00:48:16,120 --> 00:48:19,360
+So for example, create Integer
+Character Integer Character.
+
+604
+00:48:19,360 --> 00:48:24,740
+So that means create a liquidity pool
+with that amount of the token with
+
+605
+00:48:24,930 --> 00:48:30,760
+that token name and that amount of the
+token with this token name and so on.
+
+606
+00:48:31,990 --> 00:48:37,480
+This read command, it's just straightforward
+reads from the keyboard and then tries to
+
+607
+00:48:37,480 --> 00:48:43,690
+pass that as a command and if it fails it
+will just recursively read command again.
+
+608
+00:48:43,690 --> 00:48:46,950
+And if it succeeds, it returns this command.
+
+609
+00:48:48,500 --> 00:48:54,840
+Then there are just various helper functions
+to convert something of type command
+
+610
+00:48:55,530 --> 00:49:02,010
+into the corresponding parameter types,
+like create params or add params from the
+
+611
+00:49:02,010 --> 00:49:04,140
+Uniswap module that I showed you earlier.
+
+612
+00:49:05,760 --> 00:49:10,500
+This here show coin header and show coin
+are just to make it look a bit prettier
+
+613
+00:49:10,710 --> 00:49:16,350
+when we query the funds or the pools,
+and then we have the various endpoints
+
+614
+00:49:16,680 --> 00:49:19,620
+and that all makes use a helper function.
+
+615
+00:49:19,650 --> 00:49:22,890
+Last time, I think for the Oracle
+I spelled it out, now extracted it.
+
+616
+00:49:23,430 --> 00:49:29,100
+So I have these helper functions get status,
+which we need in order to get something
+
+617
+00:49:29,100 --> 00:49:31,200
+back from the contracts and call endpoint.
+
+618
+00:49:32,490 --> 00:49:38,280
+So I'm just using this library,
+this IQ library as last time.
+
+619
+00:49:39,540 --> 00:49:43,720
+And here, this is the interesting
+part, this is the request.
+
+620
+00:49:44,080 --> 00:49:49,090
+So it will be the post request,
+this is the URL, and I must give
+
+621
+00:49:49,090 --> 00:49:51,700
+the instance ID, this is here.
+
+622
+00:49:52,390 --> 00:49:59,380
+So this is of type UUID, so I just
+convert it into a string and then pick
+
+623
+00:49:59,380 --> 00:50:06,760
+it to a text because this HTTP library
+expects text here and the name of the
+
+624
+00:50:06,760 --> 00:50:12,040
+endpoint and the request body that
+depends, of course, what parameters.
+
+625
+00:50:12,040 --> 00:50:15,940
+So this is just a parameter here, that's
+the third argument in the function.
+
+626
+00:50:17,110 --> 00:50:25,630
+The response will always be unit and I just
+check whether I get a 200 status code or not.
+
+627
+00:50:27,940 --> 00:50:34,440
+And the get status is a get request
+that invokes this HTTP endpoint
+
+628
+00:50:34,600 --> 00:50:37,480
+called status, again with the CID.
+
+629
+00:50:39,115 --> 00:50:46,105
+And it doesn't take a request body and
+I have to tell it what I'm dealing with.
+
+630
+00:50:46,105 --> 00:50:48,745
+So that's why I need this
+Uniswap contracts type here.
+
+631
+00:50:48,745 --> 00:50:54,565
+And that's also why this Uniswap
+client executable also needs
+
+632
+00:50:54,565 --> 00:50:56,125
+access to this Uniswap module.
+
+633
+00:50:57,835 --> 00:51:04,375
+And then I just check if the state is
+empty, which happens right in the beginning
+
+634
+00:51:04,375 --> 00:51:11,215
+because before in anything else told
+anything to the state, then I wait a second
+
+635
+00:51:11,245 --> 00:51:19,955
+and recurse and if there's a state, so
+it's just E, then I know that this is of
+
+636
+00:51:19,975 --> 00:51:22,975
+type either text a user contract state.
+
+637
+00:51:23,695 --> 00:51:27,115
+Recall this user contract state that was
+one constructor for each of the endpoints,
+
+638
+00:51:27,535 --> 00:51:32,185
+but if there's an error during contract
+execution, I get the error message as a text.
+
+639
+00:51:33,085 --> 00:51:37,105
+And if something went wrong,
+then I end in this third case.
+
+640
+00:51:38,545 --> 00:51:42,875
+And with these two it's easy to write
+all the cases for the endpoints.
+
+641
+00:51:43,045 --> 00:51:46,015
+So let's maybe look at one, it get funds.
+
+642
+00:51:47,575 --> 00:51:50,635
+So I use this call endpoint helper
+function that I stress short.
+
+643
+00:51:50,635 --> 00:51:56,415
+So for the endpoint named funds, and in
+this case, the argument, the request body.
+
+644
+00:51:58,170 --> 00:52:03,600
+And I wait for two seconds and then I
+use this get status helper function.
+
+645
+00:52:04,080 --> 00:52:11,200
+And if I get a right, then I show the
+funds that I got and otherwise I recurse.
+
+646
+00:52:11,460 --> 00:52:15,090
+So I wait until I get the right, because in
+this case, there's funds should never fail.
+
+647
+00:52:15,660 --> 00:52:17,010
+There's no way that can fail.
+
+648
+00:52:17,460 --> 00:52:19,440
+Therefore I can safely wait forever.
+
+649
+00:52:21,000 --> 00:52:22,980
+Get pools is similar.
+
+650
+00:52:23,550 --> 00:52:27,590
+So it's more or less the same, except
+that instead of funds, I have pools now.
+
+651
+00:52:29,950 --> 00:52:33,595
+And let's look at one more example,
+for example, for creating a pool.
+
+652
+00:52:34,075 --> 00:52:35,315
+So again, I call the endpoint.
+
+653
+00:52:35,335 --> 00:52:36,385
+I wait for two seconds.
+
+654
+00:52:36,865 --> 00:52:39,145
+Now that could actually go something wrong.
+
+655
+00:52:39,505 --> 00:52:43,855
+For example, if I try to create a pool
+where both coins are the same, or if I
+
+656
+00:52:43,855 --> 00:52:47,935
+specify a larger liquidity than I have
+in my wallet, then I would get an error.
+
+657
+00:52:48,445 --> 00:52:53,725
+So in this case, I, if I get an
+error, I just log it for the console
+
+658
+00:52:54,715 --> 00:52:57,205
+and the others are very similar.
+
+659
+00:52:58,015 --> 00:52:59,215
+Now let's try it out.
+
+660
+00:52:59,875 --> 00:53:05,365
+Let's start three instances for wallets
+one, two, three, and try to recreate the
+
+661
+00:53:05,365 --> 00:53:08,605
+scenario from the diagrams in the beginning.
+
+662
+00:53:08,665 --> 00:53:13,195
+So I can start it simply by a
+cabal run Uniswap minus client.
+
+663
+00:53:13,195 --> 00:53:19,435
+And then as command line parameter, I
+give one for wallet one, and I do the
+
+664
+00:53:19,435 --> 00:53:22,885
+same for wallet two and for wallet three.
+
+665
+00:53:24,025 --> 00:53:28,645
+And I see here that these log
+messages, that the contract instance
+
+666
+00:53:28,645 --> 00:53:38,315
+ID and the symbol for token that I
+can use, the ABCD read correctly.
+
+667
+00:53:39,505 --> 00:53:41,785
+So now what can I do?
+
+668
+00:53:41,785 --> 00:53:51,205
+I can, for example, clearing my funds
+and I see I have A, B, C, D, 1 million
+
+669
+00:53:51,205 --> 00:54:03,155
+each and a lot of lovelace, let's
+see three, six, nine, 100,000 ADA.
+
+670
+00:54:05,815 --> 00:54:11,485
+And I can also look for pools,
+but right now, there shouldn't be
+
+671
+00:54:11,485 --> 00:54:15,115
+any, and indeed none are listed.
+
+672
+00:54:15,865 --> 00:54:22,495
+So let's switch to wallet one, let's say this
+is Alice, Bob is two and Charlie is three.
+
+673
+00:54:23,065 --> 00:54:27,655
+And in the diagrams, we started with
+Alice setting up a liquidity pool
+
+674
+00:54:27,685 --> 00:54:31,365
+for tokens A and B, 1,000 and 2,000.
+
+675
+00:54:32,155 --> 00:54:37,315
+So to do this here, we can
+type, create thousand A.
+
+676
+00:54:37,855 --> 00:54:43,405
+Remember that was of type character, so
+I have to use single quotes and 2000 B.
+
+677
+00:54:46,555 --> 00:54:49,255
+And I get the created status spec.
+
+678
+00:54:49,465 --> 00:54:51,415
+So it seems to have worked.
+
+679
+00:54:52,165 --> 00:54:57,445
+I can query for pools again,
+and indeed there is one now.
+
+680
+00:54:57,745 --> 00:55:03,985
+So I see it has A and B and with the
+correct amounts, 1,000 and 2,000.
+
+681
+00:55:06,400 --> 00:55:10,510
+The next step was that
+Bob swaps 100 A for Bs.
+
+682
+00:55:11,020 --> 00:55:17,390
+So let's do swap 100 A for Bs.
+
+683
+00:55:20,230 --> 00:55:20,470
+Okay.
+
+684
+00:55:20,470 --> 00:55:31,630
+Let's check how many funds Bob now has and
+indeed he has 100 less As and 181 more Bs.
+
+685
+00:55:33,130 --> 00:55:35,920
+Next Charlie added liquidity.
+
+686
+00:55:35,920 --> 00:55:44,830
+I think it was 400 and 800, so
+we can use add 400 A, 800 B.
+
+687
+00:55:47,770 --> 00:55:49,510
+Now check the pools.
+
+688
+00:55:51,040 --> 00:55:55,840
+Let me see, it's 1500 and 2619.
+
+689
+00:55:56,960 --> 00:56:02,070
+Is that correct, so we have 1000 at the
+beginning, then 100 for add it by Bob and now
+
+690
+00:56:02,190 --> 00:56:04,690
+400 by Charlie, so I think that's correct.
+
+691
+00:56:05,860 --> 00:56:10,060
+Now, if we go back to Alice, she
+wants to remove her liquidity.
+
+692
+00:56:10,450 --> 00:56:12,430
+So let's first create her funds.
+
+693
+00:56:15,070 --> 00:56:20,150
+So she has less A and Bs now because she
+provided them as liquidity for the pool,
+
+694
+00:56:20,800 --> 00:56:25,630
+but she has this liquidity token 1,415.
+
+695
+00:56:26,080 --> 00:56:31,780
+So for example, she can burn
+them and get tokens in exchange.
+
+696
+00:56:32,500 --> 00:56:35,440
+She doesn't have to burn all,
+but in the diagram she did.
+
+697
+00:56:35,440 --> 00:56:48,160
+So let's do this, so remove 1415 A
+B, and let's clear her funds again.
+
+698
+00:56:49,495 --> 00:56:55,865
+So now she doesn't have liquidity token
+anymore, but she got As and Bs back.
+
+699
+00:56:56,215 --> 00:57:00,865
+So if we compare, so was
+8,000 here so now it's 9,869.
+
+700
+00:57:00,865 --> 00:57:06,995
+So she got 1,869 Bs and 1,070 As.
+
+701
+00:57:08,005 --> 00:57:11,305
+And I think the last step was
+that Charlie closes the pool.
+
+702
+00:57:12,385 --> 00:57:17,305
+So let's switch to Charlie
+and let's say, close A B.
+
+703
+00:57:20,425 --> 00:57:25,495
+And if now we look for pools,
+then again, we don't get any.
+
+704
+00:57:26,545 --> 00:57:28,165
+So it all seems to work.
+
+705
+00:57:28,585 --> 00:57:35,575
+Finally, I want to show how to do this
+without Haskell, the front-end, and
+
+706
+00:57:35,575 --> 00:57:40,645
+just use something like curl because
+somebody in the Q & A asked for that.
+
+707
+00:57:41,935 --> 00:57:52,325
+So let's see, I have For example, status dot
+SH you will also find it in the code folder
+
+708
+00:57:54,145 --> 00:57:57,385
+and I expect one argument, that's the wallet.
+
+709
+00:57:57,655 --> 00:58:08,685
+And then I just curl to this URL and
+I interpolate the content of that
+
+710
+00:58:08,685 --> 00:58:12,945
+file, the correct wallet file given by
+the first parameter here and status.
+
+711
+00:58:14,024 --> 00:58:19,484
+And because that's very unwieldy, I
+pass it on at Piper through tool JQ.
+
+712
+00:58:20,445 --> 00:58:26,355
+And then I only interested in the current
+state and dot observable state of the
+
+713
+00:58:26,355 --> 00:58:28,895
+corresponding json after resulting json.
+
+714
+00:58:29,955 --> 00:58:40,555
+So if I try this right now for wallet one,
+for example
+
+715
+00:58:36,495 --> 00:58:38,595
+We get the pool state.
+
+716
+00:58:38,775 --> 00:58:44,095
+So the last request that wallet one
+did the last endpoint that wallet
+
+717
+00:58:44,115 --> 00:58:45,885
+one called was the pools endpoint.
+
+718
+00:58:46,365 --> 00:58:49,695
+And here we see the result in json format.
+
+719
+00:58:50,265 --> 00:58:55,935
+So we see right now there's
+one pool with tokens A and B.
+
+720
+00:58:56,985 --> 00:58:59,115
+We did close this pool afterwards.
+
+721
+00:58:59,505 --> 00:59:05,535
+So that means that the pools endpoint
+was called while the pool still existed.
+
+722
+00:59:06,915 --> 00:59:11,775
+And we see the result of the
+last endpoint call in the status.
+
+723
+00:59:12,975 --> 00:59:19,125
+Now let's look at the funds script,
+which calls the funds endpoint.
+
+724
+00:59:20,025 --> 00:59:22,755
+So again, it just takes one
+parameter, just the wallet.
+
+725
+00:59:23,025 --> 00:59:28,515
+And again, here, the file name that
+contains the contract instance id
+
+726
+00:59:29,025 --> 00:59:32,415
+is interpolated here into the URL.
+
+727
+00:59:33,180 --> 00:59:36,870
+And this time recall the funds
+endpoint it's a post request.
+
+728
+00:59:37,710 --> 00:59:43,080
+So we provide request body,
+which in this case is empty.
+
+729
+00:59:44,160 --> 00:59:46,049
+So let's call this for wallet one.
+
+730
+00:59:49,259 --> 00:59:56,730
+Okay, and now if we do status again,
+it has changed and now contains the
+
+731
+00:59:56,730 --> 00:59:58,830
+result of calling the funds endpoint.
+
+732
+00:59:59,430 --> 01:00:01,620
+So now we see the funds in wallet one.
+
+733
+01:00:04,250 --> 01:00:09,410
+A bit more interesting is what to do with the
+post requested to have interesting arguments.
+
+734
+01:00:09,440 --> 01:00:16,059
+For example, if now wallet one wants to
+create a pool again with 1,000 A and 2000 B.
+
+735
+01:00:17,289 --> 01:00:24,160
+So, we need a request body for the
+correct parameters for the create params.
+
+736
+01:00:25,180 --> 01:00:30,250
+So, in principle the curl is simple,
+so now again, contract instance id.
+
+737
+01:00:31,210 --> 01:00:32,609
+And now it's endpoint create.
+
+738
+01:00:33,615 --> 01:00:35,535
+But the question is what
+to write in this body.
+
+739
+01:00:35,595 --> 01:00:41,845
+So I have it here, so I use similar
+arguments to in the Haskell implementation.
+
+740
+01:00:42,525 --> 01:00:47,575
+So first the wallet and then the A
+amount, A token, B amount B token.
+
+741
+01:00:47,595 --> 01:00:49,805
+So maybe we should first check whether works.
+
+742
+01:00:50,655 --> 01:00:54,404
+So I can do create wallet...
+
+743
+01:00:55,565 --> 01:00:56,245
+Was it one?
+
+744
+01:00:56,835 --> 01:00:57,495
+It doesn't matter.
+
+745
+01:00:58,035 --> 01:01:04,125
+Let's say wallet one, 1,000 A, 2000 B.
+
+746
+01:01:06,825 --> 01:01:07,305
+Okay.
+
+747
+01:01:07,305 --> 01:01:16,995
+And now if I query the status we see as
+expected that now we get the created status.
+
+748
+01:01:17,955 --> 01:01:22,265
+Now I also have a pools script
+that calls the pools endpoint.
+
+749
+01:01:23,115 --> 01:01:28,275
+So if we do that and now ask
+what the status again, we do get
+
+750
+01:01:28,545 --> 01:01:30,615
+this pool that we just created.
+
+751
+01:01:31,900 --> 01:01:37,870
+So remains the question, how I got this,
+this body, because that's complicated.
+
+752
+01:01:37,900 --> 01:01:45,560
+It's hard to do this by hand, but if we
+look back at the Haskell output, What I
+
+753
+01:01:45,560 --> 01:01:50,360
+did was here, for example, for create,
+I always write the URL, where do the
+
+754
+01:01:50,360 --> 01:01:52,550
+request to, and also the request body.
+
+755
+01:01:53,480 --> 01:01:56,720
+And we can actually check the code for this.
+
+756
+01:01:56,650 --> 01:01:59,840
+This is in the, in this helper
+function called endpoint.
+
+757
+01:01:57,379 --> 01:02:03,340
+So if we look at Uniswap client.
+
+758
+01:01:59,860 --> 01:02:02,150
+I brushed over that earlier
+when I show you the code.
+
+759
+01:02:02,530 --> 01:02:05,170
+So this is this line here,
+there write the request body.
+
+760
+01:02:05,469 --> 01:02:12,610
+So I get the A, that's just a Haskell
+value that can be encoded to json and I
+
+761
+01:02:12,759 --> 01:02:19,050
+here in this, in this line where I log,
+I just use encode from the json library
+
+762
+01:02:19,050 --> 01:02:20,950
+from sorry, from the aeson library.
+
+763
+01:02:21,460 --> 01:02:24,009
+So this is now a byte string.
+
+764
+01:02:24,759 --> 01:02:29,650
+And in order to write that to the console,
+I need two strings, so I use something
+
+765
+01:02:29,650 --> 01:02:36,049
+from the byte string library it's called
+a byte string dot lazy dot character
+
+766
+01:02:36,080 --> 01:02:38,739
+eight, for character eight encoding.
+
+767
+01:02:40,180 --> 01:02:46,560
+And so I  unpack this byte string
+to a string and then I log it.
+
+768
+01:02:46,560 --> 01:02:51,830
+And that's the way I would recommend in order
+to figure out what requests bodies to use.
+
+769
+01:02:51,890 --> 01:02:54,739
+I mean, you don't of course have
+to write a whole program, you can
+
+770
+01:02:54,739 --> 01:02:58,830
+also do that in the repl so you just
+need a value of the correct type.
+
+771
+01:02:59,790 --> 01:03:06,259
+And then use aeson to encode it and
+look at the result and then you see
+
+772
+01:03:06,860 --> 01:03:11,719
+the shape of the json that is expected,
+and then you can use that and then it's
+
+773
+01:03:11,719 --> 01:03:13,969
+straightforward to do the call request.
+
+774
+01:03:14,569 --> 01:03:16,799
+So we don't need a Haskell backend.
+
+775
+01:03:16,850 --> 01:03:20,960
+You, I mean, once you have curl you
+can use anything like JavaScript,
+
+776
+01:03:20,989 --> 01:03:23,409
+for example, to write the front-end.
+
+777
+01:03:24,550 --> 01:03:26,671
+Okay, that concludes the lecture.
+
+778
+01:03:26,671 --> 01:03:30,541
+And I think because it's the last
+lecture, I also don't want to give
+
+779
+01:03:30,541 --> 01:03:33,421
+you homework, of course you can.
+
+780
+01:03:33,511 --> 01:03:40,190
+If you like play around with this demo
+and set up your own liquidity pools and
+
+781
+01:03:40,270 --> 01:03:45,931
+do some swaps, and of course, whatever
+you want, I mean, you for example, can
+
+782
+01:03:46,681 --> 01:03:54,661
+try to write a JavaScript front-end, a
+nice graphical UI, or you could also as
+
+783
+01:03:54,661 --> 01:04:00,090
+a challenge, think about whether it is
+possible to, use the state machine mechanism
+
+784
+01:04:00,151 --> 01:04:03,391
+instead of doing it by hand, as I did.
+
+785
+01:04:06,481 --> 01:04:10,261
+So this, as I said was the last
+regular lecture of this course.
+
+786
+01:04:10,381 --> 01:04:14,371
+I thank you very much again,
+for all your hard work and your
+
+787
+01:04:14,551 --> 01:04:16,381
+attention and your enthusiasm.
+
+788
+01:04:17,351 --> 01:04:21,431
+And I hope you learned a lot
+and are eager to try it out once
+
+789
+01:04:21,431 --> 01:04:23,591
+plutus is available on the Testnet.
+
+790
+01:04:23,591 --> 01:04:25,181
+And then later on the main net.
+
+791
+01:04:26,021 --> 01:04:33,731
+And I hope to see you again soon in,
+in a future course about some other
+
+792
+01:04:33,940 --> 01:04:37,081
+technologies like Atala PRISM or Marlowe.
+
+793
+01:04:37,845 --> 01:04:43,985
+I also briefly want to announce that
+other institutions are picking up Plutus.
+
+794
+01:04:44,674 --> 01:04:48,935
+So for example, we are collaborating
+with the EBU, the European
+
+795
+01:04:48,935 --> 01:04:51,515
+Business University in Luxembourg.
+
+796
+01:04:52,085 --> 01:04:56,705
+And that's a university that does
+remote classes all over the world,
+
+797
+01:04:56,705 --> 01:04:59,225
+mostly in Africa and Latin America.
+
+798
+01:04:59,645 --> 01:05:04,984
+And we share our Haskell and Plutus
+content with them and they will probably
+
+799
+01:05:05,315 --> 01:05:07,565
+start teaching end of September.
+
+800
+01:05:08,134 --> 01:05:11,820
+If you're interested, there will
+be a blog post coming out next
+
+801
+01:05:11,820 --> 01:05:13,890
+week with more details about that.
+
+802
+01:05:14,520 --> 01:05:17,760
+Thank you very much again, it was a
+great pleasure teaching this course.

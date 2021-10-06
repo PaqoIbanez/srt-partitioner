@@ -1,0 +1,680 @@
+{\rtf1\ansi\deff0
+\margl1800\margr1800\margb1440\margt1440\deflang1033\lndscpsxn
+{\colortbl;
+}
+{\fonttbl;
+{\f0 Arial}
+}
+{\pard  \line \par}
+{\b\fs36 [00:00:00] 0601 Start\b0}
+{\pard  \line \par}
+{In today's lecture, I want to look at the case study to see how what we've learned so far can be turned into an actual application, a complete executable or several executables that even come with a little front-end. And it will be a fully fledged Dapp apart for the fact that we don't have a real blockchain available yet.}
+{\pard  \line \par}
+{So this will run on a simulated blockchain, a so-called mockchain, but apart from that, it will contain all the pieces that you will also need for real application as soon as Plutus is available on the Cardano main chain. }
+{\pard  \line \par}
+{\b\fs36 [00:00:46] 0602 Oracles\b0}
+{\pard  \line \par}
+{And the example I've chosen for that is the example of oracle s. So I want to show how to implement a very simple oracle. Now for this an oracle, an oracle in the blockchain world is a service or a way to get real world information onto the blockchain and make it usable in smart contracts. And there are numerous examples of use cases for that. So you can think of external data sources like weather data, or election results, or stock exchange rates, or maybe randomness for games or lotteries, or simply time, temperatures, water levels, all sorts of things.}
+{\pard  \line \par}
+{And often information like that is useful or needed for real world smart contract. For example, you could have a betting smart contract that depends on the outcome of a specific sports game. And in order for the contract logic to decide who wins the bet, you of course need the information from the real world who actually won that game, or maybe you want some trading contract that takes real world stock exchange data into account.}
+{\pard  \line \par}
+{And there are various ways to implement oracles of various sophistication. And I want to choose a very simple approach where we have one trusted data provider that provides one feed of data. And as an example for data, I want to use the exchange rate from ADA to USD And of course there are lots of problems with this approach because you have to trust that source, this data source.}
+{\pard  \line \par}
+{And there are also ways to mitigate that risk, the risk that this data sources either untrustworthy or unreliable, maybe reports wrong data, or for various reasons technical issues or whatever fails to provide any data. So for example, you could make the trusted party to put down some collateral, and then have some sort of mechanism that if the provider fails to deliver or reports false data or doesn't report data, he loses this collateral, or you could combine several such oracles into one, like only except the value, if all these various sources agree or only take like the median or the average value of these different sources, or you can think of much more sophisticated mechanisms. But for this example, I think it's enough to take the simple most case, there we have one data provider that we trust, and that is willing to provide this real time data to the blockchain.}
+{\pard  \line \par}
+{And as we know for anything to happen on the blockchain, there must be a UTxO. So the obvious idea is to represent this data feed, the present, the current value of the data feed, the oracle data as a UTxO. That UTxO sits at the script address of the oracle and in its data field, it carries the value, the current value of the provided oracle data.}
+{\pard  \line \par}
+{So in this example, the datum would carry the value 1.75. And this is where we encounter our first problem, because if I have said many times in this lecture, validation only happens when you want to consume something from a script address, not when you produce an output at a script address, which means that we can't prevent anybody from producing arbitrary outputs at the same oracle script address.}
+{\pard  \line \par}
+{So we somehow need to way to distinguish the true UTxO oracle output from other output sitting at the same script address. Luckily we learned about NFTs in the last lecture. And the point about NFTs, if you recall, is that an NFT can only exist exactly once. So there's only ever one coin of a given NFT.}
+{\pard  \line \par}
+{So the idea to make the correct oracle script output unique is to give it an NFT in its value. So not only have it carry the data, the actual oracle value, but also put an NFT at that output. And because an NFT can only exist once they can only be one output at the oracle address that holds that NFT.}
+{\pard  \line \par}
+{And that allows us to uniquely identify the correct UTxO that carries the correct oracle value. }
+{\pard  \line \par}
+{How can such an oracle be used? And here we come to something we haven't seen before in all our previous examples, when we designed validators and contracts, we always knew the full API upfront. So we always knew exactly how we intend to use our smart contracts, in the case of an oracle this is different, because at the moment when the oracle gets created, you don't know how people might want to use the data feed provided by the oracle. So in that sense, it's like an open API. The oracle must be able to work together with smart contracts that haven't even been written at the time when the oracle is created.}
+{\pard  \line \par}
+{So as an example, for use case that might make use of this specific oracle let's consider a swap contract where at the swap address, somebody can deposit ADA and then somebody else can take those ADA in exchange for USD. Of course, we don't have USD directly on the blockchain, but let's just assume they're represented by some native token... some USD native token.}
+{\pard  \line \par}
+{So we have this swap contract and somebody can make a swap by exchanging the ADA in the contract for the USD Token And the idea is to make use of the oracle by determining the exchange rate by the oracle value. So in this example, because the current value of the oracle is 1.75. If somebody offers 100 ADA in the swap, the price for that should be 175 USD. In addition to that, we also need an incentive for the oracle to actually provide the data. Because if nothing else, the oracle provider has to pay transaction fees to actually create this UTxO. So let's say that the oracle provider determines a fee that has to be paid each time the oracle is used. So for example, let's say the fee is one ADA.}
+{\pard  \line \par}
+{So each time, the oracle value is used in a transaction, the user has to provide one ADA fee. So this means if in the swap example, the buyer wants to buy the 100 ADA. He would need to pay 175 USD to the seller of the ADA and one ADA to the oracle provider. So what will the swap transaction look like?}
+{\pard  \line \par}
+{First of all, the swap validation logic will need access to the current oracle value, which means that the oracle UTxO must be an input to the transaction, so the swap validator has access to it. Then we have the oracle validation logic, and in this case, we want to use the oracle, so let's say we have a redeemer called use.}
+{\pard  \line \par}
+{And now the oracle validator has to check several things. First of all, it has to check that the NFT is present in the consumed input to make sure that the correct UTxO is used. Secondly, it has to make sure that there's also an output of the transaction at the same oracle address. Again, containing the NFT and with the same value by using the oracle, by using the oracle value, we don't want to change the value.}
+{\pard  \line \par}
+{We just want to use it. So the oracle validator must make sure that when this oracle UTxO is consumed to use it in an arbitrary transaction, like the swap transaction, the value is not changed, the datum is not changed. Finally, the oracle provider wants to get paid, so it must make sure that in addition to the NFT that identifies the UTxO, the fee must also be paid.}
+{\pard  \line \par}
+{So we have this picture that the transaction that makes use of the oracle consumes the current UTxO, the current oracle UTxO, makes sure the NFT is there and produces an output again to the oracle address and make sure the NFT is again there, the fees are there and the datum has not changed. And now we can complete the transaction.}
+{\pard  \line \par}
+{So, both the swap output and the price paid by the buyer are consumed as additional inputs to the swap transaction. And we have two more outputs, the USD that go to the seller and the ADA that go to the buyer and that all of this is correct and has the correct values as the responsibility of the swap validator.}
+{\pard  \line \par}
+{So the swap validator will make sure that the buyer pays the correct price to the seller whereas the oracle validator is only interested in making sure that everything concerning the oracle is correct, so that we have this one oracle output consumed which is identified by the NFT and we have a continuing output to the oracle address again with the correct value and the correct datum.}
+{\pard  \line \par}
+{So this is a complete example of how an existing oracle would be used. And just to emphasize, once again, this swap contract is just an example. The oracle should be capable of working with many different smart contracts that want to make use of the data provided by the oracle. Now, if that was all, then we wouldn't need an oracle because if this one value was fixed and it was always 1.75, then we could simply hardcode this into our contracts.}
+{\pard  \line \par}
+{So obviously, the value of the oracle must be able to change, at least in the case of an oracle like this one where we have an exchange rate that of course can change over time. There might be other oracles like the before mentioned outcome of a sports match where it's a singular event in history and either the one side wins or the other wins.}
+{\pard  \line \par}
+{But that will never change again, but in example of a price oracle like this one, of course it's important that the value can change, which means that the oracle validator, in addition to the use redeemer must be able to support another operation where the operator, the provider of the oracle can actually change the data.}
+{\pard  \line \par}
+{So let's say that the value changes from 1.75 to 1.77, and the oracle provider needs to update the oracle. Of course, we know that on a UTxO blockchain or [E] UTxO blockchain, nothing ever changes. So UTxOs can't change, you can't change the datum of an existing UTxO, all you can do is consume UTxOs and produce new ones.}
+{\pard  \line \par}
+{So in order to update the value, we have to consume the existing oracle UTxO and produce a new one that carries the correct datum. So we would have a transaction that uses an update redeemer and now the validation logic is somewhat different. It's the same as before in that the NFT needs to be present in the consumed oracle input and also needs to be present in the produced new oracle output.}
+{\pard  \line \par}
+{In addition to that, that transaction must be signed by the oracle provider. So not anybody can change the value only the provider of the oracle. And we can use this update transaction as an opportunity to allow the oracle provider to collect the fees. So we only insist that the NFT must be present in the output, but we don't say anything about other values.}
+{\pard  \line \par}
+{So all the accumulated fees that got there from other contracts using the oracle, can be collected by the oracle provider in this transaction. So to sum up, we represent the oracle as a UTxO and we identify the correct UTxO by a specific NFT. And the oracle value is the datum of that UTxO. And we support two operations, one is use, which uses oracle in some arbitrary transaction and the validator. In the use case will make sure that the consumed oracle input carries the NFT and that there is an oracle output that again carries the NFT, doesn't change the datum and carries additional fees.}
+{\pard  \line \par}
+{The second operation is update, which can only be done by the oracle provider and for an update transaction, again, the input, the oracle input must carry the NFT, there must be an oracle output, also carrying the NFT. And otherwise there are no restrictions, so the datum can change and the accumulated fees can be taken out.}
+{\pard  \line \par}
+{\b\fs36 [00:15:01] 0603 The Core module\b0}
+{\pard  \line \par}
+{So now that we know how it is supposed to work, let's look at some code. And I know in the past lectures, I always basically in live coded everything, but this time it's quite a lot of code. So I hope you all forgive me for having it prepared and I just walk you through it. So as always, you can find the code in our GitHub repository.}
+{\pard  \line \par}
+{So let's first look at the code, the Plutus code that implements the oracle itself. So I put that into a module week six oracle core. }
+{\pard  \line \par}
+{Right, so first of all, the oracle will be a parameterized contract. And this data type that I called oracle is the parameter. And it will depend on four fields, so this is a record type with four fields. First, the o symbol is the currency symbol of the NFT. So the NFT that will always be carried around with the oracle UTxO to uniquely identified.}
+{\pard  \line \par}
+{I don't need the token name because I will use the empty string as a token name. Second, the o operator, that's the owner of the oracle, that's the one that can make updates. We saw, just now that the use operation is supposed to be used by anybody, but the update operation where the datum actually changes can only be done by the operator and that public key hash here identifies the operator. }
+{\pard  \line \par}
+{Then the fee is the fees in lovelace that are due each time somebody uses the oracle, this fourth field o asset identifies the target of the oracle, basically. So in this running example, we're talking about exchange rates, ADA to something else, and this denotes the something else. So in our example, this would be an asset class representing some sort of USD token. }
+{\pard  \line \par}
+{So we do the usual boiler plate the type classes we need for it to be serializable. And liftable, and now we define the redeemer and as we already saw in the diagrams I want to support two operations, update and use.}
+{\pard  \line \par}
+{So I just define in a new data type that I called oracle redeemer that just has these two values, update and use. And I implement, I mean, use template Haskell to implement is data for that redeemer type. Then just some helper definitions, so as I said, I want to use the empty string as a token name for my NFT.}
+{\pard  \line \par}
+{So this is this oracle token name, and this is just a way to identify the NFT asset class, given an oracle. So this is not to be confused, maybe the name is not good. This oracle asset is not to be confused with the o asset. So remember the o asset is USD token in our case whereas the oracle asset will be the asset of the NFT that is used to identify uniquely identify the UTxO with the oracle value.}
+{\pard  \line \par}
+{So it's just a simple method of extracting the symbol from the oracle and then using this fixed token name which is just empty string. The next function here, oracle value is a little helper function that given a Tx out and a way to turn a datum hash into a maybe datum returns and maybe integer. So the Tx out in question will be the output of the UTxO that holds the oracle.}
+{\pard  \line \par}
+{And then we want to some a lookup the datum of that oracle and turn it into an integer. Why integer? In the example, when I showed you the diagrams we used rational values, or real values or double values for the exchange rates, 1.75 or 1.77. There is a ratio type of rational numbers in Plutus, but that has some issues that I think it's not, it doesn't implement to json and from json. So I've felt it was easier to just use integer for the oracle values. }
+{\pard  \line \par}
+{So basically I just take the true exchange rate and multiply it one by 1,000,000 and then round. So, an exchange rate of 1.75 would cause point to the integer value 1,750,000. Right, and... so we will see later how this helper function is used, but it's quite interesting example of using monadic computation in a monad that's not IO or for example, contract. So in this case, it's the maybe monad. So this do block here, these monadic operations are happen in the maybe monad. So that means the bind captures the fact that this could go wrong and we could get a nothing, in which case the overall result is nothing.}
+{\pard  \line \par}
+{So it's just three steps. First we take our Tx out and try to get the Tx out datum which can fail because not any output has a datum, it could be a public key output that doesn't have a datum. And if it succeeds, we get a datum hash, so that's this DH. Next, we use this provided function F the second argument to maybe turn this datum hash into a datum.}
+{\pard  \line \par}
+{So this can again fail. but If it succeeds, then we get the datum D, datum is just a newtype wrap around built-in data. so then we can use Plutus Tx dot from built-in data to maybe turn this D into an integer. So of course there could be a problem that the datum is there, but it's not needed at some other data type in which case this would fail.}
+{\pard  \line \par}
+{So we have to do these three steps and each of them can fail. And this is a nice application of the maybe monad by using this no monadic computation, this monadic notation makes it much nicer to write down. And as I said, we'll see in a bit where we use this helper function. So this is now the most important function, the make oracle validator.}
+{\pard  \line \par}
+{So it gets the parameter, which was our data type oracle. Then it gets the datum, which as I just explained is integer in our case, then it gets the redeemer represented by the data type oracle redeemer. And finally the contracts and returns a boolean, whether you should validate or not. And I mean, we do have two cases for use and for update, but there are some similarities between them as we saw in the diagrams, because in both cases, we want to check that we have the input that holds the NFT.}
+{\pard  \line \par}
+{And there is an output that again holds the NFT. So those two checks I can do for both cases simultaneously that's why I do them upfront. So this first checks that the input and validating holds the NFT and that second condition checks that there is an oracle output that also holds the NFT.}
+{\pard  \line \par}
+{And then I distinguish the two cases that I mean, the update or the use case. So let's first look at input has token. So first before I get to that, I have two more helper definitions here. So info that you saw before, just take the context and extract the transaction info from it and own input, this is the output that I'm just trying to consume.}
+{\pard  \line \par}
+{So validation is running as you know, whenever I try to consume a script input. So in this case I try to own script output. In this case, I try to consume the oracle output and this Tx out is supposed to be that, oracle output. And there is a this function that's provided by the Plutus library, find own input, which given the context gives me that input.}
+{\pard  \line \par}
+{But that case a maybe because I might be in a situation where I'm not validating input, I might be in the monetary policy context, for example, in which case there's no input, that is being validated. So there's nothing case should not really happen because we know we are validating the consumption of the oracle.}
+{\pard  \line \par}
+{But in any case, if there nothing happens, I just say that it's no input, but we should never end up there and if you have an input, then it's of type Tx in or Tx input. And then I can use this Tx in info resolve to get the corresponding out, Tx out. So this own input is now the output, the oracle output I'm trying to consume.}
+{\pard  \line \par}
+{So now I must check that the token is present and there's in the ledger dot value module, there is a asset class value o function that takes a value, an asset class, and then returns and integer, how many coins of that as a class are contained in the value. So as value I use Tx out value of my own input.}
+{\pard  \line \par}
+{So that's the value attached to this input I'm consuming. And as asset class, I just use this helper function oracle asset oracle. So that gives me the NFT belonging to the oracle. So I check how often is the NFT contained in the value of the oracle output and it should be there exactly once. I mean, because it's an NFT, it can never be more than one, but it could be missing in which case it would be zero.}
+{\pard  \line \par}
+{So I must make sure that it is actually there, so I check whether it's one. Next helper function on output, as we know, in both cases use and update, I want exactly one oracle output again. So I first want to find that. There's another function defined in the libraries called get continuing outputs that gets the context and it returns a list of all the outputs that go to the same script address that I'm presently validating.}
+{\pard  \line \par}
+{So right now we are in the context of validating the oracle, the consummation of the oracle output. So this get continuing outputs would give me all the outputs of the transaction, that again go to the oracle address. And I want it to be exactly one, one oracle output. So if this get continuing outputs results in a list with one element, I return this one element.}
+{\pard  \line \par}
+{And if it's zero or more outputs going to the oracle address, I produce an error and say I expected exactly one oracle output. }
+{\pard  \line \par}
+{Now I can use this very similar to input has token, I can now check where the output has token. So that's basically exactly the same, except that earlier the value was from the own input.}
+{\pard  \line \par}
+{And now I take the value from the own output. And again, check that this NFT, which is given by oracle asset oracle is contained exactly once. So this now checks that my oracle input carries the NFT and this checks that my oracle output carries the NFT. So this covers these first two lines here, which are common for both cases, for the use and for the update case.}
+{\pard  \line \par}
+{And now I make a case distinction whether I'm in the update or in the use case. So let's look at the update case first, which was the second one in the diagram. And there are two conditions we must check. We must check that the operator actually sign the transaction this is so simple to check that I did it in line.}
+{\pard  \line \par}
+{So I didn't write a specific helper function for that, I just use this Tx signed by that we have seen before, it takes the info and it takes the signature we want. And remember we know the operator from the field in our parameter in the oracle parameter, so o operator oracle gives us this public key hash of the operator.}
+{\pard  \line \par}
+{And we check here that the transaction in the update case is actually signed by the operator. And the second condition we want to check is that it again carries validator. So as you know, in update, it can, I mean, the exchange rate in the datum can arbitrarily change, but it should still be of the right type at least.}
+{\pard  \line \par}
+{So in our case, it should still be an integer. So I checked it here using first the helper function output datum, which gives me a maybe integer. And I just use this helper function we discussed earlier oracle value, which now takes my own output. So I'm interested in the new value, not in the old value. I mean the old value I have given here as parameter to my validator, any way, that's the second argument, the X so X is the old oracle value, but now I'm interested in the new oracle value, in the datum attached to the oracle output.}
+{\pard  \line \par}
+{So I use my helper function oracle value apply to this oracle output. And remember there was a second argument that given a datum hash gives me a datum or tries to give me a datum. So it gives, it's a function type datum hash to maybe datum. And there is one called find datum that takes the info.}
+{\pard  \line \par}
+{So, find datum takes info and the datum hash and then tries to lookup the corresponding datum. So this has exactly the right type and that will give me just the new oracle value in case it succeeds and if something goes wrong, it will give me nothing. And now to check that it's valid. I mean, I don't say anything about the value of the integer.}
+{\pard  \line \par}
+{All I care about is that it's not nothing. So it's some integer. So here in the valid output datum, I just take this output datum, which is maybe integer and check that it's not nothing, that it's a just. And there is a function in the prelude called is just that does just that. So is just will be true if it's a just and will be false if it's a nothing.}
+{\pard  \line \par}
+{So this is the second condition I check here. So all I check is that the operator has signed the transaction and that again, I have a valid integer output datum. In particular, I don't check anything about the value apart from the fact that it must carry the NFT. So that means that this allows the operator in this transaction to retrieve the fees that have accumulated in the value.}
+{\pard  \line \par}
+{I only check that the NFT is there, I don't check that any other value that was on the input site is still there on the output side. So that allows the operator to get his fees. Now the second case, is the use case, which can be used by anybody as we saw, but it is much more restrictive because we don't allow the datum to change.}
+{\pard  \line \par}
+{So when you use the oracle you don't change the value of the oracle, this is the first condition. You already have this helper function output datum which is maybe integer, that's the new value of the oracle. And I just check that it's just X, remember X was the old value of the oracle. So I'll just make sure that the datum hasn't changed.}
+{\pard  \line \par}
+{And finally, I must check that the fees have been paid. So remember when you use the oracle, you're supposed to pay fees. So this is the final helper function here. So I just lookup the value that was attached to the oracle input, using Tx out value of our own input. I check the value that's attached to the own output.}
+{\pard  \line \par}
+{And now I know that the output should be at least as large as the input plus the fees. So this is exactly what it says, output value should be greater or equal, then the input value plus, remember we can use the semi-group operation to combine values, plus and this is the fees. So remember the all fee field in the oracle parameter was just an integer.}
+{\pard  \line \par}
+{And I said, that's the fee in lovelace. So I use the ADA dot lovelace value of function to turn this integer into a lovelace value, add it to the existing input value. And then I say that the old value should be greater or equal than this. I could of course also have said equal and that would also be correct by writing greater than equal, I basically allow users of the oracle to give the operator a tip. If they are very happy with the oracle, they can give more than just the fee, they can pay more. I mean that's just a matter of taste I could have written equal. And... also recall that, I mean, in the example, on the input side, there was just the NFT in the value.}
+{\pard  \line \par}
+{And then the output side, there was the NFT and one ADA fee. And then in the next step, there was an update, so the operator collected that fee immediately. But this is now designed in a way that the operator doesn't have to collect all the time. So there can be several uses where fees accumulate over time and then with the next update, the operator can collect all of them in one go. }
+{\pard  \line \par}
+{Okay, this is basically the core business logic of the oracle. This is now in code what I tried to explain earlier when I showed the diagrams. And now it's just the usual boiler plate, so I have this helper type Oracling where I just combine the redeemer and the datum type.}
+{\pard  \line \par}
+{So I say the datum type is integer, the redeemer type is oracle redeemer. Then I do the usual template Haskell stuff to compile it to type validator, and because it's parameterized, I do what we always do with parameterized. So I have to use this apply code and lift the parameter into Plutus script. So now we have the type validator and then we can use the usual boiler plate here, or to turn it into a validator and to turn the validator into an address.}
+{\pard  \line \par}
+{So now we have our script oracle address, and that concludes the on-chain part of the oracle code. }
+{\pard  \line \par}
+{Now, I also provide some off-chain part, namely to actually start an oracle and to update it, not to use it, because how it is used exactly? Depends on who wants to use it in which context. So we, on the diagram, we had this swap example, but they can many other example, I called it an old maybe IO earlier.}
+{\pard  \line \par}
+{So to create a valid transaction that actually makes use of the update, of the update. No, not the update of the use redeemer, is not the responsibility of the author of this oracle contract. Whoever wants to use the oracle, we'll make sure to create a transaction that actually invokes this. So this is the first time we see something like that, where we have some on-chain code that is basically not mirrored or reflected in the off-chain code. So here we only do what is the responsible of the oracle provider.}
+{\pard  \line \par}
+{Right. So the... as I said two, two operations. Start the oracle and update it and to start it, we need parameters, the fees that we want to charge, the currency symbol and the token name, this is now the currency symbol and the token name of the asset we want to check. So USD token in our case, not the NFT, because at this point we don't know the NFT, we will actually mint the NFT in this start oracle contract function. And that's actually all we will do, so we won't provide an initial value for the oracle yet. All we want to do in the start, oracle function is mint the NFT. Reason for that is that this minting of the NFT can take a couple of slots.}
+{\pard  \line \par}
+{So if you already provided the initial datum data for the exchange rate that might be outdated by the time we are ready. So therefore I decided to not do that here, so that will be handled in the update oracle function. So all this does is mint an NFT. And I could of course have used the code we developed in the last lecture, our NFT code, that would have been perfectly fine, but I decided to instead use one of the provided use cases from the Plutus minus use minus cases package in the Plutus repository. And there's a currency module that provides a mint contract function and that can be used to mint NFTs, actually, it's more general. If we check in the repl for the type of mint contract, we see it takes a pub key hash. That is the pub key hash of the entity that will end up with the minted coins.}
+{\pard  \line \par}
+{So we will just use our own, the wallets own pub key hash there. And then we see it takes a list of pairs of token names and integers. So, this mint contract will create a currency symbol, which will depend on a unique UTxO, the same trick we used in the last lecture. But it allows you to specify not just one token name and then making NFT with it, but several token names with arbitrary integer amounts.}
+{\pard  \line \par}
+{So you can mint several coins with different token names and also different amounts, but they all will have the same currency symbol, and it will be guaranteed that there can only be one such minting transaction. There's one slight problem, if we want to use this, and that is the error type. We want a contract where we use text error messages. But this contract here is polymorphic in the error type, provided the error type implements this as currency error class, and unfortunately text doesn't.}
+{\pard  \line \par}
+{So we can't use text here for E, so we can specialize this function for text. That means we can't directly use it in our contract because then we would get an error that takes doesn't implement as currency error. Luckily, there's a function called map error, let's look at this. That has this signature and this allows us to change a contract with error type E into a contract of error type E prime provided, I can turn E into an E prime.}
+{\pard  \line \par}
+{So if I can turn error messages of the one type into error messages of the other type, then I can turn a contract using the first type of error messages into the contract using the second type of error message. So that's what I'm using and actually one type that's provided in the currency module is called currency error.}
+{\pard  \line \par}
+{So we see this actually implements currency error. So this class that we need, so this is a type we can actually use. And it also implements show. So, by first using show to turn a currency error into a string, and then using pack from data dot text, which turn string into a text, we can turn a currency error into a text, and then using map error with this combination of pack and show, we can turn a contract that has currency error error messages into a contract that has text error messages, which is what we need.}
+{\pard  \line \par}
+{So that's what I'm doing here, so I use map error pack after show, and then use this mint contract function from the currency module. And as list of tokens, I don't want several tokens with the amounts, I just want an NFT. So I just have one pair in this list oracle token name, recall that's just a empty string with the amount one.}
+{\pard  \line \par}
+{So this will just mint NFT. I have to specify the type here because otherwise the compiler wouldn't know which type to apply show to. So I have to specify that I'm specializing this mean contract to currency error. And then I use map error to turn that with show and pack into a text. So now this has the right type, I can use it here. }
+{\pard  \line \par}
+{And I get this weird one short currency. And that is a specific type, specific to the currency module. But I don't really care what that is, all I care about is that there is a function in that same module called currency symbol that takes such a one short currency and gives me a currency symbol.}
+{\pard  \line \par}
+{And all I need is the currency symbol of the NFT that I just minted. Once I have that, I can fill in my oracle type. So the only information that was missing was this currency symbol, so this is now here. As operator, I take myself, my own public key hash, which I looked up here in the first line and the fees I just take from the parameters and the asset class I also take from the parameters. }
+{\pard  \line \par}
+{I suppose I could have used asset class here as well, instead of having two fields symbol and token I could just have, had one field of type asset class. But that doesn't play so nicely with the UI and if you want to try the playground I felt it was easier to use these two separate fields and then combine them like so. So this now gives us our oracle and we have minted the NFT and I just log a message and return the oracle.}
+{\pard  \line \par}
+{So the return type here of this function is of type oracle. Okay, and the second function is more complicated, is the update oracle. And this has to deal with two cases, the case that we already have an oracle value that we want to update, that's like in the diagrams. And also the case that we just started the oracle and there is no UTxO yet, so we want to create one for the very first time. }
+{\pard  \line \par}
+{Anyway, so it takes as parameters the oracle, some oracle, the oracle parameter. And integer is the new value, so the value, the oracle value, we want to update, the oracle two. So first we use this helper function find oracle oracle, which is defined here.}
+{\pard  \line \par}
+{So that takes an oracle and it's supposed to lookup the existing oracle UTxO, this can fail because the oracle might not be there. So if you have just started it, remember we just minted the NFT, we didn't create an output at the oracle address yet, so in that case we won't find it. But if it find it, we return a just and then the triple is the Tx out ref which if you recall from last time, it's basically identify often UTxO, then the Tx out Tx that's the UTxO itself containing all the data.}
+{\pard  \line \par}
+{And the integer is the current exchange rate. This is of course encoded here in this Tx out Tx, but to make it easier to work with the extract that here in this helper function. }
+{\pard  \line \par}
+{And how do we do that? So first we use UTxO at that we already know to get all the UTxOs sitting at the oracle address.}
+{\pard  \line \par}
+{So this is now a map from Tx out ref to Tx out Txs, all the UTxOs sitting at this address. But remember, if you find more than one, then most of them will be wrong. I mean, we want the one that contains the NFT. So we filter this map, this map dot filter comes from the data dot map module, the standard container library in Haskell, and it takes a function of type the values in the map to bool.}
+{\pard  \line \par}
+{And it will only keep those entries in the map for which this function returns true. And here, we now want to check that the NFT is there. So given such an UTxO, we do similar to what we did to invalidation. So we check the value of that UTxO and check how often our NFT is contained in it. And it must be there exactly once.}
+{\pard  \line \par}
+{So we will end up with a map that has either zero elements. If the oracle UTxO is not or one can be more than one because this NFT can only be there once. Right, and now we distinguish the two cases. So the good case is that we find exactly one element, so we convert the map into a list of pairs of key value pairs with the standard map to list function.}
+{\pard  \line \par}
+{And there are two cases that we find exactly one element or not. Actually, the second case can only be that we don't find anything. As I said before, we can't find more than one because it's an NFT, but Haskell of course doesn't know that. So to keep the compiler API don't say just empty list here just use the underscore, so all other cases. }
+{\pard  \line \par}
+{Anyway, so if you find exactly one key value pair, then in order to return this tripled. So we now have the, the Tx out ref and the Tx out now we need this integer and that could still go wrong. So even though we have the UTxO with the NFT, there could be some corrupt data in it for whatever reason.}
+{\pard  \line \par}
+{So now I use this helper function again, that I explained right in the beginning that we also used in validation that gets the Tx out, which I can get from my all from my Tx out Tx by using Tx out, Tx out. And remember the second argument was a function that given a datum hash gives me the corresponding datum, if it can.}
+{\pard  \line \par}
+{And the way we can do this here in off-chain code is we use the Tx data field of the Tx out Tx, Tx o. So the Tx out Tx, Tx o gives us the transaction and that has a Tx data field. And the Tx data field is just a map from datum hashes to datums. So we can use map lookup to lookup a given hash and we can find it or not.}
+{\pard  \line \par}
+{If not, it returns nothing. If we find it, it returns the value, the datum. So using this helper function now, if that succeeds, X would be the actual datum which is an integer in our case, as we know. So in this case we return this triple. Now we just found out the X, if this goes wrong, then it will be nothing.}
+{\pard  \line \par}
+{And if we find, we don't find the UTxO at all, it will also be nothing.}
+{\pard  \line \par}
+{ So this is find oracle. So we tried to find it, and this is just a helper definition because I need that in both cases, this constraint, maybe we can come back to that in a second. So logically, so after we have tried to find the UTxO, there are two cases that we found it or not, if it didn't find it, we just started the oracle, but haven't provided an initial value yet.}
+{\pard  \line \par}
+{So this is the first case. And in this case, all we have to do is we must create a transaction that produces this output, the first output at the oracle address. So and this is you only need one constraint and that is the C. And I extracted that into this its own line because I need, need the same constraint later in the second case here as well.}
+{\pard  \line \par}
+{So I didn't want to duplicate my work. So I use constraints must pay to the script so that as the name suggests provides a way to say the the transaction I'm constructing must have an output that pays to a script address. And the arguments are the datum, the value I want to attach to that output.}
+{\pard  \line \par}
+{And that's it, because which script is then a specified here in the second argument of submit Tx constraints. So these script means the script I'm looking at right now. So all these functions, these constraints functions always have like one script in focus. So in our case, it's the oracle script.}
+{\pard  \line \par}
+{There's also a variant it's called must pay to other script. In which case I could pay to an arbitrary other script. And actually we used it down here so I can talk about that there. So anyway, so the datum is X because this was one of the parameters, the value we want to set the UTxO to the oracle and the, I mean the datum and the value is we want to attach our NFT.}
+{\pard  \line \par}
+{So added class value, the asset class of our NFT and one. So we want to attach the NFT. So this is all we have to do in that case, that the UTxO isn't there yet. So we just submit, wait for confirmation and log a message that we set the initial oracle value to X. Now, in the other case so we already have an oracle UTxO.}
+{\pard  \line \par}
+{We don't care about the old datum because we want to update it anyway. So I can just use let's go here. So now it's a bit more complicated. So now, because now I need two conditions again, the C it's the same as before. So I want to create an output at the oracle address with the new value, the value X. But now I need the additional constraint that I also must consume the existing UTxO.}
+{\pard  \line \par}
+{And this is this constraint here so, must spend script output is basically the opposite of must pay to the script. So, must pay to the script creates an output and must spend script output creates an input to the script address. And as parameters it takes the reference to the output, the UTxO we want to consume, that's what we call oref here that we looked up earlier and it takes the redeemer.}
+{\pard  \line \par}
+{And in this case, it's an update, not a use, and we just have to convert it to data first and then to a redeemer. And in order for this to work, we need to provide a couple of lookups. So, first of all, in order to find this output that wants to spend, we must use the unspent outputs lookup, which gets a map of the UTxOs that we want to consume.}
+{\pard  \line \par}
+{In this case, we can use map singleton to construct this map, which will create a map that contains exactly one key value pair. So map singleton takes a key and the value as arguments and creates a map with one key value pair. So we just put this one UTxO into this map because there's nothing else we want to consume, so all we need is this. }
+{\pard  \line \par}
+{And then we must provide the script instances. And basically we have to do it twice, once for the input side and one for the output side. Because, right... so we give the oracle instance in the lookups and we give the oracle validator in the lookups and I always forget which we need for what, but anyway, so one is for two to be able to consume the input.}
+{\pard  \line \par}
+{And the other one is to be able to pay to the output. And we didn't need that here because in the first case, because we provided the instance here in the submit Tx constraints, a function, but now we have to use, submit Tx constraints with, because we have lookups and that doesn't have this parameter where we can provide the instance.}
+{\pard  \line \par}
+{So therefore we have to provide the instance in the lookups itself. So it's a bit confusing, but you get used to it, I hope. And we also have to give the compiler and not yet to tell it what script we are talking about. Remember I said, all these constraint functions are always specific to a particular script.}
+{\pard  \line \par}
+{And this basically signals what type datum type redeemer type this script has. So that was this weird Oracling type I defined earlier, this helper type that just says datum types is integer, redeemer type is oracle redeemer, and we give the lookups and these constraints, and then hopefully get a balanced transaction that we submit and we have wait for confirmation.}
+{\pard  \line \par}
+{And we log that we updated, the oracle value to X. }
+{\pard  \line \par}
+{So again, the logic of update oracle is first we check whether the oracle is already in existence. If it's not we create a transaction that simply creates the first UTxO with the oracle value. So the oracle value is the datum and we attach the NFT and if it already exists, we create a transaction that consumes the existing one and creates a new one with the updated datum.}
+{\pard  \line \par}
+{And again, containing the NFT and note that I said something about fee collection earlier, and this will happen automatically here. So the way this balancing work, so say that this UTxO the existing one already contains fees, not just the NFT. So in the constraints, we just say that we want to consume the existing one.}
+{\pard  \line \par}
+{And before one, one to provide a new one that contents the NFT. So if the existing one already contains fees and we say that in the new one, we only want the NFT and we have imbalance right? On the input side, we have the fees and the output side we haven't specified anything about that. And then what this balancing algorithm by default always does, is it pays that to our own wallet.}
+{\pard  \line \par}
+{So if there is such imbalance, so if this already contains fees, then it will automatically here in this line, when it constructs the actual transaction, create an output that goes to our wallet and constraints the difference. So the fee the, the fees, and also it will automatically create an input to pay the transaction fees with.}
+{\pard  \line \par}
+{So even though we only specify two things here, the script, the oracle script input and the oracle script output. We might end up or we will probably end up with a transaction with two inputs and two outputs, one additional input coming from our wallet to pay the transaction fees and one additional output going to our wallet, giving us the oracle fees that use as of the oracle added to this UTxO.}
+{\pard  \line \par}
+{And I think that's basically it. Okay then. So, this is basically the bare bones that you need. Now, I also for later provided a function that combines this into these two operations into one contract. So, this is then for use, for example, in the playground or in the emulator trace monad also as we would see in the PAB.}
+{\pard  \line \par}
+{So I define oracle schema, which just contains one endpoint, the update integer endpoint. So all it does it, it takes the new value as parameter. And what does this run oracle do? So first it uses our start oracle function to actually start the oracle, which remember doesn't do anything oracle waits a just minds the NFT, and gives us these oracle parameters.}
+{\pard  \line \par}
+{Then for reasons that will become clear later I use tell to write the oracle value. So this parameter, and this is... the reason is, I need to communicate this parameter value to the outside world so that people can use my oracle. So, a time of writing, I don't yet know what currency symbol is NFT value. So I don't know the value of this oracle parameter yet. So I will only find that out at one time. So once the oracle is actually started and then other people that want to use my oracle and need to know this parameter in order to parameterize their contracts correctly. So I have to communicate that out. And the way to pass information out of a contract is by using tell. }
+{\pard  \line \par}
+{Now this last and just, remember the tell expects monoid type. So typical use from the write a monad is list like list of strings that's when we talked about monads I used that as an example. So, each tell we take a list of strings and then they will all be concatenated to one big list of all log messages, but it doesn't have to be list. It can be other monoids and in data dot monoid, we have this last monoid, so I must import that from data dot monoid.}
+{\pard  \line \par}
+{If we look for information, it's just a newtype wrapper around maybe. And the point of it is to change the provider specific monoid instance. And the idea is as the name suggests, it's the monoid operation that always remembers the last value. So let's say I have last just X and combine that with last just Y, then I get last just Y.}
+{\pard  \line \par}
+{So it forgets about the X and remembers the Y. But if the second one is a nothing, it will remember the first one. So basically what last the last monoid does it always remembers the last just value. If both are nothing, it will be nothing.}
+{\pard  \line \par}
+{Okay. Now it complaints, because it doesn't know whether it's nothing into a character. It assumes it's nothing unit, but anyway, so it's a nothing, so last nothing and last nothing is nothing, but if one of the two is a just, it will remember the last just. And this is very useful and it's used all the time in these contracts for the tell, because it basically allows us to, to keep current state.}
+{\pard  \line \par}
+{So it will... the value of the log would basically be the last just retold. Actually in this contract we will only do that once. So after starting the oracle. So in the beginning, it will end up is nothing, last nothing. So at the beginning will be last nothing. And then we mint the NFTE we get our in line 192, we get our oracle value and then we tell it, and from that point onward, it will always have that value.}
+{\pard  \line \par}
+{So as soon as we have our NFT and have oracle value with other contracts from the outside query the state, they will always get the just oracle. So they will be able to discover the value of oracle. }
+{\pard  \line \par}
+{Okay and then... so after I've started it, I just call this helper function go with oracle as parameter, and this will now loop forever.}
+{\pard  \line \par}
+{And it all does is it will block at this update endpoint. And as soon as somebody provides an integer, which is the new value, it will call our update oracle function with this value. And then just loop to go again. So what is run oracle does is, it starts the oracle, tells the oracle, so that others can discover it.}
+{\pard  \line \par}
+{And then forever just waits for new values and updates the oracle accordingly. So, that's the run oracle function. And that concludes the code for the oracle itself. So that's the core oracle code, both on-chain and off-chain. }
+{\pard  \line \par}
+{So what's now missing is an example, some contracts that actually uses the oracle, a swap contract.}
+{\pard  \line \par}
+{And then of course, using the Plutus application backend to actually run this code. In the real world or at least in our case, in a simulated blockchain. }
+{\pard  \line \par}
+{\b\fs36 [01:01:13] 0604 The Swap module\b0}
+{\pard  \line \par}
+{Now let's look at an example contract that I put into this module oracle dot swap. And the idea is that it's a smart contract where somebody couldn't put ADA and then somebody else can exchange those ADA for a token.}
+{\pard  \line \par}
+{So in our example, we will use some token that we call USDT for USD token. The idea is the price, so the amount of USDT tokens that the buyer has to pay for the offered ADA will be determined by the oracle value. So that will change overtime depending on the exchange rate encoded in that oracle. }
+{\pard  \line \par}
+{And... so the idea is that we use lovelace and we also use this USD token with the fact of 1,000,000. So one dollar would cause point to 1,000,000 of those tokens. So I start with the helper function that I called price, given amount of lovelace and an exchange rate expressed as I said before, it's an integer that where the actual rational number is multiplied by 1,000,000, get the price of the token.}
+{\pard  \line \par}
+{And I must just multiply the lovelace by the exchange rate and divide by one million. Second, just another helper function, given a value, extract the amount of lovelace in there, the called lovelaces and that's just a combination of two functions provided by the Plutus libraries. }
+{\pard  \line \par}
+{First given a value I can get ADA and then given the ADA value I can get the number of lovelaces and then I can provide this swap validator. The idea is that it takes two parameters. It's a contract with two parameters. The oracle we are using that comes from this other module that we discussed before, which I'm importing here.}
+{\pard  \line \par}
+{And I'm importing another module that I called funds, we'll can look at that in a moment. And second parameter, the address. This will be the address of the oracle. So, normally I given the oracle. I can compute the address from it in the core module we saw a function oracle address that takes oracle and computes the script address from it.}
+{\pard  \line \par}
+{But that is a function that I can't use in the validator, because it uses code that is not compatible, that can't be compiled to Plutus script. So I'll use a trick here and explicitly hand in the address as well. So when I actually call this validator, later I will compute the address from the oracle, but now I just give it as a second parameter explicitly.}
+{\pard  \line \par}
+{And for datum, we will use the pub key hash which is the pub key hash of the seller that will receive the prize. And we don't use an interesting redeemer so we can just use unit. Okay, and... if you recall from the diagram, so such a swap transaction, should have three inputs, so two script inputs. The oracle to check the current exchange rate and the swap output that holds the lovelace.}
+{\pard  \line \par}
+{And then as a third input where the funds are actually coming from the buyer, and it should have three outputs. The oracle output again, but we don't have to worry about that because the oracle validator takes care of that, that we saw in the core module that the oracle validator makes sure that whenever it is used, there will be an output with unchanged datum and added fees if you recall.}
+{\pard  \line \par}
+{So, so we want that, and then the seller must get the tokens and the buyer should get the log lovelace. And we want to support a second use case, namely that the seller can retrieve his assets. Otherwise they could be potentially locked be, locked there forever. So there are basically two ways to unlock the lovelace log by the script address.}
+{\pard  \line \par}
+{One is if somebody actually does this swap, gives tokens to the seller in exchange for lovelace and the other is that the seller himself retrieves the lovelace. So, doesn't want to do this swap anymore and gets his money back. So this is the first condition, so if the seller himself signs the transaction, then it's fine.}
+{\pard  \line \par}
+{There's no additional condition that doesn't have to be an oracle involve to anything. So if it's signed by the seller, he can just get his hands back on the lovelace. And the more interesting case is the second one where we check two conditions. First, we check that they are exactly two script inputs because we only want the oracle and we want the, this a swap UTxO itself, the all additional inputs to pay transaction fees and to actually pay the price must be probably key inputs because we don't want to worry about interference with others smart contracts. }
+{\pard  \line \par}
+{And secondly we want to check that the seller gets paid. So, I need define a couple of helper functions to check this, so again we define the info extracted from the context. Then we find the oracle input and we do that by taking all the inputs that we get from the info field.}
+{\pard  \line \par}
+{So this is a list of all inputs and I'm using lists comprehension here, so that's a nice way to construct lists in Haskell. So it has the syntax with the square brackets and then vertical bar. And I can basically draw from other lists. So this is, I is now basically looping over all inputs of the transaction.}
+{\pard  \line \par}
+{And I can have let expressions in such a list comprehension as well. So, I is an input and I compute the corresponding output with Tx in info resolved that we saw before, and I can also put filters or conditions here. So, if the condition is satisfied, then this I will be kept and otherwise it will be dropped.}
+{\pard  \line \par}
+{So, in the conditioner check here is that the address where this output sits at is actually this error parameter, which as I said before, will be the oracle address. So this tells me get all inputs with corresponding output O that sit at the oracle address, and I keep all those Os. And then I check that there's exactly one of those.}
+{\pard  \line \par}
+{So I make sure that there's exactly one oracle input. Otherwise I throw an exception. So this now gives me the oracle input or output, the oracle input consumes the oracle output. Now I want to check the actual exchange rate, and I again. I use this helper function that we defined in the core module that given the output where the oracle sits. Computes me the actual exchange rate, the datum, the integer datum and as before.}
+{\pard  \line \par}
+{So I applied it to this oracle input that I found in the previous helper function. And again use find datum info to lookup the datum to a hash, and this can fail. In which case I didn't find an oracle input or it can succeed in which case I provide the X.}
+{\pard  \line \par}
+{And I was just wondering, wether I forgot to check that this oracle input actually holds the NFT, but I don't need to check that because seeing as there isn't oracle input, we made sure of this here. We know that because of how validation works, the validation script for the oracle input will also be run.}
+{\pard  \line \par}
+{And if you recall, from the core module, that script checks that the NFT is present. So we don't have to do that here in the validator for the swap. Okay. And now this check here has two script inputs. So we Loop over all inputs and we filter with this function. So this gives us the output to the input.}
+{\pard  \line \par}
+{This gives us the address of that output. This gives us the hash, validator hash of this output. If it's a script output or nothing, if it's a public key output address. And then it's just, we talked about that before that is true if it's a just in false, if it's a nothing. And if filter by that, so the XS is now all the script inputs.}
+{\pard  \line \par}
+{And we check that the length of at least is exactly two because we expect two, the oracle and the swap itself. So this is the first condition. We check that there are exactly these two script inputs, and now the second condition is that the seller actually gets paid. So this is the seller paid. How do we do that?}
+{\pard  \line \par}
+{So first, we compute the minimum price that has to be paid. So we check again with this find own input. Remember that gives me the input that is just being validated. So it should be the swap input if we don't find it, that's an error. If we do find it, we again compute the corresponding output.}
+{\pard  \line \par}
+{Take the value and use our helper function lovelaces to check how many lovelaces are there. So this is now this lovelace in this, how many lovelaces are locked in this swapped UTxO. And then we use the price helper function that we defined before given this amount of lovelaces and the oracle value that we looked up here to compute the price.}
+{\pard  \line \par}
+{And then we can define this seller paid condition. So first we check how much he did pay. And there's a helper function in the Plutus library is called value paid to given info and the public key hash. It adds up all the values of all the outputs, the public key outputs that go to this address. So this is now the total value that is sent by this address to the seller and we use this asset class value of function to check the component of this value that is the O asset of the oracle. }
+{\pard  \line \par}
+{Remember that is the asset what that the exchange rate of the oracle is actually for. So in the USD example, this would give us now the USD tokens that are sent to the seller by this transaction. And we just check that, the at least as many as the min price dictates. So we allow overpaying. So if the buyer wants to be generous, he can pay more tokens, but he must pay at least this minimum price that's determined by the exchange rate.}
+{\pard  \line \par}
+{So this is all, that's our swap trans... validator than the usual boiler plates. So we define this swapping helper type that records the datum and redeemer. So again, datum is pub key hash, the ha pub key of the seller. No interesting redeemer. Do the usual template Haskell stuff to compile this given... the oracle to a script and here received... earlier we had two arguments, the oracle and the oracle address.}
+{\pard  \line \par}
+{Now we don't need this. We just need the oracle. Because as I said before, you can compute the address from the oracle using the oracle address function. We just can't use that in Plutus code, in code to code, in this validator function itself. But here we as expected get a way with just one parameter, the oracle. }
+{\pard  \line \par}
+{In case we now have the instance and if we do the usual thing, get the validator, get the address, and now we can come, come start a couple of contracts. So the first one offer swap is for the seller. If he wants to provide such a swap. And that takes as parameter the oracle and integer, that's the amount of lovelace he wants to offer.}
+{\pard  \line \par}
+{So we lookup his own public key. And then as in the transaction, we want a transaction that locks this amount of lovelace in the swap contract. So we only need one constraint, must pay to the script that takes the datum, which is our public key hash because we as a seller and it takes the amount. }
+{\pard  \line \par}
+{So lovelace value of the amount we specified as argument to this function, we submit and wait for confirmation and log a message that we offered. So-and-so many lovelace for swap. Then a helper function that finds all swaps that satisfy a specific predicate. So given an oracle and the predicate on pub key hashes, it gives us a list of all the UTxOs that... that sit at this swap address.}
+{\pard  \line \par}
+{So again, the reference to the UTxO the UTxO itself and the, this public key hash is the datum of the UTxO. So that's as follows, so we use the UTxO at, at the address. So that gives us all UTxOs sitting at this swap address. And then we use map maybe on the list that we get from this map. So this map, maybe we can check.}
+{\pard  \line \par}
+{So if we import data dot maybe ask for map maybe. So this takes a function from A to maybe B and a list of As and returns a list of Bs and the way it works is it applies this function to each A in this list. So we will get a bunch of maybe Bs where there can be just Bs and nothings, and then it will throw away the nothings and just keep the just and remove the just. So as an example, we could, for example F and Int, if, if you have an even integer, then we return just div N two. So we divided by two and if it's an odd integer, nothing. So that we... okay, sorry... I must activate that extension. Okay. So now I can try this also. So if I try it on on even number, I get just half of it. And if I applied to an odd number, I get nothing. And now I can use map maybe in combination with this F I just define on the list of integers.}
+{\pard  \line \par}
+{So for example, I don't know 2, 4, 10, 11, 13, 100. And I get now the list of the half of the even numbers, but the odd ones are dropped. So I get one and two, half of 2 and 4, and 10 is five, 11, and 13 are dropped and I get half of 100 is 50. So I want to use that to filter my UTxOs here in the find swap. So I Def I use this function G and, but first I... I I define another helper function F that just takes one of the UTxOs I'm looking at.}
+{\pard  \line \par}
+{And gives me a maybe pub key hash. And what I do is I first lookup the datum hash. And again, this is a maybe monad. So this two block is in the maybe monad. So I lookup the datum hash attached to this output that could fail that's a maybe datum hash, but if it succeeds, so the hash, the datum hash is DH, then in the Tx data field of the transaction, I lookup this hash to get to the datum, datum D, D of type data.}
+{\pard  \line \par}
+{And finally, I try to deserialize it basically from data to pub key hash. So I expect of course that all the swap UTxOs, the datum will be there and it will be a public key hash. So in this case I will get just a public key hash. Okay. And now this G function has now the right type. So it takes a pair of key and value on these UTxOs and returns a maybe key value and pub key hash.}
+{\pard  \line \par}
+{And what I do is, first I use my first helper function to get the public key hash if it's there. So that's the datum now. Then I apply this this predicate that was argument here to my helper function. And guard, we haven't seen that before. So in some monads, including maybe this guard is available and that takes something of type boolean and what it does is it fails if this boolean is... if it's false, then this computation fails.}
+{\pard  \line \par}
+{And if it's true it just continuous. So that means I check whether this predicate, whether the datum of the UTxO satisfies my predicate. And if it does not, then this will return nothing. So I've dropped this UTxO. And if it is, then I return the triplet... assisting of the reference, the UTxO itself, and the datum included in it.}
+{\pard  \line \par}
+{And we would see how we use this find swaps in a bit. So this helper function.}
+{\pard  \line \par}
+{Right, the next contract I define is this retrieve swaps. So that's for the seller if he changes his mind enforces swap, swap spec. And so how does it work? It just takes the owners public key hash. Now it uses our helper function and here as predicate, it checks that it's the swaps that belong to himself.}
+{\pard  \line \par}
+{So, remember the datum is the seller, the public key hash of the seller. So, I check that, I only take those UTxO sitting at that swap address that belong to me. So this is now this Xs. If there are none, then there's nothing to retrieve. So, if it's the empty list has nothing to do. If it's not the empty list, I now construct a transaction that retrieves all of those. And how do I do that?}
+{\pard  \line \par}
+{So, I take all the UTxOs in this list and for each of them, I build a constraint and say I want to spend that UTxO, must spend script output, this UTxO and as redeemer, just the unit. So now I have a list of constraints and M concat is a function that if I have the list of elements in the semi-group, it combines all of them.}
+{\pard  \line \par}
+{So, I mean, normally we did that explicitly. So we had, for example, two constraints and we use this operator here to combine them together to one constraint. So now I have a list of constraints, I don't know how many elements there are. And with M concat, I can combine all of them together. So now I have this Tx is now the constraint that all the UTxOs that belong to me, sit at the swap address.}
+{\pard  \line \par}
+{I want to consume in this one transaction. I want to get all the lovelaces from all those swaps back. And as lookups for, for this to work, I must provide all the UTxOs, but that's, I mean, those I have, those are in this list XS. So I just, I don't care about this hash. I know it's mine anyway, this pub key hash. So I have the oref and the O from all of these, and I can use map from list to turn this list of key value pairs into an action map, and then apply this unspent outputs constraint to it, to get me the lookup.}
+{\pard  \line \par}
+{So now when I try to solve this constraint and construct a transaction, I will find all these UTxOs I want to consume. And I must as before provide the validator of the oracle actually, and also not of the oracle of the swap itself, it's parameterized by the oracle. Because I must provide the, I must include the validator script in the transaction because I want to consume those script outputs.}
+{\pard  \line \par}
+{Okay. And then I submitted... I wait until it's confirmed. And then I just say, how many of these swaps I retrieved. Okay, and the interesting one, is now this one where actually make use of the oracle. So this is I want to use as swap. And, I mean, there can be several swaps in that didn't want to make it too complicated.}
+{\pard  \line \par}
+{So basically what I do is, I lookup my own funds that's in this third module I mentioned earlier that's why I have to import the funds module. You get to that in a second, but all that does this own funds module this own funds contract, it checks my own wallet and adds up all the money I have. So funds is now of type value, contains all the funds I own, because I want to check how much USD tokens or tokens I have to actually pay for these swaps.}
+{\pard  \line \par}
+{So I given all my funds, I check how many of the tokens that we are talking about in the oracle I have. So that's not amount. I just log that as information how much I have. This find oracle function comes from the core module, we used it for some of the oracle functionality before. So it finds us the oracle, the UTxO that contains the oracle and the value.}
+{\pard  \line \par}
+{If you don't find the oracle. Then we just log a message that we didn't find it. And if we do find it, so oref and O reference the oracle UTxO and X is the current exchange rate. So we log a message that we found it. We check our own public key. We now look for all the available swaps where we are not the owner. So where the owner is not us. }
+{\pard  \line \par}
+{Now we use a helper function find, that's in the Haskell prelude, it's in data dot list. So given a predicate on elements of list, it finds us, maybe finds us one that satisfies this prep, predicate. And this is defined here and we give it two parameters. So the amount that we have, the assets that we own and the current exchange rate.}
+{\pard  \line \par}
+{So this predicate now takes the amount we have, the current exchange rate, and now it goes over the elements of the swaps we found and the return whether this is a suitable swap or not. And all we do is we check that the price we would have to pay for that specific swap is at most as high as the tokens we own and this get price function is to find above here.}
+{\pard  \line \par}
+{So, given exchange rate and an output, we just use our price helper function and apply it to the lovelace is contained in this swap and the exchange rate. So what this line does is it tries to find a swap that we can afford where given the current exchange rate that oracle tells us and the amount locked in this swap UTxO we have enough assets to actually pay for it.}
+{\pard  \line \par}
+{If you don't find such a swap, then we log a message that we didn't find such a swap. If we do find, find one, we just take the first one. I mean, that's not really realistic. Of course, in, in a real world example... would probably use, I mean, specifying the exact amount how much we want to swap or whatever.}
+{\pard  \line \par}
+{I just wanted to keep it simply because it doesn't matter. I mean, we are talking about oracle. It's not about the swapping, it's just an example. So I just pick a swap that I can afford. }
+{\pard  \line \par}
+{And now I construct a transaction. So this is the output for the oracle. So that will be the existing O value in the oracle.}
+{\pard  \line \par}
+{So the O I remember is the oracle we found here. So this is the value that's already in the oracle, which will be the oracle NFT, and maybe some fees that previous uses of the oracle paid. And I just add my fee to that. So this is now the output value. Remember when I use the oracle I have to add fees.}
+{\pard  \line \par}
+{Okay. And the P is the price I have to pay actually. So I take the lovelaces contained in the swap and the exchange rate from the oracle use my price helper function. And this is just a number and integer, how many of tokens I have to pay. And I convert it into a value with asset class value and this asset class. Right, now let's look at the constraints.}
+{\pard  \line \par}
+{The first constraint says we must use the oracle as an input. So this is the reference to the oracle and as redeemer, we use the use redeemer. So this is now the first time we actually use the use redeemer, in the oracle code itself we never used the dev, we only used the update because the oracle provider is only responsable for providing the oracle values.}
+{\pard  \line \par}
+{The oracle provider doesn't care about using it. So now here in the swap contract, we actually want to use it. So that's the first constraint, consume the oracle input. Second constraint is consume the swap input. So there is a trivial redeemer, and this is the reference to the swap input. Third constraint is we want to pay to the oracle.}
+{\pard  \line \par}
+{So the value we computed before. So we, this is now this pay other script, because now two scripts are in play, the oracle script in the swap script. So other script is now the oref script. So we provide the oracle hash, as datum we must use the existing datum, so we mustn't change the exchange rate when we use it.}
+{\pard  \line \par}
+{Only the operator of the oracle can change the exchange rate by using the update redeemer. And the value is the one we computed before the V. So this was the existing value in the oracle and the fee that we have to pay. And last constraint is we must also pay the seller of the lovelace and that's the price we calculated.}
+{\pard  \line \par}
+{And then we need these lookups to actually make that work. So we must provide the validator of the swap contract. We must provide the validator of the oracle contract and we must provide the two UTxOs we want to consume, the oracle and the swap. }
+{\pard  \line \par}
+{And then the usual things. So we submitted, we wait for confirmation and we log a message that we actually made a swap.}
+{\pard  \line \par}
+{And just for information, we log the price we paid. }
+{\pard  \line \par}
+{Okay that's basically the raw contract then that also provide like a bundle that contains all of them. So I define a schema blockchain actions as always with four endpoints:}
+{\pard  \line \par}
+{ offer to offer a swap for given amount of ADA, }
+{\pard  \line \par}
+{retrieve to retrieve all my swaps, }
+{\pard  \line \par}
+{use to actually do a swap and }
+{\pard  \line \par}
+{funds just give me my currently available funds. }
+{\pard  \line \par}
+{Okay. And how do I define that? I use the select operator. I'm not sure whether we have talked about that before, so that allows, it's basically a contract that wait. I mean, if, if there are several endpoints, it waits until one of those is picked and then executes this one.}
+{\pard  \line \par}
+{So this will offer simultaneously the offer endpoint, the retrieve, the use and the funds and whatever of these components makes progress first will be executed. So in, after I've done that I just sequence with recursive fee calling myself again. So over and over again, I will offer these four endpoints and these four endpoints are basically just rip us of the contracts we defined before, except that now I, I actually add an endpoint.}
+{\pard  \line \par}
+{So for example, for offer, I know block with the offer endpoint until some body from the outside, provides me with an amount in integer. And then I call the offer swap oracle amount contract that I defined before. Same for retrieve, except there is no parameters. So I just block until somebody invokes the retrieve endpoint and then call my previously defined retrieve swaps contract, same for use and funds is a little bit different.}
+{\pard  \line \par}
+{Again, so this own funds comes from the module we haven't looked at yet the funds module, but what this does is ignore the H for a second. That's just an error handler which I... by the way use everywhere. So I must explain that anyway. So this blocks until this endpoint is invoked, then I call the own funds function from the funds module, which gives me the V, the value that I own.}
+{\pard  \line \par}
+{And then I tell that. So I log that value away. So when somebody calls a funds endpoint I log that to the state and then it will be possible from the outside to look at that state. So that's a way to report back to the outside, how much money I own. }
+{\pard  \line \par}
+{And now for the H this is just an error handler. So it uses this handle error function that we saw before. And if there's an error, I just log that error. So I wrap all these into these error handlers so if anything goes wrong in between. I don't want the whole thing to crash. I just log the error and then continue. Okay. And that concludes the swap contract, the swap example. }
+{\pard  \line \par}
+{\b\fs36 [01:34:44] 0605 The Funds module\b0}
+{\pard  \line \par}
+{Now let's quickly look at the funds module, which just provides two contracts. So it's a very short module. And as I said before, it particularly has this own funds function, whose goal it is to sum up all the value in my own UTxO. }
+{\pard  \line \par}
+{So how it works is just looks up my own public key, then looks up the UTxOs at the address given by my own public key. So that's the UTxO sitting in my own wallet. And then I get this map of UTxOs. And now I apply to the values of this map. So that's remember that's a map from basically references to UTxOs to UTxOs. So map also implements functor. So I can basically map over the values of this map, change the values from UTxOs to something else.}
+{\pard  \line \par}
+{So I first get the output belong to the UTxO, then its value. So now I have a map from UTxO references to values. The map elems function forgets the keys and just gives me the list of all values and M concat. As I said before given a semi-group or monoid combines a list of values of the type to one.}
+{\pard  \line \par}
+{So what that does is it just adds up all the values. So V is now the sum of all the values of all the UTxOs that I own. And I just log that result and return it. So this is a contract that has a as a return value this value, and this here is just a variation, which instead of returning the value permanently tells it.}
+{\pard  \line \par}
+{So what does it do? It calls this own funds function and then uses monadic binds, so result of his own funds functions a value. And then it tells just last that value. So it writes the sum of money that our own to the log. And if there's some error there, I handle it and just log the error.}
+{\pard  \line \par}
+{Then I wait one slot and recourse. So this own funds contract will run forever and every slot check how much money I have. And write that value into the log. }
+{\pard  \line \par}
+{\b\fs36 [01:37:37] 0606 The Test module\b0}
+{\pard  \line \par}
+{Let's look at the test module next, which tests the contracts we have written using the emulator trace monad. In order to test it, I of course need some assets that I can use to swap.}
+{\pard  \line \par}
+{So I just make up an arbitrary currency symbol. So this FF, obviously it's not the hash of some policy script, but same as in the playground in the emulator trace monads we can do that and as token name I just pick USDT and this time in order to actually run the trace that I'm writing, I'm not using the run emulator trace IO by the prime version, which takes two more arguments to have more fine-great control about the emulation environment.}
+{\pard  \line \par}
+{So the first one would determine how exactly the various log messages are displayed. So by picking def I just choose the default. So that's the same as in the unprime version, but the reason I'm using this extended version is because I want to configure the initial distribution and I can do so the so-called emulator config.}
+{\pard  \line \par}
+{And what I specify is that everybody has 100 million lovelace, so 100 ADA in the beginning, and everybody has 100 of these USDT tokens. So then I define a helper contract check oracle. So the idea is it just supposed to permanently check the oracle value and log it. So I use the find oracle functions that we have seen before the contract.}
+{\pard  \line \par}
+{And if it's nothing, I just stop. So this would stop if, if the oracle is not there, but if I do find it with value X, I just log the oracle value. And then afterwards I wait for one slot and recurse. So if the oracle is not there, this won't do anything. I just wait for one slot. If it's there I log the value and do that permanently.}
+{\pard  \line \par}
+{And now I can define my trace and that's all things we have already seen. So I just define some parameters for the oracle. So I just pick fees of one ADA, 100 sorry, 1,000,000 lovelace. And as asset class, I use this tokens I defined up here that I now have in the initial distribution. Then I start the oracle with these parameters for wallet one.}
+{\pard  \line \par}
+{I wait for one slot and now I use this get oracle helper function that's defined down here. The idea is because in order to run the swap contract, they are parameterized over the oracle value. And so I must somewhat discover that. And remember this run oracle writes down, as soon as the oracle is created it, it tells the oracle.}
+{\pard  \line \par}
+{So I must somehow get that state and that's the purpose of this get oracle function. So I use the observable state function that we saw before with the handle. So that takes the observable state of the run oracle contract, which should contain the oracle. If it doesn't, the oracle might not be there yet, one might not have started yet.}
+{\pard  \line \par}
+{So I just wait one slot and try again. But if it's there, I now have this value and I just log it for for debugging purposes and I return it. }
+{\pard  \line \par}
+{So that means I start the oracle. I get it, get the value. And now once I have the value, I can use it. So now on wallet two, I start this check oracle function that we saw here, whose job adjusted to every slot printer oracle value.}
+{\pard  \line \par}
+{Then I initialized the oracle to 1.5 dollar per ADA, wait for three slots. And now I start I just call the own funds function on the wallets one, three, four, five to check the initial balances. And now I start this swap contract on H three H four and H five. Right, and now I just try some scenarios. So wallet three offers 10 ADA for swap, wallet four offers 20 ADA for swapping, I wait three slots and now wallet five uses a swap. So it will pick one of the two it's not obvious which one, which ever it finds first and pays USD for it. According to the current value of the oracle, which we sit here at this point it's 1.5. Anyway another three slots. Now, wallet one updates, the oracle value to 1.7 and H five tries again.}
+{\pard  \line \par}
+{So now it will grab the remaining swap of these two, but now pay a different price, pay 1.7 dollars instead of 1.5. Wait again, now I set it to 1.8 the oracle value to allow wallet one to extract all the fees. So by now fees should have been paid twice because the oracle was used twice here. So each one should be able to collect two ADA fees, wait another three slots.}
+{\pard  \line \par}
+{And now I retrieve our remaining swaps, but that shouldn't do anything because I only had those two to begin with. And they were both used by H five. So this I could have left out, wait another three slots and that's it. And in the repl we can run it and hopefully be some desired result. Okay. So let's see lots of output.}
+{\pard  \line \par}
+{So here the oracle was started. So this is when the NFTs minted. And we have now the oracle value, the parameter we can use for... everything else. Here this get oracle is, is started, which once every slot logs the oracle value just for our information. So the first one, it find is indeed this 1.5.}
+{\pard  \line \par}
+{And now I start the the, I get the funds. So I see the initial funds of all the wallets to three, four, and five, still have the initial ones. One has a bit less because it started the oracle and needed to pay transaction fees for that. So oracle value is 1.5. Now the offers are made, the two swap offers of 1... 10 ADA and 20 ADA, wait a bit.}
+{\pard  \line \par}
+{So the funds are still the same, oracle value hasn't changed. And now the first use happens. So the wallet five tries to use, and has enough money to do the swap. And at some point it will happen. So not exactly clear yet already has happened. And we wait a bit now the oracle gets updated to 1.7 and here is the second use where it's five tries again to swap.}
+{\pard  \line \par}
+{And some fund logging and basically nothing interesting happened anymore. And if you look at the final balances, we see that wallet two still has everything from the beginning, because our wallet two does is this oracle checking, which doesn't cost any transaction fees because it's purely an off-chain meta. }
+{\pard  \line \par}
+{Wallet one paid some transaction fees, but ends up with roughly two ADA more than it started with, it started with 100 and now it almost has 102. And that it's because it collected the two ADA fee for the oracle use. Wallet three and wallet four, they both made offers. So wallet three offer 10 ADA, wallet four offer 20 ADA.}
+{\pard  \line \par}
+{And we see, so the first swap that happened was wallet two where the exchange rate was one fifty and because it... of a 20, it got 30 dollars in return. So it ends up with 130 dollars. Then wallet three had an exchange rate of one seventy but only offered 10 ADA. So it got 17 dollars in return and wallet five finally had to pay these prices.}
+{\pard  \line \par}
+{So the 17 plus 30, so 47 but got the offer... at, ADA return, so, so it paid, this is the 47 less. So it started with 100 now 53 dollars left. But for that, it got the... basically would have gotten 30 ADA, 10 plus 20, but had to pay one ADA each oracle fees. So that's why it's only 28 and it's a bit less than 28 because of a normal transaction fees.}
+{\pard  \line \par}
+{So it's exactly what we expect. And we see here apart from the wallet. So the oracle is still happily going. So this here is the oracle NFT. In, in this log we don't see the datum value. So we just see that the oracle is still there. }
+{\pard  \line \par}
+{\b\fs36 [01:47:12] 0607 Using the PAB\b0}
+{\pard  \line \par}
+{Apart from the idea how to actually do an oracle in Plutus, nothing we have seen until now is new.}
+{\pard  \line \par}
+{I mean, there may have been some Plutus library functions we haven't seen before or some Haskell functions, but in principle, we are all familiar with the way validators are written for on-chain code and contracts are written for off-chain code and how we can test it with the emulator trace monad.}
+{\pard  \line \par}
+{So now in the second part of this lecture, we talking about something new namely the Plutus application backend, which allows you to take all that, what we have done until now, and turn it into an actual application, a executable that actually runs the contracts. If there was a Testnet or if Plutus was available on the main net already, we could then actually deploy this on those testsnets, but for now we have to be satisfied with using a mock chain, a simulated blockchain.}
+{\pard  \line \par}
+{But the process of turning this into a Dapp is virtually the same as it will be when a proper Testnet is available. So we need one more tiny module that I called PAB. And it's just basically just one type definition. And the idea is it reifies the contract instances we want to run. So we have various contracts and now we define the data type where each value of the data type corresponds to a contract we eventually want to run. }
+{\pard  \line \par}
+{This init is nothing we have written until now, but this basically corresponds to what I did in the emulator trace monad to give initial funds. So we will just use that to set up an environment where there is a USD token available and where the wallets have an initial supply of those.}
+{\pard  \line \par}
+{Then this constructor, the oracle constructor corresponds to the run oracle contract that will actually start and then run the oracle and provide this update endpoint, the currency symbol parameter I will use to communicate the currency symbol we use for our USD token. And finally, the swap parameterized by oracle will be used to run the swap contract, which if you recall offers various endpoints like offer retrieve use and funds.}
+{\pard  \line \par}
+{So this is just this definition that I have to put it in a separate module because I will use it both from the PAB and also later from the front-end. But now let's switch to the, or let first look at the cabal file actually.}
+{\pard  \line \par}
+{Sorry, because everything we have seen so far is in this library. So, all the modules we have now discussed. Now I have various executables. So first, now will talk about this oracle PAB, which would basically start a simulated wallet and initialize all the contracts and start a set up a web server that allows the outside world to interact with these contracts.}
+{\pard  \line \par}
+{And then I have two more executables, one that would be run by the oracle provider. So that will interact with the run oracle contract and actually fetch exchange rates from the internet and feed them into the system and then a swap client executable, which would be run by the clients that want to make use of the swap contract.}
+{\pard  \line \par}
+{So let's look at all of these interns starting with this one, that's an app oracle PAB. And before we look at this code, let's first look at... this stuff here, this is boiler plate. So I basically just copy pasted that from... until here. So these handlers thing, this is boiler plate to somehow hook up the data type I just defined, these reified contract instances with actual contracts.}
+{\pard  \line \par}
+{So... this basically just assigns for each of these three, reified instances we defined in it, oracle and swap to hook that up with the correspondent schemas and contracts that you defined earlier. So init won't have any schema so it just is blockchain actions, and oracle uses the oracle schema and swap uses the swap schema.}
+{\pard  \line \par}
+{No surprise there. And init will run the init contract, which I defined down here, oracle will run the... run oracle contract that we saw earlier. oracle params I think I define up here. So that just takes the currency symbol of USD and then defines example oracle params. So fee one ADA currency symbol the provided argument and token is just hard coded USDT. }
+{\pard  \line \par}
+{And finally, the swap will just given an oracle value., will run our swap contract with this value as parameter. This is poor boiler plate that I just copied, copy pasted. And this is now this init contract which is supposed to, to generate the initial funds. So that's not important. I just need that for, for the demo.}
+{\pard  \line \par}
+{And it's very, I mean, it's, it's very straightforward. So I again make use of this forge contract from the Plutus use cases. So I lookup my own public key. And as before I used the forge contract, but before we just minted one token, this NFT, and now I mint more, so basically this amount is just, I think, a hundred million So I want to give each wallet 100 dollars So I count how many wallets there are and just multiply it and the wallets I hard-coded here, so I just use five wallets for this, it's completely arbitrary. So I use this forge contract lookup the currency symbol... provide the value how much each wallet should get.}
+{\pard  \line \par}
+{And then I just create transactions that sense each of the wallets, the amount except myself, because I already have it. So one wallet will mint all the USDs and then distribute them evenly to the other wallets. And in the end, I tell this currency symbol that was the result of forging.}
+{\pard  \line \par}
+{Right. And now we can look at the actual PAB code. And... so this is in IO, it's a proper main program. So that will be a proper executable and it makes use of yet another monad that we haven't seen before and that's specific to the PAB, but it's very, it's called the simulator monad, but it's very similar to the emulator trace monad.}
+{\pard  \line \par}
+{So in principle, it has exactly the same, more or less the same capabilities. So you can start contracts on wallets and you can like inspect the log, the state and, and so on, and you can call endpoints. So it's a bit unfortunate that there are actually two different monads for this because they are so similar.}
+{\pard  \line \par}
+{And I know from the Plutus team that they plan to align these and maybe turn them into one. So probably you shouldn't pay too much attention or spend too much effort on learning the intricacies of this model because that will probably change soon and will be aligned with the emulator trace monad. }
+{\pard  \line \par}
+{And Similar to how we have this run emulator trace IO, there's something run simulation with, so we need these handlers, this boiler plate to find downstairs further down. And then this is a script in this simulator monad now. One significant difference to the emulator trace monad though is the emulator trace monad was pure code, no revert side effects, no IO involved.}
+{\pard  \line \par}
+{So we couldn't do IO in the run emulator trace monad. In particular there was this pure interpreter run emulator trace without IO, just run emulator trace. That's a pure Haskell function, no side effects. So in this emulator trace expressions, you can't do any IO. }
+{\pard  \line \par}
+{Simulator is different. You can do IO and the way it works, it's a so-called monad IO. And monad IO is one method lift IO, and that takes an IO action and lifts it into the monad in question. So if you have some arbitrary IO action that you can do in Haskell, then by applying lift IO to it, you can move it into the simulator monad. So inside this two block, we can do arbitrary IO as well, plus the specific things that the simulation monad allows us to do.}
+{\pard  \line \par}
+{ Right, but apart from that, I mean, if you squint, it looks very similar to emulator trace. So first thing I do is I just log. So is that we also have a log capabilities. So there's a function called log string.}
+{\pard  \line \par}
+{And I just say, okay, I start the server, is PAB server. Then this starts over the back actually starts it. And the return value is an action that I can later use to shut down the server again, right now I use something called activate contract and that's very similar to, I think it was called activate contract instance in the emulator trace monad.}
+{\pard  \line \par}
+{So that's basically the same thing, but now in the simulator monad. So it gets a wallet where I want to start that instance, and then a value of this reified contract type. So remember this init constructor we associated down here, somewhere here with this init contract that was then defined here. So what this will do, it will on wallet one, launch this contract, and remember the contract just means this USD token and distributes it to the other wallets.}
+{\pard  \line \par}
+{Now we need the currency symbol. So this is now an example of how we get information back out of a contract using this... a monad right-hand detail. And we'll see that in a second. Right. And I do that here with his helper function because I need to do that couple of times. So I've wrote a helper function, wait for last that I defined here.}
+{\pard  \line \par}
+{So given such a constants contact instance ID. I use a function that's provided by the simulator, that's called wait for state. That's similar to the observable state function we got in the, in the emulator trace monad, so what wait for state does is, it takes the contract instance and it takes a predicate that gets a json expression and returns a maybe A. }
+{\pard  \line \par}
+{The idea is, so it will read the state of the contract. Remember we write the state from the contract using tell. So this reads this, but it's serialized to it, it gets a json value, realized as json and then it applies that json value to the provided predicate. And this provides returns, as I said a maybe A, so if the result of applying our custom predicate to this, json value is nothing this will simply wait more until the state changes again. }
+{\pard  \line \par}
+{But if it's just X it will return the X. So this will block until we get a just here. And, So this helper function, it's just a special case where the state is in this last monoid that I explained before. So and success is that's comes from the data dot aeson library for json handling in Haskell, so if you... sorry, I use this from json to parse to json.}
+{\pard  \line \par}
+{So if that succeeds, I should get... last ex... last A if A is the type, but of course the json parsing can also fail. And this is so-called result type that's defined in data dot aeson. So if it succeeds, it says succeeds and then the value it's successfully parsed. So in the good case, it succeeds the json passing succeeds, and we get last of just of state value.}
+{\pard  \line \par}
+{And they are two ways it could fail either the parsing could, could fail, or even if the parsing succeeds, we could get a last nothing. In which case we also consider that as failure and wait some more. So this waits until the state of the contract has told a just value and then returns that value.}
+{\pard  \line \par}
+{Right? So to go back to our simulator script, So we use this wait for last on the handle for the init contract. And if you remember the init contract in the last line, when we are done. We wrote the currency symbol of the USD token that we minted. So this means that this line will block until this init contract has done its job has minted the USD and has distributed the USD tokens to the other wallets. And then it will return the currency symbol, then there's another function called wait until finished. So we just wait until this init contract has finished. }
+{\pard  \line \par}
+{Now, next step is we start the oracle on wallet one. So it's again makes use of this data type I explained before. So given the currency symbol, we basically do run oracle where the O asset of the oracle params field now uses the CS that we got from the first step. So after this, the oracle should not run. So we log a message and here I'm using No, no, sorry.}
+{\pard  \line \par}
+{We don't log a message. The point is I need these handles in order to, from the outside world later, interact with these contracts. I need to get my hands on these these, these handles. So this cid contract identify oracle, I need that, because if I want to use the web interface later to talk to the contract, I need this cid.}
+{\pard  \line \par}
+{So what I do here is I write that into a file that I call oracle cid. So I just basically extract the... uuid that, that basically is this cid and write that into oracle cid file, that's just, I mean, this is of course quick and dirty in production code. You would probably use a safer mechanism, but this is just for demonstration.}
+{\pard  \line \par}
+{So we start the oracle, we get the handle to the contract and we write that into a file. And now I use my wait for last again, to actually get the oracle value. Remember in the run oracle contract, once we have the oracle, once we have minted the NFT, we tell this oracle value and I need that because the swap contract is parameterized by this value.}
+{\pard  \line \par}
+{So I use this wait for last again. So this will block until the NFTs minted, and I know what the oracle value is. And then I loop over all other wallets. So I exclude wallet one that runs to oracle. And activate the swap contract for that wallet. And I do a similar trick to here because I need those handles as well.}
+{\pard  \line \par}
+{So here I use the file oracle cid. And here I use files W wallet number dot cid to write the contract instance id cid. And that's it. So basically I have a file. I mean, produced initial funds started the oracle, started the swap contracts swap, swap contracts. Now I just basically block until the user presses enter and then I shut down the server.}
+{\pard  \line \par}
+{And actually it's not necessary to do all of this because you can also start instances from outside via the web interface. I just found it easier to do that, basically in a scripted way at least for this demo, but in principle, you don't need any of this, you just have to start the simulator, and then you could immediately basically wait until you shut down and you can do all the control, you can trigger starting contract instances and stopping them from the outside. }
+{\pard  \line \par}
+{And in case you are curious what API is provided by the PAB, what web API, you can check that in the Plutus PAB module in sorry, in the Plutus PAB package, in the module Plutus dot PAB dot web server dot API. And there are several ones, but the relevant one.}
+{\pard  \line \par}
+{Is this one, at least the one I'm using now, this what's called new API and there's also a web socket API, but I didn't play with it. So I haven't tried that. So I only worked with this one here. And I mean, this is... makes use of the very popular Haskell library servant to write type-safe web applications.}
+{\pard  \line \par}
+{But I think it should be readable more or less even if you don't know servant. So that's just mean, so the path is API slash news slash contract, and then you have various options. So this symbol here means alternative. So you have activate, you have instance, instances definitions. So for example, here, the first endpoint a web endpoint would be API slash new slash contract slash activate.}
+{\pard  \line \par}
+{It's a post request. And in its request body, it takes in json format contract activation arguments, whatever that is. And it will return a contract instance ID. So that's what I said you, instead of doing it in the simulation monad, you could also have done it via the web interface to actually start a contract instance.}
+{\pard  \line \par}
+{But I didn't try that out, then for, if you're using instead API new contract instance, and then the instance ID, that's what I need. That's what I wrote in these files. Then you'll have various options. For example, status gives you the status of the contract. endpoint allows you to call endpoints, so endpoint, endpoint name, post, request weather parameters for the endpoint are provided as json and the request body.}
+{\pard  \line \par}
+{And you can also stop a contract instance. And then there are other ways, here for example, for given a specific wallet, you can check all the contract instances that are running on this wallet or you can get all the instances overall that are running in the system and some definitions, but I also haven't tried that.}
+{\pard  \line \par}
+{So all I'm using in this demo is status an endpoint. So endpoint to, to call an endpoint and status, to get feedback from the contract to read the, of what I wrote with tell to read that out again. So let's actually try it. This is now an executable and I can just run it, so I can use cabal run and the name of the executable, which was oracle PAB.}
+{\pard  \line \par}
+{And we get log output similar to what we get when we do the emulator trace. But this is now a running executable in IO that set up a live server. So if we scroll up, so this is probably to mint this USD token, and then we later mint this oracle NFT and so on, and we see that here, for example, an instance.}
+{\pard  \line \par}
+{So this is the oracle, so on activated instance on W1, wallet one. And this is this contract instance idea is talking about that we need as parameters to our HTTP endpoints. If we want to interact with this specific instance, and then further down here, these four are the other wallets W two, three, four, and five that now activate that the swap instances.}
+{\pard  \line \par}
+{Let me stop that quickly. If we just look in the directory, we see these files that the script now wrote out. So for example, if you checked the W five cid, that should be the same number that we see here in the log, and it is. So I just, as I said, wrote that in the file so that's easy for me to, to then use that to interact with these instances and I could in principle, and I would demonstrate that, but the lecture is very very long already. }
+{\pard  \line \par}
+{So I think I won't do that, but I could just use any tool now, for example, curl or wget or even the browser for the get requests to just check at the correct port. I think that's 8080 that should say source here somewhere. Yes, so starting PAB backend server on port 8080, so I can just go to 8080 and then use any tool I like to interact with these HTTP endpoints, but instead I like wrote little demo programs that do that. And of course, because it's just a rest API, HTTP endpoints, you can use whatever programming language you like.}
+{\pard  \line \par}
+{I of course use Haskell because Haskell is my favorite language, but you could also use whatever you want, Python or Java or JavaScript, or as I said, curl and bash. }
+{\pard  \line \par}
+{\b\fs36 [02:09:53] 0608 Frontends\b0}
+{\pard  \line \par}
+{So let's just look at first oracle client. And I don't want to go into detail here because I mean, the point is not to show you how to write a front-end.}
+{\pard  \line \par}
+{Just give you the general idea. So actually I'm using a Haskell library called REQ or req, request to do these requests. So, what I do in the main program is, I read this file to get the uuid that has the correct instance, just log that and then go to go. And this loops forever and what it does it, looks up the current exchange rate, ADA, USD on coin market cap, checks whether that has changed.}
+{\pard  \line \par}
+{So this parameter here is the old value that starts with nothing in the beginning, I don't have any, so then it checks the new exchanged rate and if this exchange rate has changed, it calls update oracle. We'll get to that in a second, so that calls the update oracle endpoint on our contract that we defined before. Then it waits for five seconds and loops.}
+{\pard  \line \par}
+{This is of course arbitrary, I don't know whether coin market cap does some sort of rate throttling. So I didn't want to risk being bent for having too many requests. So I just did it five seconds, in reality seeing as blocks on Cardano only appear every 30 seconds on average, probably even five seconds is too much and should rather be 30 seconds.}
+{\pard  \line \par}
+{But anyway, so this oracle, update oracle is now the interesting one where I demonstrate how to interact with the running contract. So this stuff here is just comes from this req package. So that's not important, but basically the essence of what I'm doing is I prepare a post request. So I go to my local server.}
+{\pard  \line \par}
+{With this endpoint we just saw. In the API model, so API new contract instance, then the next parameter is this uuid. So I just converted to text then endpoint, the name of the endpoint was, which was update. And now I must provide the request body in json format of the value I want to update to that is this X.}
+{\pard  \line \par}
+{And this just says that I expect a json format response, and this gives the port. And then if that goes well, sort of the status code to 100, I just log a message accordingly. And that's it. And as I said the details don't matter. You can do that in the programming language of your choice. It's just a plain old when they learn HTTP endpoint.}
+{\pard  \line \par}
+{And this here is it's very, my very quick and dirty way to get the actual ADA USD exchange rate from coin market cap. I, of course they also provide a proper API, but I just basically get the whole website for currencies Cardano and then use a regular expression, which of course is very fragile and would never work as production code just to, to grab the exchange rate.}
+{\pard  \line \par}
+{And basically that's it. And then I just multiply it one by 1,000,000 and rounded to get this integer value you want to use and log a message. So we can try that out. Let me just run a start the PAB again. Wait until the oracle start it.}
+{\pard  \line \par}
+{The funds are distributed. Okay. So now everything should be running. And let me just go to another terminal window and I run the second executable that I just showed you, the oracle client. Okay. Now it's a, when to corn market, Kevin, it seems right now the exchange rate is 1 dollar 75 and now I call update oracle with this 1,750,000 value.}
+{\pard  \line \par}
+{If you switch back to where the PAB runs, we see that we also get log messages for this. So this update transaction that updates the oracle UTxO has actually been received and processed. And we also get the correct log message that we saw earlier in the core module that the initial oracle value was set to 1.75.}
+{\pard  \line \par}
+{Now, of course I have no control over the exchange rate. So I don't know whether this will change from 1.75 anytime soon. Maybe we wait for that, we look at the swap client, which is very similar so that can actually, sorry.}
+{\pard  \line \par}
+{So that uses the same technique, same req library to handle HTTP. And the idea is I just want to offer a very simple console interface. So I didn't bother with graphics or a nice web UI. It's just console based. So the idea is I just want to offer these four possibilities. You can make an offer, you can retrieve, you can use, or you can check your funds and it loops forever.}
+{\pard  \line \par}
+{So I don't have to go into that in detail. Same thing here. I... well, one difference is I actually provide the command line parameter because I want to run this clients for different wallets. So I provide the wallet number as a command line parameter. Then I read the correct uuid from the file and log something and then loop forever.}
+{\pard  \line \par}
+{And this loop, all it does is it just parses this command that I enter by a text from the console and then calls the appropriate endpoint. And this endpoint calling is defined here. And it's basically always the same, always the same thing, for example, for get funds, we want information out of, out of the web interface.}
+{\pard  \line \par}
+{So we must use this status status endpoint. So we... no, sorry. We call first, we call the the funds endpoint. And then remember in the funds endpoint in the swap contract, what it did, it checks its own funds and then tells them. So here we checked them. And now we do a second request where we use the status endpoint to get the status of that instance.}
+{\pard  \line \par}
+{And then we basically can extract the observable state from that. So we just have to, so we get the response body then have to play cic current state and then observable state, and then parse it from json. And if all goes well, then finally we get our value that the contract totaled. So that's how you get information back out of a contract and offer, the others are simpler because we don't need information out, so we only have to do one request, we call the appropriate endpoint that we defined earlier in the contract monad.}
+{\pard  \line \par}
+{So this is for offer, this is for retrieve and this is for use. And once again, the details here don't matter, you just need the programming language of your choice that allows you to do post requests and get requests and handle the request bodies and so on. So let's see whether the exchange rate has changed.}
+{\pard  \line \par}
+{No, it's still 1.75. So we are still at our initial value. But nevertheless, let's start this client as well. So cabal run swap client, and you pass command line, if you use cabal run and command line parameters, you have to do double dash and then the parameters. So this will execute this executable I just showed you for wallet two.}
+{\pard  \line \par}
+{So let's do that. And let's also do it for wallet three. Okay. And now I have this, this primitive console interface. So now I can issue these command and actually I forgot, I just see that I missed the funds here, so I not only have offer retrieve and use I also have funds so I could change that. Of course.}
+{\pard  \line \par}
+{Okay.}
+{\pard  \line \par}
+{Let's try that again. If we get the proper help message,}
+{\pard  \line \par}
+{it's either the no exchange rate. Ah, now it just changed. So now it changed from 1.75 to 1.76 and we call the update endpoint on our contract. And if we switched back to the PAB, now we see a log message here that updated oracle value to 1.76. So now the UTxO on the blockchain changed from having 1,750,000 to 1,760,000.}
+{\pard  \line \par}
+{Okay. Now we should be able to try it. So this is now wallet two, let's start with the funds command. Okay. And I still have on my initial funds. So hundred USD one hundred ADA. I can do that for the other wallet as well.}
+{\pard  \line \par}
+{Great.}
+{\pard  \line \par}
+{But anyway, so same thing here, 100 USD 100 ADA. Now let's switch back to wallet two and let's offer a swap. So offer let's say 10 ADA. So ten, one, two, three, one, two, three. Now if I call funds again, there's a difference. So I still have all my USD but now I have 10 ADA less.}
+{\pard  \line \par}
+{And the bid for the transaction fee, if he switched back to the PAB, we should see that something happened here. So a couple of own fund endpoints were called and we get these log messages that the offer was made. Let's just check what the current exchange rate is. Okay. It's still 1.76. So if I now go to the other wallet to wallet three and call use.}
+{\pard  \line \par}
+{I should be able to exchange those 10 ADA for 17 dollars 60. Let's see. Okay. Now let's check the funds here. Okay. That hasn't updated yet, sorry, it takes a while. }
+{\pard  \line \par}
+{Okay, now it has updated. So now I have more ADA. I got the, well, the swap was 10 ADA, so I got the 10 but in order to use the oracle, I had to pay one ADA oracle fee.}
+{\pard  \line \par}
+{So that's why I only have nine and I have a little bit less because I had to pay transaction fees as well. And in exchange, I had to pay 17 dollars 60. }
+{\pard  \line \par}
+{Now, if we switch to the original wallet that did the swap and do funds, then hopefully that will have changed as well. Right. So that now got the 17.60 dollars.}
+{\pard  \line \par}
+{So the swap is compete and the correct value of the exchange rate, the actual live right now exchange rate USD to ADA was used, which was injected into the mock blockchain via my oracle. So now we have seen end to end example of a Plutus Dapp from front-end. }
+{\pard  \line \par}
+{So it talks to the outside world goes on the internet, gets information interacts with Plutus smart contracts, which then submit certain transactions to the blockchain. And then on the blockchain, the validation logic clicks in and makes sure that everything follows the business rules. So this is a complete walk through from on-chain code over off-chain code over PAB code to front-end.}
+{\pard  \line \par}
+{And as I said, it's very similar to what the real system will look like. At least in the beginning, until we have like a browser based way to, to interact with Plutus, the only difference of course is because now it's a mockchain. I only have one instance of the PAB running and all my simulated wallets use the same server, which of course in real life would be silly.}
+{\pard  \line \par}
+{So obviously different wallets will have different instances of PAB running. But now it has to be one instance because this, I mean, otherwise, because there's no real blockchain, so there's this one PAB instance holds the simulated blockchain. So this is slightly different, but if you squint a bit and, and forget about that it's almost exactly end to end how the real system will work in the beginning.}
+{\pard  \line \par}
+{\b\fs36 [02:23:11] 0609 Homework\b0}
+{\pard  \line \par}
+{This was a very long lecture. So congratulations to all that made it to this point. And I'm sorry about that, but I really want to honor your request to talk about oracles and to provide an overview of how an end to end Plutus application works. And unfortunately, that required me to talk about lots of things.}
+{\pard  \line \par}
+{So I think because the lecture was long, I don't want to post specific homework. I think what you should do is try to get this demo running. So run all these executables and see whether it works for you and play a bit with the UI and issue various commands from various wallets. And then of course, if you are ambitious, you can improve this in various directions.}
+{\pard  \line \par}
+{So you could, for example, write different front-ends either in different programming languages or also in Haskell but offering different features like a nicer graphical UI or whatever, or you could also make the oracle more secure. I mentioned before. One way to not have to rely on one trusted party would be to have several oracles.}
+{\pard  \line \par}
+{You could imagine having three wallets running oracles and have using different front-ends, so maybe one wallet uses data from coin market cap and the other two use data from different sources. And then in the swap contract, instead of requiring just the one UTxO, the oracle UTxO in... as input to a swap transaction, you could require all three oracles to be present and then decide on some way to get the value out of those three, for example, throwing away the min and the max and just keeping the one in the middle. That of course would be a lot of work, but it also would make this a much more realistic.}
+{\pard  \line \par}
+{So there are various ways you could improve that, or you could support more than just one token, more than just USD. So I just recommend playing a bit with it and modifying it. If you, if you feel like it.}
+}

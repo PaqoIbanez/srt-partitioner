@@ -1,0 +1,4694 @@
+1
+00:00:07,180 --> 00:00:09,940
+In today's lecture I want to talk about state machines.
+
+2
+00:00:10,300 --> 00:00:17,350
+State machines can be very useful to write shorter and
+more concise contracts, both on chain and off-chain.
+
+3
+00:00:18,090 --> 00:00:26,040
+And their support for state machines in the Plutus
+libraries that is higher level and builds on top
+
+4
+00:00:26,049 --> 00:00:28,759
+of the lower level mechanisms we have seen so far.
+
+5
+00:00:28,759 --> 00:00:36,620
+As a running example for today, I want to implement
+a little game played between Alice and Bob.
+
+6
+00:00:38,090 --> 00:00:43,890
+It's a bit like a rock paper scissors, but even
+simpler because there are only two options.
+
+7
+00:00:43,900 --> 00:00:46,720
+So Alice and Bob both have two options.
+
+8
+00:00:46,739 --> 00:00:48,409
+They can either play zero or one.
+
+9
+00:00:49,070 --> 00:00:56,260
+And if they play it while being physically in the same
+room, it would be played just like rock paper scissors.
+
+10
+00:00:56,270 --> 00:01:03,760
+So at the same time they raised their hand and
+there's one gesture for zero and one gesture for one.
+
+11
+00:01:04,800 --> 00:01:08,439
+And depending on what they play, one of them wins.
+
+12
+00:01:08,639 --> 00:01:15,600
+So if they both use the same gesture, both
+choose zero or both choose one, then Alice wins.
+
+13
+00:01:15,740 --> 00:01:19,429
+And if the choices are different than Bob wins.
+
+14
+00:01:20,340 --> 00:01:25,230
+Now let's imagine that Alice and Bob can't meet
+in person, but they still want to play the game.
+
+15
+00:01:25,940 --> 00:01:30,630
+So they decide to play it via email
+or snail mail, doesn't matter.
+
+16
+00:01:30,650 --> 00:01:35,090
+Of course, we will later implemented
+on the blockchain using Plutus.
+
+17
+00:01:36,540 --> 00:01:37,929
+But how could that work?
+
+18
+00:01:38,010 --> 00:01:45,320
+So Alice can send a mail with her
+choice, let's say zero to Bob.
+
+19
+00:01:47,350 --> 00:01:55,250
+But this of course gives a very unfair advantage to Bob
+because now he opens Alice's mail and see if she picked
+
+20
+00:01:55,260 --> 00:02:00,849
+zero and he can simply reply sending one and he wins.
+
+21
+00:02:02,520 --> 00:02:09,820
+And of course, if Alice instead picks
+one, Bob can simply choose zero.
+
+22
+00:02:10,229 --> 00:02:13,540
+So Bob would always win at least if he's unfair.
+
+23
+00:02:14,500 --> 00:02:16,000
+So what can we do about that?
+
+24
+00:02:16,940 --> 00:02:21,690
+And there's a very clever trick that's
+often used in cryptographic protocols.
+
+25
+00:02:22,250 --> 00:02:25,100
+And that's about humid schemes.
+
+26
+00:02:25,300 --> 00:02:31,890
+So the idea is that Alice doesn't reveal
+her choice to Bob, but she commits to it
+
+27
+00:02:31,940 --> 00:02:34,109
+so that she later can change her mind.
+
+28
+00:02:35,400 --> 00:02:38,780
+And, one way to make that work is using hash functions.
+
+29
+00:02:38,830 --> 00:02:41,619
+I mean, hashes are all over the
+place in the blockchain world.
+
+30
+00:02:41,949 --> 00:02:47,070
+I mean, we have seen that, for example, addresses
+script addresses are just the hash of the
+
+31
+00:02:47,850 --> 00:02:54,200
+Plutus core script and a we've seen lots of
+examples of using public key hashes and so on.
+
+32
+00:02:54,830 --> 00:02:56,590
+And what hash functions are?
+
+33
+00:02:57,150 --> 00:02:59,209
+There are so called one way functions.
+
+34
+00:02:59,600 --> 00:03:07,250
+So it's difficult or impossible given a hash
+to reconstruct the original document or the
+
+35
+00:03:07,300 --> 00:03:09,940
+original byteString that was hashed to this hash.
+
+36
+00:03:10,880 --> 00:03:15,929
+So one way we could try to make this work is
+that instead of sending her choice to Bob, she
+
+37
+00:03:15,929 --> 00:03:18,990
+instead send the hash of her choice to Bob.
+
+38
+00:03:19,830 --> 00:03:22,160
+So she sends the hash of zero.
+
+39
+00:03:24,330 --> 00:03:28,220
+Which is just some, I don't know, cryptic byteString.
+
+40
+00:03:30,100 --> 00:03:35,019
+So now Bob sees this cryptic byteString and he
+has no idea whether Alice picked zero or one.
+
+41
+00:03:35,309 --> 00:03:41,390
+So he maybe picked zero and there's
+no need for him to use a hash.
+
+42
+00:03:42,070 --> 00:03:46,560
+So here can just send the zero in Kia text.
+
+43
+00:03:47,110 --> 00:03:53,359
+And, so now Alice would have won,
+but maybe Bob doesn't believe her.
+
+44
+00:03:53,389 --> 00:03:59,529
+So there's then one additional step that
+Alice has to send another message to Bob
+
+45
+00:03:59,660 --> 00:04:03,750
+where she now sends her actual choice.
+
+46
+00:04:04,240 --> 00:04:11,519
+And then what Bob has to do is he has to
+check whether hash of Alice's claim choice
+
+47
+00:04:11,549 --> 00:04:16,709
+is indeed the hash he received earlier.
+
+48
+00:04:18,910 --> 00:04:23,799
+And if it is, then he knows that Alice is not lying
+and that she indeed picked zero and that he lost.
+
+49
+00:04:24,120 --> 00:04:30,199
+But if this hash doesn't match up, then he knows
+she's cheating or trying to cheat and he would win.
+
+50
+00:04:31,820 --> 00:04:38,010
+And of course, if Alice instead picked
+one that would work exactly the same,
+
+51
+00:04:38,280 --> 00:04:39,900
+except that the hash would be different.
+
+52
+00:04:40,840 --> 00:04:45,309
+So this sounds promising, but there's one
+big problem with this, because in this game,
+
+53
+00:04:45,309 --> 00:04:47,879
+there are only two choices, only zero and one.
+
+54
+00:04:48,299 --> 00:04:50,600
+So there are only two possible hashes.
+
+55
+00:04:51,200 --> 00:04:54,849
+They may look very cryptic to
+Bob the first time they play.
+
+56
+00:04:55,310 --> 00:05:01,845
+But, I mean, sooner or later you noticed
+that he always sees one of these two hashes.
+
+57
+00:05:02,200 --> 00:05:05,150
+And then he knows which choice Alice made.
+
+58
+00:05:06,059 --> 00:05:12,430
+And that's almost as bad as if she
+directly sent her choice out in the open.
+
+59
+00:05:13,220 --> 00:05:18,930
+But what we can do here is that Alice doesn't
+simply send the hash of zero, but that she
+
+60
+00:05:18,930 --> 00:05:26,840
+first concatenates zero with some arbitrary
+byteString so called nonce that she picks.
+
+61
+00:05:28,030 --> 00:05:35,540
+So the way this would work is first
+Alice picks a nonce, some arbitrary text.
+
+62
+00:05:37,040 --> 00:05:43,800
+And then she sends the hash
+of the nonce and her choice.
+
+63
+00:05:45,780 --> 00:05:52,120
+For example, zero to Bob, which
+is some other cryptic byteString.
+
+64
+00:05:52,620 --> 00:05:58,260
+And now it's not always the same byteString,
+if you pick zero provided she always
+
+65
+00:05:58,260 --> 00:06:00,860
+chooses some random unpredictable nonce.
+
+66
+00:06:02,220 --> 00:06:04,930
+So Bob receives it and then it proceeds as before.
+
+67
+00:06:05,030 --> 00:06:08,409
+So he sends his choice, for example, zero.
+
+68
+00:06:09,080 --> 00:06:13,759
+And now in the third message, Alice has
+to not only reveal her original choice,
+
+69
+00:06:13,759 --> 00:06:15,580
+but she has to send the nonce as well.
+
+70
+00:06:16,740 --> 00:06:19,110
+So in this case, she would send the nonce and zero.
+
+71
+00:06:19,570 --> 00:06:29,070
+And then Bob checks that hash of Alice's
+claimed nonce concatenated with zero is
+
+72
+00:06:29,070 --> 00:06:32,250
+indeed the hash she originally received.
+
+73
+00:06:32,830 --> 00:06:34,400
+And if it is, he knows he lost.
+
+74
+00:06:34,400 --> 00:06:37,099
+And if it does not, then he
+knows she tried to cheat him.
+
+75
+00:06:37,570 --> 00:06:43,350
+So this works very nicely and this is what we
+will try to implement in Plutus on Cardano.
+
+76
+00:06:43,790 --> 00:06:51,380
+So first we'll use what we have seen so far
+and then we'll see how by using state machines,
+
+77
+00:06:51,759 --> 00:06:54,760
+the code can be much clearer and much shorter.
+
+78
+00:06:55,379 --> 00:06:57,120
+Now, what will this look like?
+
+79
+00:06:57,740 --> 00:07:07,660
+So first Alice opens the game by posting the hash of
+a nonce combined with the choice she makes to play.
+
+80
+00:07:08,400 --> 00:07:09,560
+So we have the hash.
+
+81
+00:07:10,449 --> 00:07:16,380
+Then if Bob plays along, he will post his own choice.
+
+82
+00:07:16,380 --> 00:07:25,370
+So Bob will play, and now we have the hash
+and Bob's choice, let's call it C Bob.
+
+83
+00:07:27,460 --> 00:07:34,470
+If at this point, Alice realizes that she has
+won, depending on Bob's choice, she can reveal
+
+84
+00:07:34,510 --> 00:07:39,509
+her secret and the game ends and she has won.
+
+85
+00:07:39,849 --> 00:07:45,910
+Let's assume that when Alice plays in Bob plays,
+they both put down certain amount of money.
+
+86
+00:07:46,340 --> 00:07:52,630
+And in this scenario where Alice has won
+Alice gets Bob's claim and her own back.
+
+87
+00:07:53,630 --> 00:07:59,249
+If however, after Bob made his move, Alice sees
+that she has lost, there's no need actually for
+
+88
+00:07:59,250 --> 00:08:01,960
+her to do anything because she has lost anyway.
+
+89
+00:08:02,839 --> 00:08:05,269
+So after a certain deadline has been reached.
+
+90
+00:08:05,910 --> 00:08:08,469
+And Alice just doesn't reply.
+
+91
+00:08:08,660 --> 00:08:11,659
+And then Bob claims his win.
+
+92
+00:08:14,090 --> 00:08:19,580
+And there's another option that we haven't considered
+it, it could be that after Alice starts playing,
+
+93
+00:08:19,590 --> 00:08:21,969
+Bob simply is not interested and doesn't reply.
+
+94
+00:08:22,029 --> 00:08:27,900
+So in that case, there must be a way
+for Alice to get her own money back.
+
+95
+00:08:30,070 --> 00:08:32,640
+And that's basically all the things that can happen.
+
+96
+00:08:32,640 --> 00:08:39,579
+So the different stages of the game starts
+by Alice opening with the hash of the
+
+97
+00:08:39,579 --> 00:08:41,929
+concatenation of a nonce in her move.
+
+98
+00:08:42,669 --> 00:08:46,329
+Then if Bob doesn't reply, Alice gets her money back.
+
+99
+00:08:46,329 --> 00:08:51,080
+If Bob does reply, he puts down his choice
+and then there are two possibilities again.
+
+100
+00:08:51,809 --> 00:08:56,659
+Alice realizes she has won and she needs to
+prove it to Bob by revealing and she wins
+
+101
+00:08:56,750 --> 00:09:03,220
+or she doesn't do anything and after some
+time has passed, Bob can claim the win.
+
+102
+00:09:04,250 --> 00:09:07,410
+And he gets both Alice's at his own stake.
+
+103
+00:09:08,639 --> 00:09:10,620
+So let's implement this in Plutus now.
+
+104
+00:09:11,090 --> 00:09:14,360
+First, just using the techniques we already know about.
+
+105
+00:09:15,480 --> 00:09:19,730
+So let's look at the implementation,
+it's in the module even odd.
+
+106
+00:09:20,100 --> 00:09:27,430
+And if you're wondering about that name, it's just
+because if the sum of the two choices of the two
+
+107
+00:09:27,430 --> 00:09:32,200
+numbers that the players pick is even then the first
+player wins and if it's odd, the second player wins.
+
+108
+00:09:32,920 --> 00:09:38,430
+Which is the same as what I said earlier, that
+if they agree, the first player wins and if
+
+109
+00:09:38,430 --> 00:09:40,250
+they are different, the second player wins.
+
+110
+00:09:40,890 --> 00:09:46,180
+And I called the first and second player first
+and second, instead of Alice and Bob here.
+
+111
+00:09:47,190 --> 00:09:52,379
+So the data type game is used
+as a parameter for the contract.
+
+112
+00:09:53,080 --> 00:09:59,780
+So G first and G second are the two players
+identified by their public key hashes.
+
+113
+00:10:00,550 --> 00:10:08,070
+G stake is an integer that denotes the
+number of lovelace that are to be used
+
+114
+00:10:08,070 --> 00:10:09,920
+as stake in the game by each player.
+
+115
+00:10:10,520 --> 00:10:13,690
+And then there are two deadlines,
+play deadline and reveal deadline.
+
+116
+00:10:13,690 --> 00:10:21,650
+So play deadline is by what time the
+second player has to make a move before
+
+117
+00:10:21,650 --> 00:10:24,990
+the first player can claim back his stake.
+
+118
+00:10:25,610 --> 00:10:30,109
+And the reveal deadline is in the case
+that the second player has made the move.
+
+119
+00:10:30,740 --> 00:10:35,125
+How much time the first player has to
+claim victory by revealing his nonce.
+
+120
+00:10:35,150 --> 00:10:40,650
+And finally, we have a token
+represented by its asset class.
+
+121
+00:10:41,329 --> 00:10:48,250
+And this will be the same trick that I used
+last time for the oracle, that will be NFT
+
+122
+00:10:48,559 --> 00:10:55,570
+in arbitrary NFT use to identify the right
+instance of the UTxO that we are using.
+
+123
+00:10:55,680 --> 00:11:01,759
+So the idea is, again, similar to what we did
+with the oracle who use the datum of a UTxO
+
+124
+00:11:02,880 --> 00:11:08,780
+sitting at the address of this contract, this
+script address of this contact to keep track
+
+125
+00:11:08,790 --> 00:11:11,500
+of what has happened, where we are in the game.
+
+126
+00:11:16,260 --> 00:11:19,659
+Then the type game choice.
+
+127
+00:11:20,029 --> 00:11:23,680
+So that's just the two moves the
+players can make, zero or one.
+
+128
+00:11:25,550 --> 00:11:34,574
+And, I derive equality in the normal Haskell sense
+and an ord instance, but unfortunately for the
+
+129
+00:11:34,574 --> 00:11:37,428
+Plutus equivalence of eq and ord that's not possible.
+
+130
+00:11:37,571 --> 00:11:43,820
+And I need eq for Plutus eq so I
+do that by hand in the usually way.
+
+131
+00:11:44,240 --> 00:11:46,470
+So, I mean zero equals zero
+
+132
+00:11:46,520 --> 00:11:49,980
+and one equals one and all other
+combinations are not equal.
+
+133
+00:11:51,139 --> 00:11:56,380
+And for this to work with template Haskell,
+you have to put this inlinable pragma
+
+134
+00:11:56,380 --> 00:11:59,530
+there as well for the equals operation.
+
+135
+00:12:01,320 --> 00:12:06,290
+And game datum is what I will
+use as state for the contract.
+
+136
+00:12:07,230 --> 00:12:13,610
+And byteString is the hash that the
+first player submits and maybe game
+
+137
+00:12:13,610 --> 00:12:16,120
+choice is the move by the second player.
+
+138
+00:12:16,219 --> 00:12:20,520
+It's a maybe because in the beginning,
+the second player hasn't yet moved.
+
+139
+00:12:20,750 --> 00:12:24,800
+So then it will be nothing and once the
+second player has moved, it will be a just.
+
+140
+00:12:26,139 --> 00:12:30,769
+And same thing I also need a
+Plutus equality for game datum.
+
+141
+00:12:31,179 --> 00:12:37,610
+And just also the obvious one that two
+are equal if both components, the hash
+
+142
+00:12:37,610 --> 00:12:39,400
+and the maybe game choice are equal.
+
+143
+00:12:41,285 --> 00:12:48,150
+Now we come to the redeemer and for that, I also
+implemented the custom type that called game redeemer.
+
+144
+00:12:49,049 --> 00:12:53,799
+And that corresponds to the transitions
+we saw in the diagram I drew just now.
+
+145
+00:12:54,459 --> 00:13:01,670
+So, play is when the second player moves
+and as argument, it has a game choice.
+
+146
+00:13:02,179 --> 00:13:04,659
+So the second player can play zero or one.
+
+147
+00:13:04,719 --> 00:13:06,529
+So that will be play zero or play one.
+
+148
+00:13:07,399 --> 00:13:13,480
+Reveal is for the case when the first player has
+won and must prove that by revealing its nonce.
+
+149
+00:13:13,910 --> 00:13:16,140
+So the byteString argument here would be the nonce.
+
+150
+00:13:17,080 --> 00:13:24,490
+We don't need to also provide the move that the
+first player made, because he will only reveal in the
+
+151
+00:13:24,490 --> 00:13:28,120
+case he has won and we know what move makes him win.
+
+152
+00:13:28,549 --> 00:13:30,720
+So that would be redundant and therefore I left it.
+
+153
+00:13:31,340 --> 00:13:33,330
+And finally claim first and came.
+
+154
+00:13:33,330 --> 00:13:36,930
+Second claim first is in the case when
+the second player doesn't make a move.
+
+155
+00:13:37,050 --> 00:13:43,060
+So the first player can claim back his stake and
+came second is for the case that the first player
+
+156
+00:13:43,200 --> 00:13:46,200
+doesn't reveal because he knows he has lost.
+
+157
+00:13:46,539 --> 00:13:49,400
+So the second player can get his winnings.
+
+158
+00:13:51,670 --> 00:13:54,260
+Then same helper function I use last time.
+
+159
+00:13:54,960 --> 00:13:57,770
+That I think is for some reason
+missing from the Plutus libraries.
+
+160
+00:13:58,110 --> 00:14:02,510
+So given a value extractor number
+of lovelaces content in it.
+
+161
+00:14:03,190 --> 00:14:10,580
+And then similar last time I had oracle datum
+function, and now I did the same for game datum.
+
+162
+00:14:10,970 --> 00:14:17,729
+So given an output of a transaction and
+some way to given a datum hash, maybe
+
+163
+00:14:17,730 --> 00:14:20,659
+get the datum, give me a game datum.
+
+164
+00:14:20,870 --> 00:14:23,089
+And it's the same as with oracle last time.
+
+165
+00:14:23,090 --> 00:14:24,499
+So it's these three steps.
+
+166
+00:14:24,950 --> 00:14:32,930
+First I get the try to get the data hash
+from the output, which may fail second
+
+167
+00:14:32,930 --> 00:14:39,219
+year, use the second argument function
+to turn this hash into a data and value.
+
+168
+00:14:39,660 --> 00:14:47,349
+And lastly, I try to pass this datum
+as a something from of type game datum.
+
+169
+00:14:47,890 --> 00:14:50,510
+So that's exactly what I did for the oracle last time.
+
+170
+00:14:51,920 --> 00:14:56,300
+Now we come to the core business logic
+in the make game validator function.
+
+171
+00:14:57,570 --> 00:15:02,439
+The first argument here is the parameter
+of the game type that I just explained.
+
+172
+00:15:02,840 --> 00:15:07,589
+The second and the third
+argument, somewhat of a nuisance.
+
+173
+00:15:07,910 --> 00:15:14,290
+And I just need them due to the fact that as
+we have already discussed on Discord, it's not
+
+174
+00:15:14,299 --> 00:15:22,260
+possible to use string literals to get byteStrings
+in Haskell that is compiled to Plutus core.
+
+175
+00:15:22,780 --> 00:15:27,339
+And I want, string literals representing
+the zero choice and the one choice.
+
+176
+00:15:27,770 --> 00:15:33,250
+So this will just be the byteString with the
+digit zero and the byteString with the digit one.
+
+177
+00:15:33,969 --> 00:15:39,010
+But because I can't use string literals,
+I passed them in as auxiliary arguments
+
+178
+00:15:39,420 --> 00:15:41,050
+we'll see how we pass them in later.
+
+179
+00:15:42,440 --> 00:15:45,879
+Then the usual datum, redeemer and context.
+
+180
+00:15:46,110 --> 00:15:48,360
+Let's look at some helper functions first.
+
+181
+00:15:48,920 --> 00:15:54,189
+So info as before own input
+and own output also as before.
+
+182
+00:15:54,460 --> 00:16:01,170
+So this should never fail because we are in
+the context of validating the usage of a UTxO.
+
+183
+00:16:01,450 --> 00:16:05,300
+So there should always be own input
+the input via presently validating.
+
+184
+00:16:06,589 --> 00:16:11,279
+Own output if you're in a case where we are
+not done yet, where the game isn't over.
+
+185
+00:16:11,760 --> 00:16:17,280
+We want that there's a new UTxO
+carrying the NFT with the updated datum.
+
+186
+00:16:17,470 --> 00:16:22,429
+So for that case, we will use this own
+output function and it checks all the
+
+187
+00:16:22,429 --> 00:16:24,250
+outputs that go to the same address.
+
+188
+00:16:24,920 --> 00:16:28,070
+And only succeeds if there's exactly one such.
+
+189
+00:16:29,529 --> 00:16:33,640
+Output datum makes use of this game
+datum function that we defined earlier.
+
+190
+00:16:34,100 --> 00:16:40,319
+And given the case where we have exactly
+one output to the same script address gives
+
+191
+00:16:40,320 --> 00:16:42,289
+us the datum tries to gives us the datum.
+
+192
+00:16:43,099 --> 00:16:45,950
+And that could fail or otherwise we return the datum.
+
+193
+00:16:46,820 --> 00:16:52,150
+So check nonce is for the case that the first
+player has won and wants to prove it by revealing
+
+194
+00:16:52,150 --> 00:16:59,800
+his nonce and improving that the hash submitted
+in the beginning of the game fits this nuance.
+
+195
+00:17:00,860 --> 00:17:03,270
+So the first argument is the hash he submitted.
+
+196
+00:17:03,360 --> 00:17:06,040
+The second argument is the nonce he now reveals.
+
+197
+00:17:06,510 --> 00:17:11,159
+The third argument is the move that both players made.
+
+198
+00:17:11,560 --> 00:17:16,709
+It's called C second here, move of the second
+player, but this function would only be involved or
+
+199
+00:17:16,709 --> 00:17:22,079
+only be relevant in the case where the first player
+knows he has won, which is only the case when he
+
+200
+00:17:22,079 --> 00:17:24,680
+made the same choice that the second player made.
+
+201
+00:17:24,680 --> 00:17:28,189
+So I could just as well called
+at sea first in principle.
+
+202
+00:17:29,960 --> 00:17:34,710
+And in order to do this check, I mean, how did
+the computation of the hash work where I take
+
+203
+00:17:34,710 --> 00:17:37,719
+the nonce and concatenated with the choice.
+
+204
+00:17:38,000 --> 00:17:44,320
+But the choice of course here is, is some abstract
+data type game choice, but in order to concatenate
+
+205
+00:17:44,330 --> 00:17:46,350
+with the nonce I needed in byteString form.
+
+206
+00:17:47,040 --> 00:17:53,559
+And the idea is, I just use this BS zero for
+the zero choice and BS one for the one choice.
+
+207
+00:17:54,150 --> 00:17:56,260
+So this is just as conversion.
+
+208
+00:17:57,150 --> 00:17:59,799
+And I called the byteString C first.
+
+209
+00:18:00,089 --> 00:18:03,800
+So C second is of type game choice,
+but C first is of type byteString.
+
+210
+00:18:04,070 --> 00:18:07,820
+And if the choice was zero, I'd take
+the byteString representing zero.
+
+211
+00:18:07,820 --> 00:18:13,789
+If it was one, I take the bites strong
+representing one, then to compute the hash I
+
+212
+00:18:13,829 --> 00:18:22,159
+take the nonce concatenated with this byteString
+and apply the sha2_256, a hash function to it.
+
+213
+00:18:23,030 --> 00:18:29,590
+So this is the hash that I get giving this nonce
+then check is to make sure that that is indeed the
+
+214
+00:18:29,590 --> 00:18:32,940
+hash, the first player committed in the first place.
+
+215
+00:18:33,870 --> 00:18:39,390
+And finally, I haven't mentioned that before,
+but we now have this state token, this NFT that
+
+216
+00:18:39,410 --> 00:18:44,710
+identifies the correct UTxO and the question is
+what happens to this NFT after the game is over
+
+217
+00:18:44,710 --> 00:18:47,350
+and there is no UTxO at the game address anymore.
+
+218
+00:18:47,849 --> 00:18:50,890
+And the way I've implemented.
+
+219
+00:18:51,080 --> 00:18:53,340
+Now, I've wanted to go back to the first player.
+
+220
+00:18:53,400 --> 00:18:57,720
+The first player needs to have it at the
+beginning in order to kick off the game
+
+221
+00:18:57,720 --> 00:19:00,080
+and put the NFT into the correct UTxO.
+
+222
+00:19:01,200 --> 00:19:08,300
+So I think it's, it's only reasonable to give it
+back to him in the end, no matter who won the game.
+
+223
+00:19:09,130 --> 00:19:14,750
+So this just checks, there's a function
+called value paid to and gets the
+
+224
+00:19:14,770 --> 00:19:16,820
+context or the info from the context.
+
+225
+00:19:17,560 --> 00:19:24,415
+And pub key hash and then it basically adds
+up all the values that go to that pub key
+
+226
+00:19:24,415 --> 00:19:26,810
+hash in some output of the transaction.
+
+227
+00:19:27,410 --> 00:19:31,870
+So I want that, so this just means
+that the first player gets the token.
+
+228
+00:19:32,819 --> 00:19:35,500
+So now we can look at the, at the conditions.
+
+229
+00:19:36,270 --> 00:19:39,520
+There's one condition that applies
+to all cases simultaneously.
+
+230
+00:19:39,689 --> 00:19:44,500
+And that is that the input I'm validating
+must be identified by the state token.
+
+231
+00:19:44,520 --> 00:19:46,239
+So that's what I'm checking here.
+
+232
+00:19:46,369 --> 00:19:48,204
+That the own input, the input I'm presently
+validating, contains the state token.
+
+233
+00:19:48,204 --> 00:19:58,080
+And then what the, the rules, after
+that depend on the situation I'm in.
+
+234
+00:19:58,190 --> 00:20:01,830
+The first situation is the one
+where the first player has moved.
+
+235
+00:20:02,330 --> 00:20:04,560
+The second player is moving now.
+
+236
+00:20:04,639 --> 00:20:09,950
+So this is the transaction where the
+second player moves and chooses to move C.
+
+237
+00:20:10,640 --> 00:20:13,290
+So the datum, the second component must be nothing.
+
+238
+00:20:13,520 --> 00:20:16,850
+Remember that just means that the second
+player hasn't moved to is moving now.
+
+239
+00:20:17,750 --> 00:20:19,360
+And in this case, what do I have to check?
+
+240
+00:20:19,360 --> 00:20:23,229
+I have to check that this move is
+indeed made by the second player.
+
+241
+00:20:23,529 --> 00:20:25,549
+So he has to sign the transaction.
+
+242
+00:20:26,330 --> 00:20:32,220
+This checks that the first player
+has put down the stake for the game.
+
+243
+00:20:33,540 --> 00:20:39,350
+Then this checks that now in this transaction,
+the second player, it's his own stake.
+
+244
+00:20:39,469 --> 00:20:42,870
+So in the output, we now have twice the G stake game.
+
+245
+00:20:44,650 --> 00:20:48,340
+Then we know exactly what the
+datum of the output must be.
+
+246
+00:20:48,410 --> 00:20:54,709
+It must be the same hash as before, but now
+the nothing is replaced by just C where C is
+
+247
+00:20:54,719 --> 00:20:57,010
+exactly the move, the second player is making.
+
+248
+00:20:58,850 --> 00:21:01,560
+Then the move has to happen before the first deadline.
+
+249
+00:21:01,830 --> 00:21:07,660
+That's exactly the point of this first step by the
+play deadline until then the move must have happened.
+
+250
+00:21:08,770 --> 00:21:16,119
+And finally, the NFT must be passed onto
+the new UTxO to identify that again.
+
+251
+00:21:17,949 --> 00:21:25,680
+Okay, the second situation is both players have
+moved and the first player discovers that he has won.
+
+252
+00:21:25,760 --> 00:21:30,709
+So in order to prove that and get the win
+winnings, he has to reveals his nonce.
+
+253
+00:21:31,289 --> 00:21:34,450
+So in that case, it has to be
+signed by the first player.
+
+254
+00:21:35,600 --> 00:21:41,710
+The nonce must indeed agree with
+the hash he submitted earlier.
+
+255
+00:21:43,030 --> 00:21:45,490
+He must do this before the reveal deadline.
+
+256
+00:21:46,679 --> 00:21:50,989
+The input must contain the stake of both players.
+
+257
+00:21:52,100 --> 00:21:56,710
+And finally, what I just said, the
+NFT must go back to the first player.
+
+258
+00:21:58,860 --> 00:22:05,800
+First case is second player hasn't moved
+yet and also doesn't move in the deadline.
+
+259
+00:22:05,870 --> 00:22:07,689
+So the first player wants his stake back.
+
+260
+00:22:09,160 --> 00:22:11,810
+So this must be signed by the first player.
+
+261
+00:22:12,750 --> 00:22:16,120
+It must only happen after the deadline has passed.
+
+262
+00:22:17,680 --> 00:22:23,590
+The first player has provided his
+stake and he must get the NFT back.
+
+263
+00:22:23,600 --> 00:22:32,400
+And the last case is, both players have
+moved, but the first player has realized
+
+264
+00:22:32,410 --> 00:22:36,500
+that he didn't win and therefore didn't
+reveal his nonce or he got disconnected or
+
+265
+00:22:36,500 --> 00:22:38,450
+whatever, in any case, he missed the deadline.
+
+266
+00:22:39,040 --> 00:22:43,340
+So in that case, the second player wins, but
+the second player must sign this transaction.
+
+267
+00:22:45,490 --> 00:22:49,370
+So it must not happen before the deadline,
+he can only do that once the reveal deadline
+
+268
+00:22:49,370 --> 00:22:53,439
+has passed to give the first play enough time
+to reveal the nonce if the first player won.
+
+269
+00:22:54,650 --> 00:22:59,010
+We check again that the input, the
+consumed UTxO has the correct stake.
+
+270
+00:22:59,030 --> 00:23:02,140
+So in this case, both players
+must have provided their stake.
+
+271
+00:23:02,929 --> 00:23:07,780
+And even though the second player has won and gets
+the money, the NFT must go back to the first player.
+
+272
+00:23:09,150 --> 00:23:12,350
+And that's all legitimate transitions we can have.
+
+273
+00:23:13,980 --> 00:23:19,800
+So in all other cases, we don't
+validate, we fail validation.
+
+274
+00:23:22,170 --> 00:23:24,929
+So now let's look at the rest of the on-chain code.
+
+275
+00:23:26,010 --> 00:23:30,680
+As always, we define this helper type
+that just bundles information about what
+
+276
+00:23:30,730 --> 00:23:32,720
+the datum and what the redeemer type are.
+
+277
+00:23:33,680 --> 00:23:38,620
+Here we define the byteStrings we actually
+going to use for the two choices zero and one.
+
+278
+00:23:38,629 --> 00:23:40,240
+This is completely arbitrary.
+
+279
+00:23:41,299 --> 00:23:43,460
+I could pick any two byteString there.
+
+280
+00:23:45,200 --> 00:23:48,970
+Typed game validator, it compiles de code as before.
+
+281
+00:23:49,080 --> 00:23:55,470
+So it's parameterized now by game and these
+two byteStrings, this make validator function.
+
+282
+00:23:55,530 --> 00:24:02,840
+So I have to apply all of them, but
+I just use these constants here.
+
+283
+00:24:03,780 --> 00:24:09,479
+So now, I only left with this one
+game parameter as one would expect.
+
+284
+00:24:10,809 --> 00:24:15,060
+And the usual boiler plate for validator and address.
+
+285
+00:24:15,290 --> 00:24:21,160
+Now as preparation for the on-chain
+code, sorry for the off-chain code, we
+
+286
+00:24:21,160 --> 00:24:23,399
+will always need to find the right UTxO.
+
+287
+00:24:24,030 --> 00:24:26,830
+So the one that carries the NFT.
+
+288
+00:24:27,669 --> 00:24:32,100
+So I write this helper function find game
+output that gets the game and then in the
+
+289
+00:24:32,100 --> 00:24:35,474
+contract monad tries to find the UTxO.
+
+290
+00:24:35,639 --> 00:24:38,580
+So it could fail, the UTxO or could not be there.
+
+291
+00:24:38,620 --> 00:24:42,840
+So therefore maybe, and then I return the
+usual things, the reference and the output
+
+292
+00:24:42,840 --> 00:24:46,490
+itself and additionally, the game datum.
+
+293
+00:24:47,820 --> 00:24:50,849
+And that's called straightforward to implement.
+
+294
+00:24:50,849 --> 00:24:55,100
+So first I get all the UTxOs at the game address.
+
+295
+00:24:56,380 --> 00:24:58,240
+Then I use this find function.
+
+296
+00:24:59,160 --> 00:25:01,679
+This is in data dot list.
+
+297
+00:25:03,870 --> 00:25:09,599
+And it's more general, doesn't only work for
+lists, it works for more general containers
+
+298
+00:25:09,880 --> 00:25:12,199
+of type T, but you can think lists.
+
+299
+00:25:12,260 --> 00:25:17,550
+So it gets a predicate on elements and
+the list of As and returns a maybe A.
+
+300
+00:25:17,770 --> 00:25:23,130
+And the logic is if it finds an element in the
+list that satisfies the predicate, it will return
+
+301
+00:25:23,130 --> 00:25:26,620
+it as a just and otherwise it will return nothing.
+
+302
+00:25:27,020 --> 00:25:34,750
+So if we do find even 1, 3, 5, 8, 11, 12.
+
+303
+00:25:38,080 --> 00:25:41,839
+It will pick the first even
+number from the list just eight.
+
+304
+00:25:42,469 --> 00:25:46,780
+But if I remove the even elements,
+then it will return nothing.
+
+305
+00:25:47,590 --> 00:25:49,020
+So using this find.
+
+306
+00:25:50,970 --> 00:25:57,610
+After we have all the UTxOs turn them into
+a list of pairs, then as F we take such a
+
+307
+00:25:57,610 --> 00:25:59,749
+pair, ignore the reference, just take the o.
+
+308
+00:26:00,160 --> 00:26:03,810
+And check whether this output contains our token.
+
+309
+00:26:05,219 --> 00:26:09,259
+So this line, which by the way,
+happens in the maybe monad.
+
+310
+00:26:10,059 --> 00:26:10,499
+Will...
+
+311
+00:26:10,630 --> 00:26:14,659
+If it exists, find us the UTxO that contains the token.
+
+312
+00:26:15,200 --> 00:26:19,340
+And then we use the earlier defined
+helper function game datum to get the
+
+313
+00:26:19,500 --> 00:26:22,829
+datum to this UTxO and return the triple.
+
+314
+00:26:24,879 --> 00:26:28,580
+Now there's a second helper
+function, wait until time has passed.
+
+315
+00:26:29,030 --> 00:26:35,169
+The idea is it gets a POSIX time and
+then it waits until that POSIX time
+
+316
+00:26:35,170 --> 00:26:38,110
+has passed and we are in the next slot.
+
+317
+00:26:39,299 --> 00:26:40,940
+So how do I do that?
+
+318
+00:26:40,969 --> 00:26:44,850
+I get the current slot, I just log it.
+
+319
+00:26:45,860 --> 00:26:51,440
+Then I use something provided by the contract
+monad called await time which does what it says.
+
+320
+00:26:51,740 --> 00:26:57,440
+So it gets a POSIX time and waits blocks
+the contract until the time has come.
+
+321
+00:26:58,129 --> 00:27:04,310
+And then just to make sure that I'm in the next
+slot, I wait for one slot using wait N slots.
+
+322
+00:27:05,040 --> 00:27:11,440
+And I just for information, ask for
+the now current slot and also log that.
+
+323
+00:27:13,190 --> 00:27:16,350
+Okay, so now we have two contracts for the two players.
+
+324
+00:27:17,779 --> 00:27:21,950
+One for the first player to play the game.
+
+325
+00:27:22,070 --> 00:27:24,730
+The other one for the second player,
+second player plays the game.
+
+326
+00:27:25,540 --> 00:27:29,070
+And with corresponding parameters
+first params and second params.
+
+327
+00:27:29,910 --> 00:27:33,520
+So, first params we don't need the first player.
+
+328
+00:27:33,520 --> 00:27:37,600
+The first player will be the owner of the wallet
+that invokes this contract, but we need the
+
+329
+00:27:37,600 --> 00:27:42,860
+second and the other things we need to define
+the game, the stake and the two deadlines.
+
+330
+00:27:43,300 --> 00:27:48,419
+Then we need the nonce that the first
+player wants to use to conceal his choice.
+
+331
+00:27:49,549 --> 00:27:53,049
+And then the NFT which we split
+into currency symbol and token name.
+
+332
+00:27:53,119 --> 00:27:56,780
+And finally the choice, the move
+that the player wants to make.
+
+333
+00:27:57,910 --> 00:28:02,780
+So in this contract, first get our own public key hash.
+
+334
+00:28:03,889 --> 00:28:07,040
+Then we can define the value of the game type.
+
+335
+00:28:07,049 --> 00:28:12,909
+So we put our own public key hash as first player and
+then use the parameters we got from the first params.
+
+336
+00:28:15,156 --> 00:28:19,950
+And for the token we just assemble the currency
+symbol and token name into an asset class.
+
+337
+00:28:20,990 --> 00:28:27,100
+And this V value is just our stake that
+we must put into the . UTxO plus the
+
+338
+00:28:27,440 --> 00:28:29,959
+NFT that we must put into the UTxO.
+
+339
+00:28:31,150 --> 00:28:32,510
+C is our choice.
+
+340
+00:28:32,620 --> 00:28:37,290
+Now we compute the hash that we must
+put there, our commitment to our choice.
+
+341
+00:28:37,960 --> 00:28:43,039
+So we take the more nonce and concatenate
+it with, well, if you want to play zero.
+
+342
+00:28:43,240 --> 00:28:48,350
+There's zero byteString, and otherwise
+the one byteString and hash the results.
+
+343
+00:28:49,620 --> 00:28:52,350
+The constraints for the transaction are very simple.
+
+344
+00:28:52,530 --> 00:28:58,650
+All we have to do is we must produce a script output
+at this address with the datum that contains the hash.
+
+345
+00:28:58,660 --> 00:29:03,899
+We just computed nothing for the second player,
+because obviously the second player hasn't played yet.
+
+346
+00:29:04,670 --> 00:29:06,080
+And the value we computed.
+
+347
+00:29:06,120 --> 00:29:09,500
+And we wait for transaction and log a message.
+
+348
+00:29:10,180 --> 00:29:15,380
+So now, the second player has a chance to move,
+but it must happen before this play deadline.
+
+349
+00:29:15,380 --> 00:29:19,600
+So what we do now is first player is
+we wait until this deadline has passed.
+
+350
+00:29:20,389 --> 00:29:22,009
+And then there are several cases.
+
+351
+00:29:22,420 --> 00:29:30,350
+So we check whether we find UTxO containing the NFT, if
+we don't find it, then something has gone very wrong.
+
+352
+00:29:30,350 --> 00:29:33,570
+That can't actually happen,
+because this can't just disappear.
+
+353
+00:29:34,630 --> 00:29:40,940
+We know we just produce the UTxO at this address
+and all anybody else at the second player can do
+
+354
+00:29:40,940 --> 00:29:44,110
+is, make a move, but that doesn't destroy the UTx...
+
+355
+00:29:44,320 --> 00:29:48,790
+I mean, it's removed, UTxO that produces
+a new one at the same address again.
+
+356
+00:29:49,320 --> 00:29:50,770
+So we should find it.
+
+357
+00:29:50,860 --> 00:29:52,690
+There's no way we can not find it.
+
+358
+00:29:53,440 --> 00:29:56,600
+But nevertheless, if that happens then...
+
+359
+00:29:56,930 --> 00:30:00,620
+throwing an exception, but normally we will find it.
+
+360
+00:30:00,759 --> 00:30:04,260
+So we have this triple the UTxO And the datum.
+
+361
+00:30:05,030 --> 00:30:07,790
+And in this case, the second player hasn't moved.
+
+362
+00:30:08,120 --> 00:30:09,969
+So the deadline has passed.
+
+363
+00:30:09,969 --> 00:30:11,029
+The second player hasn't moved.
+
+364
+00:30:11,469 --> 00:30:16,539
+So what we can do is we can invoke this
+claim first redeemer to get our stake back.
+
+365
+00:30:17,430 --> 00:30:22,925
+So as constraints, we just say, we must
+spend this UTxO we found with this redeemer
+
+366
+00:30:23,210 --> 00:30:27,649
+and as lookups we need to provide the UTxO.
+
+367
+00:30:28,159 --> 00:30:30,639
+And we must provide the validator of the game.
+
+368
+00:30:31,110 --> 00:30:34,270
+And in that case, we log that we reclaimed the stake.
+
+369
+00:30:35,629 --> 00:30:39,710
+Second case is that the second player did
+move and they are then in turn again, two
+
+370
+00:30:39,730 --> 00:30:44,450
+cases that the second player moved and won
+or that the second player moved and lost.
+
+371
+00:30:45,090 --> 00:30:50,219
+So this is the case where the second player
+choose the same move that we played, so we won.
+
+372
+00:30:50,959 --> 00:30:56,690
+And in the other case, the second player won and
+we can't do anything so we just don't do anything.
+
+373
+00:30:57,310 --> 00:31:02,800
+But if we won, we must now reveal
+our nonce to get the winning.
+
+374
+00:31:03,709 --> 00:31:06,120
+So we use the reveal nonce redeemer.
+
+375
+00:31:08,709 --> 00:31:14,280
+And we must also submit this transaction
+before the deadline for revealing has passed.
+
+376
+00:31:15,100 --> 00:31:21,630
+And we, again, need lookups, we again need to specify
+the UTxO and we must provide the gain validator.
+
+377
+00:31:22,660 --> 00:31:25,280
+And then we submit and wait and have won.
+
+378
+00:31:26,040 --> 00:31:32,030
+Now for the second player, the parameters are
+very similar, except that now we don't need to
+
+379
+00:31:32,030 --> 00:31:34,210
+provide the second player because that's us.
+
+380
+00:31:34,620 --> 00:31:38,619
+But the first player stake and the two
+deadlines as before currency, symbol
+
+381
+00:31:38,620 --> 00:31:40,530
+and token name for the NFT as before.
+
+382
+00:31:40,980 --> 00:31:43,380
+And the choice, the move we want to make.
+
+383
+00:31:44,520 --> 00:31:48,259
+We don't need the nonce now because the
+nonce was only for the first player.
+
+384
+00:31:48,830 --> 00:31:54,580
+Okay, so if we start by looking up our own public
+key hash and can then define the game value,
+
+385
+00:31:55,820 --> 00:31:58,169
+similar to as what you did for the first player.
+
+386
+00:31:59,219 --> 00:32:03,589
+And now we, try to find the UTxO that contains the NFT.
+
+387
+00:32:03,589 --> 00:32:07,409
+So if we find it and...
+
+388
+00:32:07,569 --> 00:32:11,360
+BS is the commitment of the first player, the hash.
+
+389
+00:32:12,080 --> 00:32:14,459
+And nothing, because we haven't moved yet.
+
+390
+00:32:15,320 --> 00:32:20,330
+So in that case, we found the game, so this
+is the most interesting case, but let's look
+
+391
+00:32:20,349 --> 00:32:22,689
+at the second case that it's not like that.
+
+392
+00:32:22,709 --> 00:32:26,750
+Well, in that case, we just didn't find the
+game where we can move, so we can't do anything.
+
+393
+00:32:27,320 --> 00:32:29,890
+So it's enough to concentrate on this case.
+
+394
+00:32:30,110 --> 00:32:35,789
+So if we found the game and now we want to
+make our move, so invoke the play redeemer.
+
+395
+00:32:38,500 --> 00:32:44,120
+So token is the NFT, now V is the value
+that we must put in the new output.
+
+396
+00:32:44,680 --> 00:32:48,560
+Remember if we do the play transaction,
+we must consume the existing UTxO and
+
+397
+00:32:48,580 --> 00:32:50,140
+producing one at the same address.
+
+398
+00:32:50,800 --> 00:32:55,830
+And, the old one should contain the
+stake that the first player put in.
+
+399
+00:32:55,849 --> 00:32:59,470
+And now we must add our own stake
+and we must keep the NFT in there.
+
+400
+00:33:00,120 --> 00:33:03,120
+And the NFT of course is also contained
+in the, in the input side already.
+
+401
+00:33:03,960 --> 00:33:10,853
+So, what we must put in the output
+is, so X is just local variable here
+
+402
+00:33:10,853 --> 00:33:13,420
+to, so that's the steak in lovelace.
+
+403
+00:33:13,849 --> 00:33:18,580
+So we must into the output, put
+twice the stake and the NFT.
+
+404
+00:33:19,480 --> 00:33:22,389
+C is our choice, let's look at the constraints first.
+
+405
+00:33:22,780 --> 00:33:28,899
+So we must spend the existing UTxO
+with redeemer play our choice.
+
+406
+00:33:29,610 --> 00:33:33,949
+Then we must create a new UTxO with the updated datum.
+
+407
+00:33:34,090 --> 00:33:37,860
+So same BS, but now just C, just our move.
+
+408
+00:33:38,290 --> 00:33:42,600
+And this V we computed, which now also
+contains our own stake in addition to
+
+409
+00:33:42,600 --> 00:33:44,060
+the first player stake and the NFT.
+
+410
+00:33:45,790 --> 00:33:49,830
+And we must do this before the
+deadline passes to make the play move.
+
+411
+00:33:51,560 --> 00:33:55,419
+And we need lookups, so we must provide the UTxO.
+
+412
+00:33:56,230 --> 00:34:00,389
+And because we are consuming script
+opportunity the validator, and because we are
+
+413
+00:34:00,390 --> 00:34:02,750
+producing one, we need the script instance.
+
+414
+00:34:04,280 --> 00:34:06,040
+Then we do the usual things.
+
+415
+00:34:06,040 --> 00:34:09,429
+So we submit, we wait for confirmation, we log.
+
+416
+00:34:10,260 --> 00:34:12,120
+Now it's the first player's turn again.
+
+417
+00:34:12,209 --> 00:34:15,320
+So we wait until this reveal deadline has passed.
+
+418
+00:34:16,199 --> 00:34:21,919
+And we, again, try to find the UTxO which
+will now or could now, be a different one.
+
+419
+00:34:22,599 --> 00:34:28,980
+That's I called M prime So if we don't find an UTxO
+any more, that means that in the meantime, while
+
+420
+00:34:29,130 --> 00:34:32,299
+were waiting, the first player revealed and won.
+
+421
+00:34:33,419 --> 00:34:35,659
+So, in that case we have lost, we can't do anything.
+
+422
+00:34:36,940 --> 00:34:41,980
+If we still do find the UTxO, it means the
+first player didn't reveal, which means either
+
+423
+00:34:41,980 --> 00:34:47,900
+the first player left the game for whatever
+reason or he lost and couldn't reveal.
+
+424
+00:34:48,679 --> 00:34:52,740
+In any case now we can claim the winning.
+
+425
+00:34:53,670 --> 00:34:56,660
+So we must spend the UTxO we found.
+
+426
+00:34:58,059 --> 00:35:05,122
+We must do this before and after the reveal deadline
+has passed, because until then the first players
+
+427
+00:35:05,122 --> 00:35:09,330
+still would have time to, to make his revelation.
+
+428
+00:35:10,620 --> 00:35:13,779
+And we must hand back the NFT to the first player.
+
+429
+00:35:14,160 --> 00:35:19,180
+And as lookups, we again need this
+UTxO, and we must provide the validator.
+
+430
+00:35:20,100 --> 00:35:23,360
+And we do the usual thing and log the message.
+
+431
+00:35:24,199 --> 00:35:28,110
+And that's it, that's the two on-chain contracts.
+
+432
+00:35:28,430 --> 00:35:33,660
+But now to make them more accessible, we defined
+schema, game schema which has two endpoints.
+
+433
+00:35:34,120 --> 00:35:36,055
+One for the first player taking the first params.
+
+434
+00:35:36,280 --> 00:35:38,410
+One for the second player taking the second params.
+
+435
+00:35:39,349 --> 00:35:45,149
+And we define a contract called endpoints that
+offers the choice between these two endpoints.
+
+436
+00:35:46,290 --> 00:35:52,459
+And no matter what is chosen, after that is then
+run it recursively again, offers less choice.
+
+437
+00:35:53,599 --> 00:35:59,509
+And first and second is simply our first game in
+second game where we first block and wait for user
+
+438
+00:35:59,510 --> 00:36:07,880
+input or external input to provide the parameters
+and then bind the contracts we defined earlier.
+
+439
+00:36:09,580 --> 00:36:12,339
+And that concludes the first version of the game.
+
+440
+00:36:13,240 --> 00:36:14,790
+That doesn't use state machines.
+
+441
+00:36:15,070 --> 00:36:20,569
+Now let's test this using the emulator
+trace monad, So the code is in module test.
+
+442
+00:36:23,740 --> 00:36:30,270
+And let's look first look at the test prime
+function, which is parameterized by two game choices.
+
+443
+00:36:30,340 --> 00:36:36,560
+So the idea is that we'll run or simulate a
+game where the first player makes this choice
+
+444
+00:36:36,560 --> 00:36:38,220
+and the second player makes that choice.
+
+445
+00:36:38,920 --> 00:36:45,620
+And then in the test function, I just
+run all four combinations in sequence.
+
+446
+00:36:46,819 --> 00:36:55,430
+And, as before with the oracle I'm using this
+run emulator trace IO prime variant, because
+
+447
+00:36:55,430 --> 00:36:58,010
+I want to specify an initial distribution.
+
+448
+00:36:59,300 --> 00:37:04,790
+And I just want to provide wallet one with this NFT.
+
+449
+00:37:05,670 --> 00:37:11,399
+So, I just make up a currency symbol and
+some token name, I call it state token.
+
+450
+00:37:13,049 --> 00:37:21,339
+And, of course, in a real scenario in the production
+code, we would have to generate this NFT, for
+
+451
+00:37:21,340 --> 00:37:28,620
+example, using this mint contract from the currency
+use case, or also using our own contract that
+
+452
+00:37:28,740 --> 00:37:32,080
+we discussed when we introduce minting policies.
+
+453
+00:37:33,210 --> 00:37:38,060
+But, and if these are now not the focus of
+this lecture, so I just use this feature
+
+454
+00:37:38,060 --> 00:37:43,560
+that I can conjure one out of thin air
+in this emulator trace configuration.
+
+455
+00:37:45,029 --> 00:37:45,140
+Okay.
+
+456
+00:37:45,140 --> 00:37:47,429
+So now let's look at the trace.
+
+457
+00:37:48,029 --> 00:37:51,450
+So it takes these two parameters,
+the two choices, C1 and C2.
+
+458
+00:37:52,060 --> 00:37:58,070
+I just locked some information that later in the
+output, it's easier to identify what was going on.
+
+459
+00:37:59,050 --> 00:38:06,349
+And I start two instances of the endpoints contract
+one for wallet, one, one for wallet two h1 and h2 to
+
+460
+00:38:07,339 --> 00:38:10,950
+lookup the two public key hashes of the two wallets.
+
+461
+00:38:11,419 --> 00:38:14,760
+And now I define the parameters that they will use.
+
+462
+00:38:15,400 --> 00:38:25,730
+So first player is first wallet, second player
+has The second wallet stake is five ADA deadline.
+
+463
+00:38:25,730 --> 00:38:29,750
+The first deadline is after five
+slots, second deadline after 10 slots.
+
+464
+00:38:31,460 --> 00:38:38,430
+this of course should be some random string in
+reality, but now I just fix one secret nonce.
+
+465
+00:38:40,259 --> 00:38:48,900
+And, I used this token that I provided earlier as
+the NFT And of course the choice of the first place.
+
+466
+00:38:49,050 --> 00:38:51,120
+Just see one parameter from here.
+
+467
+00:38:51,860 --> 00:38:54,429
+And, the choice of the second player is C2.
+
+468
+00:38:55,579 --> 00:38:55,649
+Okay.
+
+469
+00:38:55,649 --> 00:39:03,490
+And with these definitions phase simple, I
+just called the h1 at the first endpoint on
+
+470
+00:39:03,490 --> 00:39:13,750
+void one with these FP parameters I had just
+wait three slots and then I call the second
+
+471
+00:39:13,980 --> 00:39:21,630
+endpoint for wallet two with the SP parameters
+that I defined here and wait another 10 slots.
+
+472
+00:39:21,770 --> 00:39:27,140
+So by that time you should be in slot 13 or something
+to both deadlines should have been passed and there
+
+473
+00:39:27,140 --> 00:39:29,660
+should have been enough time for everything to settle.
+
+474
+00:39:30,890 --> 00:39:37,279
+And if we run this, okay, so I'm in module tests now.
+
+475
+00:39:37,279 --> 00:39:46,244
+And if I invoke this test and
+then let's go through the output.
+
+476
+00:39:46,244 --> 00:39:46,810
+So the first scenario is, that both play zero.
+
+477
+00:39:46,810 --> 00:39:46,836
+So the first bullet should win.
+
+478
+00:39:46,836 --> 00:39:46,875
+so here the first bullet, it creates the initial.
+
+479
+00:39:46,880 --> 00:39:47,784
+UTxO with its stake and knocks
+this message that made them move.
+
+480
+00:39:47,784 --> 00:39:48,210
+Now, the first wallet is waiting now the second
+fall, it kicks in and it looks for the UTxO
+
+481
+00:39:48,349 --> 00:40:14,320
+or finds it and sees that it can make a move.
+
+482
+00:40:14,400 --> 00:40:16,069
+So it makes it smooth zero.
+
+483
+00:40:17,640 --> 00:40:26,330
+And now the first bullet sees this move and realizes
+that it has won because both have played the same move.
+
+484
+00:40:26,630 --> 00:40:34,070
+So now the first file, it must reveal
+and that's that here and, has won.
+
+485
+00:40:34,150 --> 00:40:40,020
+So the first wallet has won and we see
+in the final balances that wallet one
+
+486
+00:40:40,460 --> 00:40:42,869
+does indeed have the state token back.
+
+487
+00:40:43,659 --> 00:40:49,920
+This NFT and now has almost five, eight, or
+more than it started with the differences
+
+488
+00:40:49,930 --> 00:40:51,630
+of course, due to transaction fees.
+
+489
+00:40:52,110 --> 00:40:56,779
+And the second wallet, it has a bit more than
+five, eight, or less than at the beginning.
+
+490
+00:40:57,030 --> 00:40:58,110
+So wallet one, one.
+
+491
+00:40:59,160 --> 00:41:04,749
+Now the second case is what add one again,
+plays zero, but for the two plays one.
+
+492
+00:41:05,680 --> 00:41:07,019
+So the beginning is the same.
+
+493
+00:41:07,020 --> 00:41:09,900
+So the first wallet creates this.
+
+494
+00:41:09,920 --> 00:41:16,390
+Initially UTxO, now with the second wallet
+again, finds the game and makes its move.
+
+495
+00:41:16,400 --> 00:41:17,660
+But now the move is one.
+
+496
+00:41:18,880 --> 00:41:23,259
+So now the first one that realizes that
+it has lost and doesn't do anything.
+
+497
+00:41:24,510 --> 00:41:30,560
+So the second wallet detects it, that the first
+fall, it hasn't made a move and now invokes
+
+498
+00:41:30,560 --> 00:41:33,460
+this claim second endpoint to get the money.
+
+499
+00:41:34,030 --> 00:41:39,739
+So now if you look at the final balances, Situation
+is reversed again, wallet one, got the stake
+
+500
+00:41:39,740 --> 00:41:44,840
+token back, but now wallet one has 500 or less
+and wallet two has five eight more than before.
+
+501
+00:41:44,840 --> 00:41:49,009
+And the other two cases are more or
+less the same, just the other way round.
+
+502
+00:41:49,030 --> 00:41:52,499
+So if it's one zero, then wallet two will win again.
+
+503
+00:41:52,510 --> 00:41:58,699
+And if it's one, one, then wallet one give it
+again, so this all seems to work as expected.
+
+504
+00:42:04,879 --> 00:42:06,470
+So what is the state machine?
+
+505
+00:42:07,650 --> 00:42:08,890
+The state machine?
+
+506
+00:42:09,530 --> 00:42:13,859
+first of all, normally it has nothing
+to do with blockchain particular.
+
+507
+00:42:14,360 --> 00:42:21,430
+So it's just some sort of system you start
+in a certain state, and then there are
+
+508
+00:42:21,480 --> 00:42:25,240
+one or more transitions to other states.
+
+509
+00:42:27,080 --> 00:42:31,779
+And so you can transition from the
+initial state into this one or that one.
+
+510
+00:42:32,570 --> 00:42:33,849
+And that goes on.
+
+511
+00:42:33,849 --> 00:42:36,589
+So basically it's just a directed graph.
+
+512
+00:42:37,620 --> 00:42:42,920
+And then there may also be some states that are
+special in that they're so-called final states
+
+513
+00:42:43,350 --> 00:42:46,940
+from which they are no possible ways out anymore.
+
+514
+00:42:46,940 --> 00:42:49,480
+No transitions that lead out of the final state.
+
+515
+00:42:51,800 --> 00:42:56,780
+And, what does it have to do with
+blockchain and with our examples?
+
+516
+00:42:57,150 --> 00:43:02,160
+So if we look again at the diagram we
+had earlier for how our game works,
+
+517
+00:43:02,590 --> 00:43:05,220
+then we can consider that state machine.
+
+518
+00:43:05,300 --> 00:43:12,310
+So the initial state would be this one here, where
+the first player has made the move and the state is
+
+519
+00:43:12,310 --> 00:43:15,150
+basically characterized by the state owned by the hash.
+
+520
+00:43:15,900 --> 00:43:23,430
+And in this state, there are two possible
+transitions, one where the second player plays.
+
+521
+00:43:23,430 --> 00:43:25,239
+Bob place.
+
+522
+00:43:25,239 --> 00:43:28,600
+And the second one where it doesn't
+play and the first player can reclaim.
+
+523
+00:43:29,559 --> 00:43:33,859
+So all the notes in this diagram, cause
+point 2 states and all the errors, the edges
+
+524
+00:43:33,859 --> 00:43:36,200
+of the graph correspond to transitions.
+
+525
+00:43:36,200 --> 00:43:43,630
+And in particular, in the blockchain, the
+state machine will be represented by UTxO
+
+526
+00:43:43,960 --> 00:43:46,509
+sitting at the state machine script address.
+
+527
+00:43:48,060 --> 00:43:54,689
+And the state of the state machine would be the
+datum of the UTxO and the transition will be
+
+528
+00:43:54,689 --> 00:43:57,810
+a transaction that consumes the current state.
+
+529
+00:43:58,170 --> 00:43:58,749
+That's current.
+
+530
+00:43:58,770 --> 00:44:07,790
+UTxO using a trend redeemer that characterizes the
+transition and then produces a new, UTxO at the same,
+
+531
+00:44:09,200 --> 00:44:13,250
+address where the datum now reflects the new state.
+
+532
+00:44:13,960 --> 00:44:20,840
+So that's the relation and that fits
+lots of situations very nicelly.
+
+533
+00:44:21,759 --> 00:44:28,880
+And there's special support in the Plutus
+libraries to easily implement such state machines.
+
+534
+00:44:29,510 --> 00:44:34,540
+And then we'll see when we use this
+approach that our code will be much shorter.
+
+535
+00:44:35,139 --> 00:44:42,519
+The support for state machines is in package Plutus
+contract in the module Plutus contract state machine.
+
+536
+00:44:43,409 --> 00:44:46,749
+And let's first look at what a state machine is.
+
+537
+00:44:47,579 --> 00:44:53,830
+So a state machine is, has to type parameters
+S and I that stands for state and input
+
+538
+00:44:54,230 --> 00:44:56,759
+and that corresponds to datum and redeemer.
+
+539
+00:44:56,759 --> 00:45:02,840
+So in the actual implementation and the manifestation
+of the state machine on the blockchain S will be
+
+540
+00:45:02,840 --> 00:45:05,410
+the datum type, and I will be the redeemer type.
+
+541
+00:45:05,410 --> 00:45:10,710
+And, so a state machine is a
+record type with four fields.
+
+542
+00:45:11,110 --> 00:45:17,549
+So the most important one probably is the
+transition that defines from which states using
+
+543
+00:45:17,549 --> 00:45:21,370
+which transition you can change into another state.
+
+544
+00:45:22,140 --> 00:45:26,280
+And this state S type is defined here.
+
+545
+00:45:26,280 --> 00:45:30,720
+So that is basically the datum, the
+state itself and also the value.
+
+546
+00:45:30,830 --> 00:45:35,967
+Remember I said that this would be represented,
+the state machine would be represented by a UTxO.
+
+547
+00:45:36,029 --> 00:45:41,730
+So the state of the state machine is a
+UTxO, and that has a datum into value.
+
+548
+00:45:42,060 --> 00:45:45,120
+So we have access to both in this state type.
+
+549
+00:45:45,630 --> 00:45:51,369
+So given the state types, so the present datum
+and value of the UTxO and a transaction that
+
+550
+00:45:51,520 --> 00:45:56,880
+tries to consume this UTxO with a redeemer I.
+
+551
+00:45:56,930 --> 00:46:01,290
+We can indicate that this transition is not
+allowed by returning nothing in this function.
+
+552
+00:46:01,880 --> 00:46:05,430
+And if it is allowed, we returned a tuple.
+
+553
+00:46:06,030 --> 00:46:08,480
+And the second component is the new state.
+
+554
+00:46:08,690 --> 00:46:15,230
+So this transaction will consume the existing
+UTxO and produce a new one at the same address.
+
+555
+00:46:15,290 --> 00:46:22,010
+And this here will be the new datum and
+value of the new output, the new UTxO.
+
+556
+00:46:23,440 --> 00:46:30,229
+And then we can have Tx constraints that until
+now we've only seen in off-chain code that specify
+
+557
+00:46:30,460 --> 00:46:36,410
+additional constraints that the transaction that does
+this, that does this transition must have must satisfy.
+
+558
+00:46:37,610 --> 00:46:39,070
+So that's the transition function.
+
+559
+00:46:40,150 --> 00:46:47,165
+Then we have a function, just a predicate
+on datums basically on states that tells
+
+560
+00:46:47,330 --> 00:46:48,101
+us whether it's a final state or not.
+
+561
+00:46:48,101 --> 00:46:48,836
+So final states are special in
+debt in this transition function.
+
+562
+00:46:48,836 --> 00:46:59,100
+If we transitioned into the, into a final state,
+Then there mustn't be any value attached with it.
+
+563
+00:46:59,529 --> 00:47:01,220
+And then this output that normally gets produced.
+
+564
+00:47:01,220 --> 00:47:07,750
+So we normally consume the UTxO
+representing the old state and produce
+
+565
+00:47:07,750 --> 00:47:09,760
+a new output representing the new state.
+
+566
+00:47:10,150 --> 00:47:13,720
+But if this new state is, is final, then we don't.
+
+567
+00:47:13,900 --> 00:47:16,119
+So then we don't produce a new UTxO.
+
+568
+00:47:16,120 --> 00:47:19,000
+So basically the machine instead stops.
+
+569
+00:47:19,870 --> 00:47:25,330
+So that's this SM final, SM check is
+very similar to this transition function
+
+570
+00:47:25,350 --> 00:47:26,480
+except it doesn't have the value.
+
+571
+00:47:26,480 --> 00:47:31,420
+So it just gets the datum and the redeemer
+and context, and a reverse a bool.
+
+572
+00:47:31,480 --> 00:47:37,410
+So this is basically an additional checks that
+can't be expressed in terms of these Tx constraints.
+
+573
+00:47:38,040 --> 00:47:43,750
+Finally, we have this SM thread
+token, which can or cannot be there.
+
+574
+00:47:44,770 --> 00:47:49,960
+And the purpose of this is to solve
+the same problem that we already had
+
+575
+00:47:50,809 --> 00:47:53,130
+with our oracle in the last lecture.
+
+576
+00:47:53,130 --> 00:48:02,680
+And also now with our game that as I have said
+many times before you can't stop anybody from
+
+577
+00:48:02,690 --> 00:48:05,850
+sending anything to any arbitrary address.
+
+578
+00:48:06,420 --> 00:48:12,030
+So there can be many UTxOs sitting at an
+address that you have no control over.
+
+579
+00:48:12,650 --> 00:48:17,199
+But in cases like these, like the oracle
+last time or the game in the previous
+
+580
+00:48:17,199 --> 00:48:21,170
+example, we want to identify a specific UTxO.
+
+581
+00:48:21,189 --> 00:48:29,140
+And the trick we used in the last lecture and
+also just now was to mint and NFT and insist
+
+582
+00:48:29,140 --> 00:48:37,190
+on it being present in the UTxO and because
+an NFT by definition can only exist once, this
+
+583
+00:48:37,190 --> 00:48:44,740
+allows us to pinpoint the right UTxO and ignore
+other UTxOs that may sit at the same address.
+
+584
+00:48:45,380 --> 00:48:49,550
+And the thread token here serves the same purpose.
+
+585
+00:48:49,910 --> 00:48:55,900
+So if you look at thread token, it is basically
+a reference to a UTxO and the currency symbol
+
+586
+00:48:56,980 --> 00:49:02,819
+and this UTxO will be the one that uniquely
+identifies the minting transaction of the NFT.
+
+587
+00:49:03,630 --> 00:49:07,079
+So this is like a weird way to specify an NFT.
+
+588
+00:49:08,110 --> 00:49:13,990
+So we don't have to use this mechanism, but if
+we use this, so if we put a just thread token
+
+589
+00:49:14,010 --> 00:49:19,399
+there in the state machine, then the mechanism
+will automatically take care of minting.
+
+590
+00:49:19,689 --> 00:49:26,250
+This NFT, that corresponds to this thread token,
+and then threading it through the state transitions.
+
+591
+00:49:26,309 --> 00:49:32,430
+So in all these checks in validation will always make
+sure that the corresponding NFT is present in the
+
+592
+00:49:32,430 --> 00:49:40,430
+UTxO and also if it's not the final state and there
+is a UTxO at the same address in the output that
+
+593
+00:49:40,430 --> 00:49:43,720
+this NFT will then aslo be present in that output.
+
+594
+00:49:44,710 --> 00:49:46,309
+So we don't have to worry about that.
+
+595
+00:49:46,629 --> 00:49:51,460
+That will automatically be taken care of the
+minting and eventually burning in the final
+
+596
+00:49:51,510 --> 00:49:57,339
+state of this NFT that corresponds to this
+thread token will be handled automatically.
+
+597
+00:49:57,719 --> 00:49:59,880
+And it also doesn't appear in the value.
+
+598
+00:49:59,880 --> 00:50:05,590
+So we sit here, the state
+bundles the datum and the value.
+
+599
+00:50:06,570 --> 00:50:10,420
+And of course this NFT will be part of
+the value, but it won't be visible here.
+
+600
+00:50:10,930 --> 00:50:13,710
+So we can ignore that, we don't have to worry about it.
+
+601
+00:50:14,540 --> 00:50:20,690
+I have implemented the same game now using the
+state machine approach in module state machine.
+
+602
+00:50:21,440 --> 00:50:23,530
+So the beginning is exactly the same.
+
+603
+00:50:24,480 --> 00:50:27,856
+So the game parameter, the
+game type is exactly the same.
+
+604
+00:50:29,066 --> 00:50:31,480
+Game choices the same, this is all the same.
+
+605
+00:50:31,800 --> 00:50:38,219
+Game datum has slightly changed because I have
+added a second constructor that I called finished.
+
+606
+00:50:38,660 --> 00:50:44,319
+That we didn't need before and that is supposed
+to represent the final state of our state machine.
+
+607
+00:50:44,380 --> 00:50:50,359
+So it won't correspond to a UTxO, but we need
+that for the state machine mechanism to work.
+
+608
+00:50:50,550 --> 00:50:55,750
+So this first construct is as before hash
+provided by the second player, maybe...
+
+609
+00:50:56,490 --> 00:50:58,180
+sorry has provided by the first player.
+
+610
+00:50:58,649 --> 00:51:04,020
+Maybe move by the second player and then
+this additional constructor to represent
+
+611
+00:51:04,210 --> 00:51:08,470
+the final state that the game has ended.
+
+612
+00:51:08,470 --> 00:51:12,800
+That makes a definition of equality slightly
+more complicated because now I have to take
+
+613
+00:51:12,800 --> 00:51:15,290
+this second constructor into account as well.
+
+614
+00:51:16,230 --> 00:51:21,920
+But nothing serious going on there, the
+redeemer is this exactly the same as before.
+
+615
+00:51:22,770 --> 00:51:25,190
+These two helper functions are
+exactly the same as before.
+
+616
+00:51:25,360 --> 00:51:32,989
+Now, this is now the transition function of the state
+machine, which sort of corresponds as we will see in a
+
+617
+00:51:32,990 --> 00:51:36,680
+moment to the make game validator that we had earlier.
+
+618
+00:51:36,680 --> 00:51:39,190
+So this is basically the core business logic.
+
+619
+00:51:40,520 --> 00:51:49,160
+And so it takes the game, the parameter and now as we
+saw in the definition of state machine, state datum.
+
+620
+00:51:49,360 --> 00:51:53,699
+So remember that's a pair basically
+consisting of the datum and the value.
+
+621
+00:51:54,359 --> 00:52:00,230
+And the redeemer and then we must return
+nothing if it's not allowed and just a pair of
+
+622
+00:52:00,490 --> 00:52:03,830
+new state and constraints on the transaction.
+
+623
+00:52:04,550 --> 00:52:09,530
+Now let's try to compare the transition function
+of the state machine to the make game validator
+
+624
+00:52:09,550 --> 00:52:12,199
+function of our first version of the game.
+
+625
+00:52:13,449 --> 00:52:19,040
+So the first thing, I mean, of course the signature
+is different, but in spirit it's a very similar thing.
+
+626
+00:52:19,110 --> 00:52:24,420
+So in both functions try to determine
+whether basically a combination of datum and
+
+627
+00:52:24,440 --> 00:52:26,930
+redeemer and transaction is valid or not.
+
+628
+00:52:27,020 --> 00:52:28,980
+So we we'll see the correspondence now.
+
+629
+00:52:29,830 --> 00:52:36,250
+The first difference we notice is here in our old
+version, we first had to check that the input we
+
+630
+00:52:36,250 --> 00:52:42,510
+are consuming, the UTxO we're consuming, actually
+carries the NFT, and that is missing in the state
+
+631
+00:52:42,510 --> 00:52:46,929
+machine formulation because the state machine
+mechanism automatically takes care of that.
+
+632
+00:52:46,959 --> 00:52:54,120
+If these set this last field in the state NFT
+to sub thread tokens, then the mechanism will
+
+633
+00:52:54,140 --> 00:53:01,659
+automatically check that the NFT is present in the
+consumed UTxO and also in the newly created UTxO.
+
+634
+00:53:02,219 --> 00:53:03,759
+If it's not a final state.
+
+635
+00:53:03,759 --> 00:53:09,270
+So let's look at this first case
+where the first player moved.
+
+636
+00:53:09,280 --> 00:53:11,970
+So the component for the second
+player was still nothing.
+
+637
+00:53:11,970 --> 00:53:15,760
+And now the second player wants
+to make a play with choice C.
+
+638
+00:53:16,620 --> 00:53:20,709
+So we checked these six conditions here
+and let's see how they are reflected
+
+639
+00:53:20,730 --> 00:53:22,450
+in the state machine formulation.
+
+640
+00:53:23,150 --> 00:53:30,740
+And in the state machine we have this, the
+state S which remember is a combination
+
+641
+00:53:30,740 --> 00:53:35,450
+of datum and value, and you can access
+those two with state value and state data.
+
+642
+00:53:35,590 --> 00:53:40,790
+So state value as is now the value in
+the UTxO that we're consuming state data
+
+643
+00:53:40,790 --> 00:53:43,460
+S is the datum and R is the redeemer.
+
+644
+00:53:44,230 --> 00:53:45,370
+So we have this triple.
+
+645
+00:53:46,190 --> 00:53:51,529
+And here I checked that the value
+is actually the stake of the game.
+
+646
+00:53:51,800 --> 00:53:57,500
+So the value contained in the consumed
+UTxO and that's the condition that was
+
+647
+00:53:57,500 --> 00:53:59,200
+the second condition that we checked here.
+
+648
+00:54:00,510 --> 00:54:06,005
+Now, the result of the transition function,
+if recall if it's valid, it's just the pair.
+
+649
+00:54:06,820 --> 00:54:12,250
+And the first component of the pair is constraints
+on the transaction formulated using this
+
+650
+00:54:12,360 --> 00:54:15,560
+constraints module that we know from off-chain code.
+
+651
+00:54:15,570 --> 00:54:21,360
+And the second component of the pair
+is the new state of the resulting UTxO
+
+652
+00:54:22,000 --> 00:54:25,520
+which again is given by datum and value.
+
+653
+00:54:25,660 --> 00:54:29,389
+So here we are specifying with this
+transition of the second player makes a move.
+
+654
+00:54:30,050 --> 00:54:33,520
+The new datum will be BS just C.
+
+655
+00:54:34,150 --> 00:54:39,700
+And the new value will be twice this stake
+of the game because it's now the first
+
+656
+00:54:39,700 --> 00:54:41,130
+player stake and the second player stake.
+
+657
+00:54:41,550 --> 00:54:46,120
+We leave the NFT out of here, even
+though it should be present in the UTxO.
+
+658
+00:54:46,120 --> 00:54:51,670
+And that is again, because the state machine implicitly
+takes care of that NFT that it's pass through.
+
+659
+00:54:51,750 --> 00:54:53,119
+So we don't mention it here.
+
+660
+00:54:53,820 --> 00:54:59,220
+So this here corresponds in the old
+one to this check that the datum is
+
+661
+00:54:59,550 --> 00:55:03,420
+BS just C and that the value is right.
+
+662
+00:55:03,450 --> 00:55:04,530
+This is this one here.
+
+663
+00:55:05,719 --> 00:55:08,810
+And we don't need the last check, as I said.
+
+664
+00:55:09,420 --> 00:55:12,220
+Here we check that the output again contains the NFT.
+
+665
+00:55:12,559 --> 00:55:15,650
+We don't need that because the state
+machine does that automatically.
+
+666
+00:55:16,460 --> 00:55:18,180
+So now what is missing?
+
+667
+00:55:18,180 --> 00:55:24,719
+So here we have these two constraints must be signed by
+second and must validate in before the play deadline.
+
+668
+00:55:24,940 --> 00:55:29,920
+And this corresponds here to the first
+condition must be signed by the second player.
+
+669
+00:55:29,940 --> 00:55:31,399
+And the deadline thing is here.
+
+670
+00:55:31,730 --> 00:55:38,469
+And if you check exactly all these conditions are
+covered here as well in slightly different form.
+
+671
+00:55:38,509 --> 00:55:39,510
+An actually shorter form.
+
+672
+00:55:39,520 --> 00:55:43,050
+And we don't have to worry about the
+NFT that already makes it shorter.
+
+673
+00:55:43,929 --> 00:55:48,920
+Now let's look at the second interesting
+case where the second player has played
+
+674
+00:55:49,380 --> 00:55:51,350
+and the first player sees that he has won.
+
+675
+00:55:51,366 --> 00:55:53,400
+So now the first player has to reveal.
+
+676
+00:55:54,150 --> 00:55:58,470
+So in the old version, we'll check
+it's signed by the first player.
+
+677
+00:55:58,880 --> 00:56:00,100
+This is here.
+
+678
+00:56:02,010 --> 00:56:03,230
+Then we check the nonce.
+
+679
+00:56:03,360 --> 00:56:05,069
+That is no way here.
+
+680
+00:56:05,069 --> 00:56:09,910
+And the reason is that that condition can't
+be expressed in terms of a constraint.
+
+681
+00:56:10,430 --> 00:56:15,880
+And that is exactly what this other component of
+the record type of the state machine is for the
+
+682
+00:56:15,889 --> 00:56:18,150
+check functions that we will see that in a bit.
+
+683
+00:56:18,809 --> 00:56:20,260
+So this is missing for now.
+
+684
+00:56:20,360 --> 00:56:22,229
+We don't have this nonce check.
+
+685
+00:56:22,730 --> 00:56:25,230
+Then the deadline check is here.
+
+686
+00:56:26,190 --> 00:56:29,000
+This just checks that the input value is right.
+
+687
+00:56:29,000 --> 00:56:31,340
+So we have that here on the left-hand side.
+
+688
+00:56:33,220 --> 00:56:38,434
+And finally, we check that because the game is
+over the NFT should go back to the first player.
+
+689
+00:56:38,690 --> 00:56:42,550
+So that the game is over we specified
+here by specifying the finish state.
+
+690
+00:56:43,310 --> 00:56:49,140
+And that the NFT goes back to the first player we
+don't need to check, because there's NFT and the
+
+691
+00:56:49,140 --> 00:56:51,800
+state machine gets automatically taken care of.
+
+692
+00:56:52,340 --> 00:56:58,080
+And gets burned when the state
+machine finishes reaches final state.
+
+693
+00:56:58,289 --> 00:57:04,250
+So all we have to say is that we enter
+final state after that reveal has happened.
+
+694
+00:57:05,420 --> 00:57:11,680
+Now, the third interesting case is the
+case where the second player doesn't react
+
+695
+00:57:11,860 --> 00:57:15,109
+and the first player wants his stake back.
+
+696
+00:57:15,929 --> 00:57:17,259
+So this is here.
+
+697
+00:57:17,670 --> 00:57:19,820
+So let's see what we checked in the old quote.
+
+698
+00:57:20,190 --> 00:57:27,080
+First of all, the transaction must be signed by the
+first player, and this is here, the first constraint.
+
+699
+00:57:28,420 --> 00:57:32,689
+And secondly, the first clear must give
+the second player enough time to react.
+
+700
+00:57:33,080 --> 00:57:40,890
+So he can only reclaim a stake after the play
+deadline has passed, so that's this condition.
+
+701
+00:57:42,560 --> 00:57:48,930
+Then the incoming state must be correct, so the
+first player must have actually put down a stake.
+
+702
+00:57:49,549 --> 00:57:52,369
+This is here on the left-hand side.
+
+703
+00:57:54,859 --> 00:58:00,880
+And then finally, in the old code we wanted, the
+NFT goes back to the first player that has no
+
+704
+00:58:00,880 --> 00:58:05,369
+equivalent here because that is taken care of
+automatically by the state machine mechanism.
+
+705
+00:58:05,910 --> 00:58:11,550
+But we do transition into the finished
+states will be indicate that the game
+
+706
+00:58:11,550 --> 00:58:13,480
+is over the state machine is finished.
+
+707
+00:58:14,370 --> 00:58:16,250
+Finally, the fourth case.
+
+708
+00:58:18,110 --> 00:58:21,957
+That is when the first player has
+played, the second player has played.
+
+709
+00:58:21,957 --> 00:58:28,129
+And the first player realizes that he has lost and
+doesn't react anymore, or he gets disconnected.
+
+710
+00:58:28,240 --> 00:58:34,250
+So in any case, the second player has won and
+can claim both his and the first player stake.
+
+711
+00:58:34,890 --> 00:58:37,210
+So that must be signed by the second player.
+
+712
+00:58:37,660 --> 00:58:38,600
+That's here.
+
+713
+00:58:40,540 --> 00:58:45,280
+It must only happened after
+the reveal deadline has passed.
+
+714
+00:58:46,010 --> 00:58:46,729
+That's here.
+
+715
+00:58:48,490 --> 00:58:50,770
+And the incoming state must be correct.
+
+716
+00:58:50,770 --> 00:58:56,730
+It must be both the first and the second player stake
+it's again, here, checked on the left-hand side.
+
+717
+00:58:57,630 --> 00:58:59,230
+And again, this is a final state.
+
+718
+00:58:59,230 --> 00:59:02,329
+So in the old version we insist the
+NFT goes back to the first player.
+
+719
+00:59:02,749 --> 00:59:04,760
+This would be taken care of automatically here.
+
+720
+00:59:04,760 --> 00:59:08,620
+We just indicate that we are
+transitioning into the finished state.
+
+721
+00:59:09,810 --> 00:59:09,990
+Okay.
+
+722
+00:59:09,990 --> 00:59:18,060
+And these are the valid transaction, these four
+transitions and everything else is invalid.
+
+723
+00:59:18,060 --> 00:59:23,890
+And we indicate that by returning
+nothing in all other cases.
+
+724
+00:59:24,029 --> 00:59:27,390
+So that means only those transitions are valid.
+
+725
+00:59:28,800 --> 00:59:33,620
+So the conditions themselves are maybe not
+really shorter than in the old version,
+
+726
+00:59:34,290 --> 00:59:36,820
+but we don't need any helper functions.
+
+727
+00:59:36,840 --> 00:59:43,240
+So this, in our own input own output and so
+on, we don't need, this is all taken care of
+
+728
+00:59:43,270 --> 00:59:45,980
+by the state machine or by these constraints.
+
+729
+00:59:47,130 --> 00:59:49,540
+And we don't need to worry about the NFT.
+
+730
+00:59:49,580 --> 00:59:51,740
+That's also automatically taken care of.
+
+731
+00:59:52,380 --> 00:59:58,010
+So this is already significantly shorter
+than in the old version, but we are not
+
+732
+00:59:58,020 --> 00:59:59,660
+done yet defining the state machine.
+
+733
+00:59:59,660 --> 01:00:01,770
+There are other fields in the record.
+
+734
+01:00:02,760 --> 01:00:04,069
+One is final.
+
+735
+01:00:04,200 --> 01:00:08,250
+So we must specify what final states
+are and that's just this finished state.
+
+736
+01:00:08,310 --> 01:00:11,400
+So final finished is true and everything else is false.
+
+737
+01:00:12,530 --> 01:00:17,540
+Then we left out the nonce check in
+the transition function because we
+
+738
+01:00:17,540 --> 01:00:19,820
+couldn't express that as a constraint.
+
+739
+01:00:20,420 --> 01:00:23,010
+And for that's exactly what this check function is for.
+
+740
+01:00:23,300 --> 01:00:27,960
+Then we have have two auxiliary arguments, these two
+byteStrings that we also had in the other version
+
+741
+01:00:28,040 --> 01:00:30,280
+zero and one, for the same reason, we need that here.
+
+742
+01:00:31,370 --> 01:00:38,330
+And then datum and redeemer and context and much just
+return whether this additional check is satisfied.
+
+743
+01:00:38,990 --> 01:00:41,120
+We ignore the context, we don't need it here.
+
+744
+01:00:41,350 --> 01:00:46,840
+And the only condition we have to put into
+this check function is the one with the nonce.
+
+745
+01:00:46,840 --> 01:00:50,614
+And that wasn't the situation where
+the second player had played, just see,
+
+746
+01:00:50,969 --> 01:00:52,920
+and where the redeemer is reveal nonce.
+
+747
+01:00:53,310 --> 01:00:56,590
+And this line here is just the old check
+we had in the first version as well.
+
+748
+01:00:56,810 --> 01:01:02,700
+We compute the concatenation of the nonce and the
+byteString corresponding to the move, hash that,
+
+749
+01:01:02,730 --> 01:01:05,950
+and compared with the originally provided hash.
+
+750
+01:01:06,610 --> 01:01:11,399
+And all other situations we don't need an
+additional check and therefore can return true.
+
+751
+01:01:13,529 --> 01:01:18,590
+Now we can define our state machine and
+we give, so for now it has these three
+
+752
+01:01:18,590 --> 01:01:23,739
+parameters, the game, and these two auxiliary
+byteStrings, and it returns a state machine.
+
+753
+01:01:24,790 --> 01:01:29,050
+And we just provide the four
+fields that we just defined.
+
+754
+01:01:29,100 --> 01:01:34,859
+So transition game, that was the important one,
+and this final check, the additional check.
+
+755
+01:01:35,150 --> 01:01:39,830
+And finally, the thread token, which
+we just take from, from the game value.
+
+756
+01:01:42,219 --> 01:01:47,540
+Now there is machinery provided by the
+state machine to make a game, a validator.
+
+757
+01:01:47,560 --> 01:01:53,970
+So what our old make game validated function can
+now be replaced by using the state machine and
+
+758
+01:01:53,980 --> 01:01:58,910
+using the make validator game state machines.
+
+759
+01:01:58,910 --> 01:02:01,090
+So gave them same machines is our state machine here.
+
+760
+01:02:01,760 --> 01:02:08,730
+And there's a make validator function that turns
+that into something of this type, which is exactly
+
+761
+01:02:08,850 --> 01:02:11,880
+the type we had before in our handwritten version.
+
+762
+01:02:13,050 --> 01:02:19,840
+So this is similar to before, I mean, we had
+this other mechanism to bundle datum type
+
+763
+01:02:19,840 --> 01:02:22,500
+and the redeemer type, the state machine...
+
+764
+01:02:23,300 --> 01:02:24,450
+that's the same basically.
+
+765
+01:02:24,900 --> 01:02:29,600
+So now our type gaming can just be
+state machine game datum, game redeemer.
+
+766
+01:02:30,360 --> 01:02:36,439
+Our two strings and are provided a second
+version of game state machine, where we only
+
+767
+01:02:36,439 --> 01:02:41,340
+have to specify the game and not these two
+strings and that won't work in on-chain code.
+
+768
+01:02:41,559 --> 01:02:46,980
+So it doesn't have this inlinable pragma
+because of the literal strings here.
+
+769
+01:02:47,330 --> 01:02:49,430
+But in off-chain code it works perfectly fine.
+
+770
+01:02:49,440 --> 01:02:53,040
+And then we don't have to provide
+this two additional parameters.
+
+771
+01:02:55,170 --> 01:02:57,089
+Now this is exactly as before.
+
+772
+01:02:57,670 --> 01:02:59,710
+So the same boilerplate we had before.
+
+773
+01:03:00,359 --> 01:03:05,720
+Except now this make game validator has
+been defined here using the state machine
+
+774
+01:03:05,720 --> 01:03:07,899
+mechanism, instead of doing it explicitly.
+
+775
+01:03:09,750 --> 01:03:13,880
+And a game address, game client,
+no, game address is the same.
+
+776
+01:03:14,340 --> 01:03:16,140
+Game client is a new thing.
+
+777
+01:03:16,500 --> 01:03:22,560
+Game client is a state machine client, and this
+is basically what we need to interact with state
+
+778
+01:03:22,580 --> 01:03:25,390
+machine from our wallet, from our contract monad.
+
+779
+01:03:25,680 --> 01:03:32,390
+If you look at the definition of state machine
+client, is here, it has two fields, a state
+
+780
+01:03:32,390 --> 01:03:35,140
+machine instance and then this chooser.
+
+781
+01:03:36,050 --> 01:03:41,560
+So the state machine instance it's again
+a record type with two fields and it has
+
+782
+01:03:41,560 --> 01:03:45,450
+a state machine and the typed validator.
+
+783
+01:03:46,120 --> 01:03:49,400
+And both of those, we already have defined.
+
+784
+01:03:49,420 --> 01:03:52,680
+So we can make a state machine instance.
+
+785
+01:03:53,980 --> 01:03:55,950
+So what's this chooser all about?
+
+786
+01:03:56,560 --> 01:04:04,280
+Well, in general, if we don't use the thread token
+mechanism, the NFT mechanism, we could have several
+
+787
+01:04:04,530 --> 01:04:08,010
+UTxOs sitting at the address of the state machine.
+
+788
+01:04:08,559 --> 01:04:11,750
+And the chooser is a way to pick the right one.
+
+789
+01:04:12,500 --> 01:04:18,920
+So in general, we will find a list of UTxOs, I mean,
+it's a different type, the on chain state that, but you
+
+790
+01:04:18,920 --> 01:04:22,740
+can think UTxOs sitting at the state machine address.
+
+791
+01:04:23,750 --> 01:04:27,440
+And this chooser function
+given such a list, picking one.
+
+792
+01:04:27,440 --> 01:04:29,700
+So either producing error.
+
+793
+01:04:30,620 --> 01:04:37,900
+Or picking one of those, but there's a default
+implementation for such a chooser, which if
+
+794
+01:04:37,900 --> 01:04:45,920
+we use the thread token mechanism just picks
+the one UTxO that holds this thread token.
+
+795
+01:04:47,119 --> 01:04:52,900
+So in order to make a state machine client, we
+can use the make state machine client function,
+
+796
+01:04:53,390 --> 01:04:56,480
+which just takes a state machine instance.
+
+797
+01:04:56,920 --> 01:05:00,899
+So not a chooser because the
+default chooser will be used.
+
+798
+01:05:01,360 --> 01:05:04,450
+So to make our game client given a game.
+
+799
+01:05:04,450 --> 01:05:07,399
+We can just use this make state machine client.
+
+800
+01:05:07,430 --> 01:05:09,670
+And now we need the state machine instance.
+
+801
+01:05:10,400 --> 01:05:14,349
+And we must provide the state machine
+for which we can use our game state
+
+802
+01:05:14,349 --> 01:05:17,280
+machine prime with the game as parameter.
+
+803
+01:05:18,130 --> 01:05:23,090
+And the type game validator we also have to find here.
+
+804
+01:05:23,900 --> 01:05:26,100
+So this gives us our game client.
+
+805
+01:05:27,930 --> 01:05:34,690
+And now the client can be used to interact
+with the state machine from off-chain code.
+
+806
+01:05:36,009 --> 01:05:38,790
+First parameters are exactly the same.
+
+807
+01:05:39,450 --> 01:05:48,420
+There's one small nuisance that these state machine
+contracts, that the state machine module provides.
+
+808
+01:05:48,890 --> 01:05:53,220
+They use a specific error type or they have
+a specific constraint on the error type.
+
+809
+01:05:54,200 --> 01:05:57,620
+And one error type that works is SM contract error.
+
+810
+01:05:58,570 --> 01:06:03,520
+But I want to do what I did in the last
+lectures and always use text as map error type.
+
+811
+01:06:04,010 --> 01:06:10,120
+So in order to make those two fit together,
+I define this map error prime function, which
+
+812
+01:06:10,780 --> 01:06:12,150
+use the map error we have discussed before.
+
+813
+01:06:12,530 --> 01:06:18,300
+And it turns an SM contract error into a text
+by showing the SM contract error and then
+
+814
+01:06:18,710 --> 01:06:21,310
+picking the resulting string into a text.
+
+815
+01:06:22,060 --> 01:06:29,060
+I also, again, have this helper function wait until
+time has passed that I already used in the even odd
+
+816
+01:06:29,080 --> 01:06:38,730
+the example, which given a time first waits until
+this time is reached and then waits for another slot
+
+817
+01:06:38,790 --> 01:06:42,210
+to make sure we are in the slot after this time.
+
+818
+01:06:43,700 --> 01:06:48,500
+Now the first game becomes much nicer,
+much shorter, much more compact.
+
+819
+01:06:49,469 --> 01:06:51,020
+It starts the same.
+
+820
+01:06:51,020 --> 01:06:53,000
+So we lookup our own public key hash.
+
+821
+01:06:53,449 --> 01:06:54,650
+Now there's something new.
+
+822
+01:06:55,120 --> 01:06:57,730
+We need to get this thread token.
+
+823
+01:06:58,480 --> 01:07:05,559
+So we must identify a UTxO in our wallet
+that can be used for the minting of the
+
+824
+01:07:05,809 --> 01:07:12,359
+NFT to make that a true NFT as I explained
+in the lecture on native tokens and NFTs.
+
+825
+01:07:13,320 --> 01:07:16,330
+So that's what this get thread token function does.
+
+826
+01:07:16,330 --> 01:07:23,649
+And I have to apply the map ever prime in order to
+convert it to text error messages, as I explained.
+
+827
+01:07:25,750 --> 01:07:31,329
+And there's in the documentation for this
+get thread token it says you mustn't do any
+
+828
+01:07:31,330 --> 01:07:36,880
+transactions after you have invoked that
+before you use it for a state machine, because
+
+829
+01:07:37,530 --> 01:07:40,159
+that could change the UTxOs in your wallet.
+
+830
+01:07:40,440 --> 01:07:42,910
+So then the situation could change.
+
+831
+01:07:43,889 --> 01:07:50,690
+Okay, so now we have our public key hash, in our
+thread token, and we can define the game using public
+
+832
+01:07:50,690 --> 01:07:53,780
+key hash and thread token at the appropriate spots.
+
+833
+01:07:54,210 --> 01:07:56,619
+And taking the rest from the parameters we got.
+
+834
+01:07:57,840 --> 01:08:02,470
+Now we can define our game client
+using the game client function.
+
+835
+01:08:03,650 --> 01:08:05,750
+These three are as before.
+
+836
+01:08:05,799 --> 01:08:15,310
+So it's the stake, our choice and the
+hash that we reveal that we commit
+
+837
+01:08:15,349 --> 01:08:17,550
+to, that we use to commit to our move.
+
+838
+01:08:18,950 --> 01:08:22,823
+And now in this one line, a lot happens under the hood.
+
+839
+01:08:23,579 --> 01:08:29,059
+So this run initialise given the
+client, a datum and the value.
+
+840
+01:08:29,830 --> 01:08:35,139
+First, it will mint the NFT
+corresponding to this thread token.
+
+841
+01:08:36,059 --> 01:08:42,000
+And then it will create a UTxO at the state
+machine address to start the state machine.
+
+842
+01:08:42,000 --> 01:08:48,269
+Put the NFT in that UTxO to uniquely
+identify it, and the datum and value of
+
+843
+01:08:48,590 --> 01:08:50,880
+that UTxO are given by these arguments here.
+
+844
+01:08:51,490 --> 01:08:57,870
+So we put it in the initial state we want
+whether first player commits using this hash.
+
+845
+01:08:58,379 --> 01:08:59,843
+And the second player hasn't moved yet.
+
+846
+01:08:59,859 --> 01:09:02,270
+And the first player puts down his stake.
+
+847
+01:09:02,740 --> 01:09:09,020
+And again, we have to use the map error
+prime in order to adjust the error messages.
+
+848
+01:09:10,889 --> 01:09:13,739
+And we just log that we made the first move.
+
+849
+01:09:14,990 --> 01:09:16,730
+Now, this is also new.
+
+850
+01:09:16,730 --> 01:09:20,289
+And if you look at the type,
+this has also slightly changed.
+
+851
+01:09:20,789 --> 01:09:24,940
+Earlier, I didn't use the tell mechanism,
+the writer mechanism of the contract monad.
+
+852
+01:09:25,470 --> 01:09:29,539
+Now, I need to communicate the thread token.
+
+853
+01:09:30,540 --> 01:09:33,049
+Because the second player wants to find the game.
+
+854
+01:09:33,049 --> 01:09:35,919
+So the second player must define this game.
+
+855
+01:09:36,600 --> 01:09:39,000
+And part of that game is this thread token.
+
+856
+01:09:39,000 --> 01:09:44,800
+So the second player otherwise would have
+no way of knowing what the thread token is.
+
+857
+01:09:45,569 --> 01:09:49,419
+So in order to communicate that, I tell it here.
+
+858
+01:09:50,999 --> 01:09:53,430
+Okay, so this is all to set it up.
+
+859
+01:09:54,100 --> 01:10:02,799
+And now if you recall, we have to wait and then
+we needed this helper functions find game datum or
+
+860
+01:10:02,799 --> 01:10:09,780
+game output in order to after we have waited for
+the second player to move, to find the UTxO again.
+
+861
+01:10:10,370 --> 01:10:15,700
+This is now much simpler, because we can
+use something called get on-chain state.
+
+862
+01:10:16,860 --> 01:10:25,969
+So get on-chain state takes the client and
+returns something of type maybe on-chain state.
+
+863
+01:10:26,719 --> 01:10:34,110
+So if it finds the state machine, then it will
+return just on-chain state and if not, then nothing.
+
+864
+01:10:34,110 --> 01:10:36,270
+So what is on-chain state?
+
+865
+01:10:37,550 --> 01:10:39,370
+On-chain state is a tuple.
+
+866
+01:10:40,019 --> 01:10:41,589
+Consisting of typed script Tx out and typed
+
+867
+01:10:41,589 --> 01:10:45,139
+script Tx out ref.
+
+868
+01:10:46,049 --> 01:10:50,049
+This is similar to what this UTxO at gives us.
+
+869
+01:10:50,259 --> 01:10:58,439
+I mean, there we always got this map from
+orefs to Os from Tx out refs to Tx outs.
+
+870
+01:10:59,469 --> 01:11:04,279
+And this is similar, it's also basically
+the UTxO itself and the reference to it.
+
+871
+01:11:04,509 --> 01:11:08,529
+But it has this typed, it's this typed
+version that we have seen before.
+
+872
+01:11:09,049 --> 01:11:14,009
+And all that does is, it basically bundles
+what we know from before, this Tx out.
+
+873
+01:11:14,389 --> 01:11:17,209
+But additionally it provides the datum.
+
+874
+01:11:17,819 --> 01:11:22,489
+If you recall, we always in our off-chain code, we
+always had to scramble and write helper functions
+
+875
+01:11:22,489 --> 01:11:25,889
+to access the datum once we had found a UTxO.
+
+876
+01:11:26,549 --> 01:11:30,749
+We had to lookup the datum hash and
+that could fail, and then we had to
+
+877
+01:11:30,749 --> 01:11:32,959
+lookup the datum to this hash and so on.
+
+878
+01:11:33,489 --> 01:11:39,529
+And all of this is basically hidden from
+us by using this typed script Tx out type.
+
+879
+01:11:40,269 --> 01:11:44,799
+Which we get by using this get on-chain state.
+
+880
+01:11:45,389 --> 01:11:52,921
+So by using get on-chain state client, we have
+this M and this M it could be nothing if no output
+
+881
+01:11:52,921 --> 01:11:54,859
+is found as before, this should never happen.
+
+882
+01:11:54,859 --> 01:11:59,755
+But if it does, we throw an error
+and now we get this on-chain state.
+
+883
+01:12:00,261 --> 01:12:03,939
+We are not interested in the
+reference only in the o itself.
+
+884
+01:12:04,989 --> 01:12:11,123
+And then we use this tyTx out data
+o to directly access the datum.
+
+885
+01:12:11,189 --> 01:12:17,870
+So no need to lookup hashes, that's
+all, some wrapped in this tyTx out data.
+
+886
+01:12:18,429 --> 01:12:20,909
+So now we immediately have the datum.
+
+887
+01:12:21,289 --> 01:12:27,629
+And as before we have the two cases that the
+second player hasn't moved or that the test moved.
+
+888
+01:12:28,029 --> 01:12:34,799
+So if it hasn't moved we must reclaim an
+earlier than we had lots of code to set up
+
+889
+01:12:34,799 --> 01:12:37,889
+the lookups and the constraints that we need.
+
+890
+01:12:38,369 --> 01:12:40,639
+Now, we only need this line.
+
+891
+01:12:40,829 --> 01:12:44,069
+So the important function here is run step.
+
+892
+01:12:45,489 --> 01:12:53,039
+So run step creates a transaction and submits
+it, that will transition the state machine.
+
+893
+01:12:53,989 --> 01:12:56,909
+And it takes us input the client again.
+
+894
+01:12:58,099 --> 01:13:03,129
+And then simply the redeemer, that's all,
+all the input we need is the redeemer.
+
+895
+01:13:03,709 --> 01:13:09,769
+And then we will get this transition result
+and I'm not using it in this example, but that
+
+896
+01:13:09,789 --> 01:13:14,219
+basically encodes whether it failed and for
+what reason it failed or whether it succeeded
+
+897
+01:13:14,409 --> 01:13:19,089
+and if it succeeded what the new state is, but
+I don't really need this in, in this example.
+
+898
+01:13:19,589 --> 01:13:21,959
+So this is all, this is really dramatically simpler.
+
+899
+01:13:21,979 --> 01:13:26,119
+So all I have to do is I tell it,
+okay, in this case, the first player...
+
+900
+01:13:26,119 --> 01:13:31,859
+the second player hasn't moved, I just
+do a step with the claim first redeemer.
+
+901
+01:13:32,349 --> 01:13:37,949
+No constraints, no lookups, no submissions or waiting.
+
+902
+01:13:37,959 --> 01:13:39,949
+This is all ended by the run step.
+
+903
+01:13:41,129 --> 01:13:42,739
+And this is really need, I think.
+
+904
+01:13:42,789 --> 01:13:45,039
+This is dramatically simpler than before.
+
+905
+01:13:45,039 --> 01:13:48,369
+And the way it works of course, is
+that in the transition function.
+
+906
+01:13:48,839 --> 01:13:51,999
+These conditions use these constraints.
+
+907
+01:13:52,009 --> 01:13:57,279
+So all the constraints are available to the state
+machine mechanism, and that allows it to handle
+
+908
+01:13:57,539 --> 01:14:04,599
+all of this automatically and to automatically
+assemble the compose the transaction that is needed.
+
+909
+01:14:05,089 --> 01:14:08,979
+So this is where the state machine
+approach really, really plays out.
+
+910
+01:14:09,659 --> 01:14:11,529
+So basically it's just this one line.
+
+911
+01:14:12,609 --> 01:14:18,843
+And in the other case where the second
+player has moved, and if you think we won
+
+912
+01:14:18,859 --> 01:14:23,779
+or if we know we won again, now we have
+to reveal and it's just this one line.
+
+913
+01:14:23,919 --> 01:14:31,309
+So again, run step client with the
+reveal FP nonce FP redeemer, that's
+
+914
+01:14:31,309 --> 01:14:33,759
+all, no constraints, no lookups nothing.
+
+915
+01:14:34,319 --> 01:14:36,629
+So this is much much simpler now.
+
+916
+01:14:36,629 --> 01:14:39,949
+And we don't need any helper
+functions as we did before.
+
+917
+01:14:41,069 --> 01:14:43,989
+And same for the second player, it's just as short.
+
+918
+01:14:44,799 --> 01:14:47,469
+So a second game, the beginning is the same.
+
+919
+01:14:47,469 --> 01:14:49,289
+We lookup the public key hash.
+
+920
+01:14:49,399 --> 01:14:54,039
+We define our game parameter, we
+defined the state machine client.
+
+921
+01:14:55,759 --> 01:15:02,299
+Then we use this get on-chain state again
+to check the or the, UTxO that represents
+
+922
+01:15:02,299 --> 01:15:03,889
+the state machine, represents the game.
+
+923
+01:15:03,889 --> 01:15:06,299
+If we don't find it, that means no game is running.
+
+924
+01:15:06,299 --> 01:15:11,629
+If you do find it all this other piece of
+information we could use, we don't need only the o.
+
+925
+01:15:12,669 --> 01:15:21,239
+And again, we use this typed version to grab the datum
+and this case would mean that we haven't played yet.
+
+926
+01:15:21,239 --> 01:15:26,629
+So now we should play and other cases are unexpected.
+
+927
+01:15:26,979 --> 01:15:33,159
+So we expect that we can play and in order
+to play, again, it's just one line of code.
+
+928
+01:15:33,369 --> 01:15:37,489
+We use run step and then the play, our choice redeemer.
+
+929
+01:15:39,239 --> 01:15:43,469
+And we wait as before until
+the reveal deadline has passed.
+
+930
+01:15:44,369 --> 01:15:46,079
+We again, check the new state.
+
+931
+01:15:46,399 --> 01:15:50,069
+And now if there is none, that
+means the first player has won.
+
+932
+01:15:50,119 --> 01:15:51,239
+So we don't do anything.
+
+933
+01:15:51,859 --> 01:15:56,059
+But if there is something that means
+the first player hasn't won, and again,
+
+934
+01:15:56,059 --> 01:16:00,079
+just one line of code to claim our win.
+
+935
+01:16:00,849 --> 01:16:01,649
+And that's it.
+
+936
+01:16:02,329 --> 01:16:05,829
+So here it really shines the state machine approach.
+
+937
+01:16:06,249 --> 01:16:12,209
+It was already, I think, a bit shorter here in
+the on-chain code, a bit more concise we needed
+
+938
+01:16:13,059 --> 01:16:15,039
+particularly we needed less helper functions.
+
+939
+01:16:15,039 --> 01:16:18,789
+We didn't have to worry about this
+handling of the own input own output
+
+940
+01:16:18,839 --> 01:16:21,359
+and of the NFT that it's passed through.
+
+941
+01:16:22,669 --> 01:16:29,229
+But in the off-chain code it's really
+dramatically simpler now and much more readable.
+
+942
+01:16:30,199 --> 01:16:33,589
+And the rest is exactly the
+same, it's just copy paste it.
+
+943
+01:16:34,189 --> 01:16:38,439
+And what is particularly nice about
+the state machine approaches is that we
+
+944
+01:16:38,469 --> 01:16:40,819
+don't have to replicate logic anymore.
+
+945
+01:16:41,339 --> 01:16:48,579
+I mean, earlier I explained that the on-chain
+validation checks whether a transaction
+
+946
+01:16:48,589 --> 01:16:54,714
+is valid, whereas the off-chain code has
+to construct a transaction that then will
+
+947
+01:16:55,019 --> 01:16:57,779
+pass these checks that validation does.
+
+948
+01:16:58,269 --> 01:17:02,709
+So on-chain and off-chain logic
+has slightly different purposes.
+
+949
+01:17:03,119 --> 01:17:06,989
+On chain has to check, whereas
+off-chain has to construct.
+
+950
+01:17:07,759 --> 01:17:14,659
+But by using this trick to specify the state
+machine using the constraints, that can be used
+
+951
+01:17:14,679 --> 01:17:17,899
+for both for checking and for construction.
+
+952
+01:17:19,019 --> 01:17:21,689
+We now don't have to replicate this logic anymore.
+
+953
+01:17:22,359 --> 01:17:28,299
+So we only use the constraints and they
+can be used to construct the transaction,
+
+954
+01:17:28,299 --> 01:17:30,169
+but also to check the transaction.
+
+955
+01:17:31,109 --> 01:17:35,129
+So in principle we have the
+amount of code we need to write.
+
+956
+01:17:35,839 --> 01:17:37,849
+And we removed a lot of duplication.
+
+957
+01:17:39,019 --> 01:17:45,189
+In order to test this, I create this module
+tests, state machine, and it's almost an
+
+958
+01:17:45,659 --> 01:17:49,709
+exact copy of the test module we saw earlier.
+
+959
+01:17:51,159 --> 01:17:54,069
+There's one small wrinkle.
+
+960
+01:17:54,559 --> 01:17:59,159
+First of all, of course, instead of importing
+even on time now importing state machine.
+
+961
+01:17:59,709 --> 01:18:01,679
+But then there's one other difference.
+
+962
+01:18:01,739 --> 01:18:03,949
+And that is with the deadlines.
+
+963
+01:18:04,499 --> 01:18:12,899
+Earlier I use slot to begin POSIX time,
+and now I'm using end and that is due
+
+964
+01:18:12,949 --> 01:18:16,309
+to a back in the state machine library.
+
+965
+01:18:16,829 --> 01:18:25,189
+And that has to do with this thing I mentioned,
+I think two lectures ago already that the
+
+966
+01:18:25,259 --> 01:18:29,499
+underlying transactions use slots not POSIX time.
+
+967
+01:18:30,139 --> 01:18:37,639
+So when you go from off-chain to on-chain code,
+you have to convert the validity intervals
+
+968
+01:18:37,659 --> 01:18:40,769
+into slots, and then back into POSIX times.
+
+969
+01:18:41,749 --> 01:18:44,389
+And because slots have a smaller granularity.
+
+970
+01:18:45,649 --> 01:18:47,809
+So I mean, one slot is one second.
+
+971
+01:18:49,619 --> 01:18:54,109
+You can't faithfully convert back and
+forth, and that leads to problems.
+
+972
+01:18:54,479 --> 01:19:00,999
+So what I said earlier about constraints that
+they self this dual purpose of specifying
+
+973
+01:19:01,509 --> 01:19:06,349
+validation in the on-chain part and
+constructing transactions in the off-chain part.
+
+974
+01:19:07,269 --> 01:19:12,479
+This unfortunately at the moment is not
+true due to this problem with a conversion.
+
+975
+01:19:12,979 --> 01:19:22,769
+So, if you're not careful, if you use a POSIX time that
+lies at the beginning of a slot, then the transaction
+
+976
+01:19:22,769 --> 01:19:25,329
+that the state machine produces won't validate.
+
+977
+01:19:26,919 --> 01:19:31,829
+And I hope that will be fixed soon, but for the
+time being, we can work around that by using
+
+978
+01:19:31,829 --> 01:19:35,319
+POSIX times that lie at the end of a slot.
+
+979
+01:19:35,329 --> 01:19:39,449
+So I had to change that, but everything
+else should be exactly the same.
+
+980
+01:19:40,819 --> 01:19:47,579
+And if we try it out in the repl, then we should
+get exactly the same result that we got before.
+
+981
+01:19:48,009 --> 01:19:50,639
+But with now using state machines.
+
+982
+01:19:52,249 --> 01:19:55,129
+So state machines are not always appropriate.
+
+983
+01:19:55,659 --> 01:20:02,414
+But when they are, you should definitely use them
+because they dramatically reduce the amount of code
+
+984
+01:20:02,414 --> 01:20:09,169
+you have to write and also remove sources of error
+because you avoid code duplication, basically the
+
+985
+01:20:09,169 --> 01:20:15,229
+state machine automatically takes care of guaranteeing
+that the on-chain and the off-chain code fit together.
+
+986
+01:20:15,769 --> 01:20:20,509
+So the off-chain code will produce transactions
+that then will be validated by the on-chain code.
+
+987
+01:20:21,049 --> 01:20:24,859
+And until now we always had
+to take care of that by hand.
+
+988
+01:20:25,039 --> 01:20:32,519
+So big source of errors or backs is
+removed and everything is much shorter.
+
+989
+01:20:33,109 --> 01:20:39,349
+Because a lot of the machinery to find, to
+identify the right UTxO and to pass through
+
+990
+01:20:39,349 --> 01:20:44,689
+the state token is taken care of for you
+automatically by the state machine mechanism.
+
+991
+01:20:45,359 --> 01:20:48,969
+Of course it's not always appropriate,
+but when you have this module...
+
+992
+01:20:49,279 --> 01:20:56,029
+model that there's basically one specific UTxO that
+carries some state in its datum and that transition.
+
+993
+01:20:56,179 --> 01:21:00,879
+So there are transactions that consume this
+UTxO and produce a new one at the same address
+
+994
+01:21:00,889 --> 01:21:03,329
+with the possibly updated datum and value.
+
+995
+01:21:03,969 --> 01:21:08,479
+Then you should definitely ask yourself
+whether you can model that as a state machine
+
+996
+01:21:08,589 --> 01:21:10,949
+and then use this state machine mechanism.
+
+997
+01:21:13,059 --> 01:21:14,049
+For homework.
+
+998
+01:21:14,169 --> 01:21:22,379
+I recommend that you modify this state machine
+module and implement the rock paper scissors
+
+999
+01:21:22,389 --> 01:21:25,639
+game instead of this game we implemented.
+
+1000
+01:21:26,659 --> 01:21:33,499
+And so the game definition can stay exactly the
+same, but then for choices instead of zero one,
+
+1001
+01:21:33,509 --> 01:21:36,289
+we have three choices, rock paper, and scissors.
+
+1002
+01:21:37,149 --> 01:21:44,439
+And then the implementation of equality changes, of
+course, rock equals rock, paper equals paper, scissors
+
+1003
+01:21:44,479 --> 01:21:48,683
+equals scissors, nothing else equals anything else.
+
+1004
+01:21:49,169 --> 01:21:58,339
+And I suppose it will be helpful to implement a
+beats function that takes two of these choices and
+
+1005
+01:21:58,339 --> 01:22:00,579
+then says whether the first one beats the second.
+
+1006
+01:22:00,579 --> 01:22:07,599
+So rock beats scissors, paper beats rock,
+and scissors beat paper, and that's all.
+
+1007
+01:22:09,209 --> 01:22:16,549
+And I want you to reimplement the
+game with these additional options.
+
+1008
+01:22:17,129 --> 01:22:19,029
+So a lot is very similar.
+
+1009
+01:22:19,819 --> 01:22:23,489
+The only difference of course is that
+now there's also the possibility of a
+
+1010
+01:22:23,489 --> 01:22:26,299
+draw if both players make the same move.
+
+1011
+01:22:26,299 --> 01:22:29,609
+And in that case, of course,
+this state should be split.
+
+1012
+01:22:30,449 --> 01:22:34,039
+So each player should get his or her own stake back.
+
+1013
+01:22:34,899 --> 01:22:38,449
+There's one more change you need
+to make to the redeemer type.
+
+1014
+01:22:38,979 --> 01:22:42,519
+Earlier, in the reveal case, we
+only had to provide the nonce.
+
+1015
+01:22:43,029 --> 01:22:46,939
+We didn't have to provide the actual
+move that the first player made,
+
+1016
+01:22:47,299 --> 01:22:50,179
+because he would only reveal if he won.
+
+1017
+01:22:50,379 --> 01:22:53,129
+So if he made the same move
+that the second player made.
+
+1018
+01:22:53,889 --> 01:23:00,659
+So this was redundant information and we didn't
+need it, but now we do need it because there are two
+
+1019
+01:23:00,659 --> 01:23:03,069
+possibilities, what the first player could have done.
+
+1020
+01:23:03,109 --> 01:23:05,249
+If he knows he lost, he won't reveal.
+
+1021
+01:23:05,829 --> 01:23:12,409
+But he could reveal if he won, but also if it's a
+draw, because if he doesn't reveal, even if it's a
+
+1022
+01:23:12,409 --> 01:23:14,359
+draw, then the second player would get everything.
+
+1023
+01:23:14,919 --> 01:23:18,739
+So the first player now must reveal
+if he won or if it was a draw.
+
+1024
+01:23:19,289 --> 01:23:25,789
+So in order to write down the correct conditions,
+we now need the choice that the first player made.
+
+1025
+01:23:26,879 --> 01:23:34,129
+And with that you need one more case in the
+transition function to take care of this draw case.
+
+1026
+01:23:34,889 --> 01:23:37,179
+And there are some slight modifications.
+
+1027
+01:23:37,179 --> 01:23:41,659
+For example, now you need three of these
+byteStrings instead of zero one, you need three
+
+1028
+01:23:41,669 --> 01:23:44,289
+choices for how to represent rock paper scissors.
+
+1029
+01:23:44,819 --> 01:23:52,589
+And also in the off-chain code there's a slight
+change when you check what to do if there's a draw.
+
+1030
+01:23:53,179 --> 01:23:54,819
+But everything is very similar.
+
+1031
+01:23:55,159 --> 01:23:57,419
+So there are not a lot of changes needed.
+

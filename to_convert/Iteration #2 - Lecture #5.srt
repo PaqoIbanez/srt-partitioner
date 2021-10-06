@@ -1,0 +1,4211 @@
+1
+00:00:07,510 --> 00:00:13,150
+In this lecture I want to talk about
+native tokens and how they are supported
+
+2
+00:00:13,150 --> 00:00:18,460
+by Plutus, how you can use Plutus to
+define a so-called minting policy to
+
+3
+00:00:18,820 --> 00:00:25,270
+determine under which conditions native
+tokens can be minted and also burned.
+
+4
+00:00:26,260 --> 00:00:31,120
+But before I get to that, I have to
+explain what value means in Cardano.
+
+5
+00:00:32,119 --> 00:00:36,130
+When I talked about the
+extended UTxO model.
+
+6
+00:00:37,300 --> 00:00:41,440
+I explained that each UTxO,
+each unspent transaction output
+
+7
+00:00:41,920 --> 00:00:44,160
+has an address and the value.
+
+8
+00:00:44,560 --> 00:00:47,950
+And then when it was extended
+to the extended UTxO model,
+
+9
+00:00:48,640 --> 00:00:51,379
+additionally UTxO also has a datum.
+
+10
+00:00:51,765 --> 00:00:56,505
+And we have seen examples of
+such datums in previous lectures.
+
+11
+00:00:57,345 --> 00:01:02,475
+But in almost all the examples we
+have seen so far, the value was always
+
+12
+00:01:02,475 --> 00:01:05,535
+simply an ADA value or lovelace value.
+
+13
+00:01:06,165 --> 00:01:11,895
+And exception was the first contract
+I showed you as an example, namely
+
+14
+00:01:11,895 --> 00:01:17,415
+the auction contract, because
+in that example the item that
+
+15
+00:01:17,415 --> 00:01:20,045
+was auction, the way was a NFT.
+
+16
+00:01:21,155 --> 00:01:25,935
+So this NFT was also a
+value, which was not ADA.
+
+17
+00:01:27,135 --> 00:01:30,945
+But we just created this NFT out
+of thin air in the playground.
+
+18
+00:01:31,065 --> 00:01:36,735
+So we just used this playground
+feature that makes it possible to start
+
+19
+00:01:36,735 --> 00:01:42,315
+with other native tokens, other than
+ADA that are already in existence.
+
+20
+00:01:43,065 --> 00:01:47,985
+In the real Cardano blockchain, however,
+in the beginning, they are only ADA.
+
+21
+00:01:48,195 --> 00:01:51,975
+There are no other native
+tokens apart from ADA.
+
+22
+00:01:52,935 --> 00:01:58,965
+So you have to do something to create new
+native tokens or to burn existing ones
+
+23
+00:01:59,295 --> 00:02:04,455
+and in this lecture we'll see how to do
+that, but let's first talk about values.
+
+24
+00:02:05,925 --> 00:02:14,535
+The relevant types are defined in package
+plutus-ledger-api and the modules of
+
+25
+00:02:14,535 --> 00:02:22,565
+interests are Plutus dot V1 dot ledger
+dot value, and then special support for
+
+26
+00:02:22,595 --> 00:02:26,395
+ADA in Plutus dot V1 dot ledger dot ADA.
+
+27
+00:02:27,335 --> 00:02:32,945
+Let's look at the value module
+first a value is defined as a map
+
+28
+00:02:33,395 --> 00:02:40,295
+from currency symbols to maps from
+token names to integers, which
+
+29
+00:02:40,295 --> 00:02:42,875
+sounds a bit weird and complicated.
+
+30
+00:02:44,075 --> 00:02:51,600
+So the first thing to notice that
+each native token, including ADA is
+
+31
+00:02:51,630 --> 00:02:57,580
+identified by two pieces of data, a
+currency symbol and the token name.
+
+32
+00:02:58,860 --> 00:03:06,660
+And if we go to the top of the module,
+we see that a currency symbol is just
+
+33
+00:03:06,660 --> 00:03:08,580
+a newtype wrap around to byte string.
+
+34
+00:03:09,990 --> 00:03:13,920
+And the same is true for token
+name, token name is also just a new
+
+35
+00:03:13,960 --> 00:03:15,620
+type wrapper around byte string.
+
+36
+00:03:16,410 --> 00:03:21,510
+So we have  these two byte
+strings that identify a coin or
+
+37
+00:03:22,200 --> 00:03:25,140
+in also called an asset class.
+
+38
+00:03:26,790 --> 00:03:33,960
+We have this newtype asset class, which
+is a wrapper around a payer consisting
+
+39
+00:03:33,960 --> 00:03:36,270
+of a currency symbol and the token name.
+
+40
+00:03:37,920 --> 00:03:44,490
+So ADA or lovelace will be one
+asset class and custom native
+
+41
+00:03:44,490 --> 00:03:47,030
+tokens will be other asset classes.
+
+42
+00:03:48,765 --> 00:03:55,065
+And this map from currency symbol
+to map token names to integers is
+
+43
+00:03:55,275 --> 00:04:01,155
+equivalent to a map from asset classes
+to integers, which means that a value
+
+44
+00:04:01,355 --> 00:04:07,895
+just says how many units of each
+asset class are contained in it.
+
+45
+00:04:08,825 --> 00:04:16,485
+Let's start the repl and let's import
+the two relevant modules plutus V1
+
+46
+00:04:16,925 --> 00:04:24,575
+ledger value, and plutus V1 ledger ADA.
+
+47
+00:04:25,475 --> 00:04:33,695
+Let's also activate the overloaded
+string extension so that we can end
+
+48
+00:04:33,695 --> 00:04:35,915
+up byte strings as literal strings.
+
+49
+00:04:36,245 --> 00:04:40,925
+Incidentally, both currency
+symbol and token name also
+
+50
+00:04:40,925 --> 00:04:43,535
+implement the is string class.
+
+51
+00:04:43,835 --> 00:04:49,140
+That means we can enter both of
+those as literal strings as well.
+
+52
+00:04:49,560 --> 00:04:53,310
+Now let's look at some values,
+let's start with lovelace values.
+
+53
+00:04:54,060 --> 00:04:56,850
+In the ledger dot ADA module.
+
+54
+00:04:57,420 --> 00:05:08,940
+There's a function called ADA, ADA symbol
+and this is of type currency symbol.
+
+55
+00:05:09,630 --> 00:05:16,970
+And that gives us not surprisingly the
+currency symbol of the ADA asset class.
+
+56
+00:05:17,600 --> 00:05:25,950
+And that's just the empty byte string
+and there's similarly a function ADA
+
+57
+00:05:26,070 --> 00:05:29,460
+token, which will give us the token name.
+
+58
+00:05:29,850 --> 00:05:33,100
+And that is also the empty byte string.
+
+59
+00:05:33,570 --> 00:05:39,235
+So taking both symbol, currency
+symbol and token name as the empty
+
+60
+00:05:39,255 --> 00:05:42,174
+byte string gives us ADA or lovelace.
+
+61
+00:05:42,555 --> 00:05:48,665
+And so how do we construct the
+value containing just lovelace.
+
+62
+00:05:48,895 --> 00:05:53,094
+We have seen that before in the
+examples, there is a function
+
+63
+00:05:58,585 --> 00:06:03,695
+lovelace value of, that given
+an integer, it gives us a value.
+
+64
+00:06:04,265 --> 00:06:10,265
+So for example, to have 123
+lovelace, we can just do this.
+
+65
+00:06:11,940 --> 00:06:18,330
+And we get the value and by the way, you
+would never construct a value directly
+
+66
+00:06:18,900 --> 00:06:25,289
+by constructing these maps, instead there
+are always helper functions you can use,
+
+67
+00:06:25,560 --> 00:06:27,659
+one of those being lovelace value of.
+
+68
+00:06:28,440 --> 00:06:33,900
+So here we see this map, so the
+outer map, the map where the keys
+
+69
+00:06:33,900 --> 00:06:39,900
+are currency symbols has one key
+and we don't really see it here,
+
+70
+00:06:39,900 --> 00:06:44,820
+that's because the currency symbol
+of ADA is just empty currency symbol.
+
+71
+00:06:45,780 --> 00:06:49,799
+Okay, and the value is now a map
+from token names to integers.
+
+72
+00:06:50,190 --> 00:06:56,250
+And we see this inner map here, again
+has just one key, the empty string,
+
+73
+00:06:56,280 --> 00:07:01,740
+that's the token name of lovelace
+and finally the value is 123, so
+
+74
+00:07:01,740 --> 00:07:05,050
+this value represents 123 lovelace.
+
+75
+00:07:06,290 --> 00:07:10,870
+One thing we can do with values
+is we can combine them, add them.
+
+76
+00:07:11,430 --> 00:07:22,400
+So in the case of lovelace, so let's take
+another example lovelace value, I don't
+
+77
+00:07:22,400 --> 00:07:25,670
+know, 10 and how do we combine them?
+
+78
+00:07:25,670 --> 00:07:30,530
+Wait, turns out that the value class
+is an instance of monoid, we briefly
+
+79
+00:07:30,530 --> 00:07:35,059
+mentioned monoids in the last lecture
+when we talked about the writer monad.
+
+80
+00:07:35,850 --> 00:07:41,429
+So monoids are things that you can
+combine neutral element called mempty,
+
+81
+00:07:41,960 --> 00:07:47,469
+and you can combine two elements
+to a third element with meppend.
+
+82
+00:07:48,280 --> 00:07:52,505
+But there's also an operator for
+that, that's writen like this,
+
+83
+00:07:52,575 --> 00:07:56,275
+that comes from semi-group,
+which is a superclass of monoid.
+
+84
+00:07:56,775 --> 00:08:00,375
+So doing something like this,
+I can combine two values.
+
+85
+00:08:00,525 --> 00:08:05,975
+So having the value of that represents 123
+lovelace and the value  representing 10
+
+86
+00:08:05,975 --> 00:08:10,475
+lovelace I get a value with 133 lovelace.
+
+87
+00:08:11,265 --> 00:08:15,585
+So how do we create values
+containing native tokens?
+
+88
+00:08:16,425 --> 00:08:22,065
+There's a very useful function called
+singleton, and it's a function that
+
+89
+00:08:22,065 --> 00:08:26,355
+takes three arguments, currency
+symbol, a token name and an integer.
+
+90
+00:08:27,035 --> 00:08:35,835
+And that will construct a value consisting
+of just one asset class given by the
+
+91
+00:08:35,835 --> 00:08:40,335
+current symbol and the token name and
+the integer specifies the amount, how
+
+92
+00:08:40,335 --> 00:08:42,554
+many coins of that asset class are there.
+
+93
+00:08:43,664 --> 00:08:48,795
+So we can construct a value with the
+native token, by now first giving a
+
+94
+00:08:48,795 --> 00:08:53,564
+currency symbol and as I mentioned before,
+because we have the overloaded string
+
+95
+00:08:54,075 --> 00:08:58,785
+extension activated, I can just give
+the currency symbol as a literal string.
+
+96
+00:08:59,265 --> 00:09:02,405
+However that can't be an arbitrary
+string, it must be a string
+
+97
+00:09:02,505 --> 00:09:07,725
+presenting a hexadecimal value for
+reasons I'll explain in a minute.
+
+98
+00:09:07,785 --> 00:09:14,345
+So for example, we can do something
+like a8ff, just as an example.
+
+99
+00:09:14,885 --> 00:09:19,575
+So next comes the token name, that
+can be an arbitrary byte string.
+
+100
+00:09:20,975 --> 00:09:25,865
+And I can just do
+whatever for example, ABC.
+
+101
+00:09:26,705 --> 00:09:30,714
+Okay, and now I must give the
+amount, how many coins let's say 7.
+
+102
+00:09:32,204 --> 00:09:37,995
+And indeed get the value, now we
+see the inner outer map, the map
+
+103
+00:09:38,055 --> 00:09:39,705
+where the keys are currency symbols.
+
+104
+00:09:40,095 --> 00:09:48,555
+I have one entry, my a8ff and
+then the value is an inner map
+
+105
+00:09:49,545 --> 00:09:54,305
+given in this case only the one
+token name ABC and the amount 7.
+
+106
+00:09:55,305 --> 00:10:01,285
+Now of course I can also combine as
+before with this mappend operator.
+
+107
+00:10:01,965 --> 00:10:09,645
+So for example, I can take this and
+combine it with lovelace value of 42.
+
+108
+00:10:10,485 --> 00:10:15,045
+And let's say I can combine it
+with another singleton, maybe
+
+109
+00:10:15,045 --> 00:10:23,915
+using the same currency symbol
+a8ff but a different token name.
+
+110
+00:10:26,045 --> 00:10:27,515
+100, let's see.
+
+111
+00:10:28,619 --> 00:10:30,899
+So now we get to somewhat interesting map.
+
+112
+00:10:31,040 --> 00:10:37,109
+So now in the outer map, we have
+two keys, one as the empty currency
+
+113
+00:10:37,139 --> 00:10:39,060
+symbol, so that's for the lovelace.
+
+114
+00:10:39,630 --> 00:10:45,209
+And then a second entry that
+has the a8ff currency symbol.
+
+115
+00:10:45,719 --> 00:10:50,920
+In the lovelace case the inner map,
+there's only the one token name, the
+
+116
+00:10:51,469 --> 00:11:00,579
+lovelace token name with the value 42,
+but in the a8ff currency, in theinner
+
+117
+00:11:00,599 --> 00:11:05,250
+map there, we have two entries for the
+two token names we now have ABC and
+
+118
+00:11:05,250 --> 00:11:09,930
+XYZ with amount 7 and 100 respectively.
+
+119
+00:11:11,310 --> 00:11:14,579
+Let's give this value a
+name, let's call it V.
+
+120
+00:11:16,620 --> 00:11:22,200
+And another useful function is given
+a value to extract the amount for a
+
+121
+00:11:22,200 --> 00:11:30,990
+given asset class that is called value
+of, and that, it takes a value and
+
+122
+00:11:30,990 --> 00:11:35,550
+the currency symbol and the token name
+and gives us the corresponding amount.
+
+123
+00:11:35,820 --> 00:11:43,920
+So if we try that with our V, value of
+V and take currency symbol a8ff and as
+
+124
+00:11:43,980 --> 00:11:53,950
+token name, for example, XYZ, then we
+get the 100 back if we take ABC, the 7.
+
+125
+00:11:53,970 --> 00:11:56,520
+And if we take a token name,
+that's not contained in the
+
+126
+00:11:56,520 --> 00:12:02,640
+value, ABC lowercase, we get zero.
+
+127
+00:12:04,140 --> 00:12:09,735
+Another useful function is flatten
+value, that takes a value and
+
+128
+00:12:09,735 --> 00:12:13,814
+returns a list of triples, currency
+symbol, token name, integer.
+
+129
+00:12:14,385 --> 00:12:20,895
+So as the name suggests, it's
+flatten this, this map of maps
+
+130
+00:12:22,095 --> 00:12:24,795
+into a flat list of triples.
+
+131
+00:12:24,855 --> 00:12:33,185
+So if we apply this to our example value
+V, we just get a list with three entries.
+
+132
+00:12:33,865 --> 00:12:38,655
+The first two are these native
+tokens, both with the same currency
+
+133
+00:12:38,655 --> 00:12:40,785
+symbol but different token names.
+
+134
+00:12:41,535 --> 00:12:45,985
+And the last entry here is
+the lovelace, the 42 lovelace.
+
+135
+00:12:47,055 --> 00:12:49,454
+Now the question of course is why?
+
+136
+00:12:49,785 --> 00:12:53,895
+Why do we both need a currency
+symbol and the token name?
+
+137
+00:12:53,895 --> 00:12:57,615
+Why don't we just use one
+identifier for an asset class?
+
+138
+00:12:58,485 --> 00:13:04,875
+And why does the currency symbol have
+to be built from hexadecimal digits
+
+139
+00:13:05,640 --> 00:13:07,110
+and can't be an arbitrary string?
+
+140
+00:13:07,740 --> 00:13:10,380
+And this is where a so called
+minting policies come in.
+
+141
+00:13:11,430 --> 00:13:18,959
+So the rule is that in general, a
+transaction can't create or delete tokens.
+
+142
+00:13:19,500 --> 00:13:22,500
+So everything that goes
+in, also comes out.
+
+143
+00:13:22,800 --> 00:13:28,260
+The exception is the fees, so there's
+always a fee and lovelace that has
+
+144
+00:13:28,260 --> 00:13:29,970
+to be paid for each transaction.
+
+145
+00:13:30,209 --> 00:13:34,740
+Fees depend on the size of the
+transaction in bites, not in value
+
+146
+00:13:35,430 --> 00:13:39,990
+and on the scripts that need to be
+run to validate the transaction.
+
+147
+00:13:40,589 --> 00:13:46,740
+And the script takes more fees
+if it consumes more memory and if
+
+148
+00:13:46,740 --> 00:13:49,650
+it needs more steps to execute.
+
+149
+00:13:50,579 --> 00:13:53,819
+So, but if that was the whole
+story, then of course we could
+
+150
+00:13:53,819 --> 00:13:55,980
+never create native tokens.
+
+151
+00:13:57,180 --> 00:14:00,910
+And this is where minting policies
+come in and where the relevance
+
+152
+00:14:00,930 --> 00:14:02,820
+of the currency symbol comes in.
+
+153
+00:14:03,480 --> 00:14:07,410
+So the reason that the currency
+symbol, the byte string giving the
+
+154
+00:14:07,470 --> 00:14:11,250
+currency symbol has to consist of
+hexadecimal numbers is that that
+
+155
+00:14:11,250 --> 00:14:13,470
+is actually the hash of a script.
+
+156
+00:14:14,430 --> 00:14:20,580
+And this script is called the minting
+policy and if we have a transaction where
+
+157
+00:14:20,580 --> 00:14:29,070
+we want to create native tokens or burn
+them, then for each native token that we
+
+158
+00:14:29,070 --> 00:14:35,820
+try to create or burn that currency symbol
+is locked up, that's the hash of a script.
+
+159
+00:14:36,570 --> 00:14:41,370
+So the corresponding script must
+also be contained in the transaction.
+
+160
+00:14:41,880 --> 00:14:46,950
+And that script is executed along
+with the other validation scripts.
+
+161
+00:14:48,450 --> 00:14:53,370
+And similar to the validation scripts that
+we have seen so far that validate inputs,
+
+162
+00:14:54,030 --> 00:15:00,270
+the purpose of these minting scripts
+is to decide whether this transaction
+
+163
+00:15:00,270 --> 00:15:03,000
+has the right to mint or burn tokens.
+
+164
+00:15:03,569 --> 00:15:08,040
+And ADA actually also fits into this
+scheme because remember the currency
+
+165
+00:15:08,040 --> 00:15:13,590
+symbol of ADA is just an empty string,
+which is not the hash of any script.
+
+166
+00:15:14,130 --> 00:15:18,090
+So there is no script that
+hashes to the empty script.
+
+167
+00:15:18,390 --> 00:15:23,760
+So there is no script that would allow
+the minting or burning of ADA, which
+
+168
+00:15:23,760 --> 00:15:26,280
+means that ADA can never minted or burned.
+
+169
+00:15:26,970 --> 00:15:33,000
+All the ADA that exists come from the
+genesis block, the genesis transaction,
+
+170
+00:15:33,000 --> 00:15:36,990
+the very first transaction and the
+total amount of ADA and the system
+
+171
+00:15:36,990 --> 00:15:38,850
+is fixed, it can never change.
+
+172
+00:15:39,870 --> 00:15:44,290
+So only these custom native
+tokens can have custom minting
+
+173
+00:15:44,310 --> 00:15:48,690
+policies and can be created and
+burned under certain conditions.
+
+174
+00:15:48,900 --> 00:15:53,610
+So we'll look at an example of a
+minting policy next and see how it
+
+175
+00:15:53,610 --> 00:15:58,290
+works and see that it's very similar to
+validation scripts, but not identical.
+
+176
+00:16:00,090 --> 00:16:04,530
+Before we write our first modeling
+policy, our first minting policy,
+
+177
+00:16:05,040 --> 00:16:10,000
+let's briefly recall how validation
+work that we have seen so far.
+
+178
+00:16:11,050 --> 00:16:17,760
+So when we don't have a public key
+address, but a script address and a
+
+179
+00:16:17,790 --> 00:16:23,370
+UTxO that sits at such a script address
+and a transaction that tries to consume
+
+180
+00:16:23,720 --> 00:16:30,825
+that UTxO as an input, then for each
+such script input, the corresponding
+
+181
+00:16:30,825 --> 00:16:33,255
+script is run the validation script.
+
+182
+00:16:33,705 --> 00:16:40,245
+And that validation script as input
+gets the datum which comes from
+
+183
+00:16:40,245 --> 00:16:46,215
+the UTxO, the redeemer, which comes
+from the input and the context.
+
+184
+00:16:47,145 --> 00:16:50,065
+And here we can see the context again.
+
+185
+00:16:50,775 --> 00:16:56,115
+Recall that's in package
+plutus-ledger-api as well in
+
+186
+00:16:56,445 --> 00:17:00,235
+module plutus.V1.ledger.context.
+
+187
+00:17:01,215 --> 00:17:07,575
+And so it's defined here and it
+has two fields, the Tx info field
+
+188
+00:17:07,595 --> 00:17:08,974
+and the script purpose field.
+
+189
+00:17:09,525 --> 00:17:13,155
+And we saw that for script purpose,
+everything we have seen until now
+
+190
+00:17:13,725 --> 00:17:20,175
+always had the purpose spending Tx
+out ref, the Tx out ref is a reference
+
+191
+00:17:20,175 --> 00:17:22,125
+to the UTxO we try to consume.
+
+192
+00:17:23,790 --> 00:17:27,750
+And this Tx info has all the
+context information about the
+
+193
+00:17:27,750 --> 00:17:29,790
+transaction that is being validated.
+
+194
+00:17:30,960 --> 00:17:34,950
+Now for monetary policies,
+for minting policies.
+
+195
+00:17:36,570 --> 00:17:45,510
+This is triggered if the Tx forge field
+in this one here, Tx info forge of the
+
+196
+00:17:45,510 --> 00:17:51,360
+transaction contains a non zero value,
+in all the examples we've seen so far,
+
+197
+00:17:51,360 --> 00:17:55,889
+this was always zero, which means in
+the transactions we've seen so far,
+
+198
+00:17:55,889 --> 00:17:59,429
+we never created or destroyed tokens.
+
+199
+00:18:00,090 --> 00:18:04,470
+But if this is non zero, so we
+have a value here, then this
+
+200
+00:18:04,470 --> 00:18:10,260
+value, as we have seen just now
+can contain a bag of asset classes.
+
+201
+00:18:10,290 --> 00:18:14,324
+So different asset classes
+for different currency symbols
+
+202
+00:18:14,895 --> 00:18:16,155
+and different token names.
+
+203
+00:18:17,235 --> 00:18:22,215
+So if this is non-zero then for each
+currency symbol contained in this value
+
+204
+00:18:22,215 --> 00:18:28,395
+that is being forged, the corresponding
+minting policy script is run.
+
+205
+00:18:28,635 --> 00:18:33,750
+So each currency symbol is the
+hash of a script, of a policy
+
+206
+00:18:33,750 --> 00:18:35,639
+script, a minting policy script.
+
+207
+00:18:36,240 --> 00:18:42,000
+And for each value that the piece
+here for each currency symbol that
+
+208
+00:18:42,000 --> 00:18:46,230
+appears in this value in the forge
+field of the transaction, the
+
+209
+00:18:46,230 --> 00:18:50,879
+corresponding script that belongs
+to the currency symbol is executed.
+
+210
+00:18:51,870 --> 00:18:56,730
+And where the validation scripts had
+three inputs, the datum, the redeemer,
+
+211
+00:18:56,820 --> 00:19:01,710
+and the context, these minting
+policy script only have two inputs, a
+
+212
+00:19:01,710 --> 00:19:04,780
+redeemer, and the context, no datum.
+
+213
+00:19:05,610 --> 00:19:10,110
+That would make sense because
+datum sits at something that's
+
+214
+00:19:10,110 --> 00:19:12,240
+being spent in the output.
+
+215
+00:19:12,720 --> 00:19:15,960
+And in this case, there is nothing
+like that, there's no place where
+
+216
+00:19:15,960 --> 00:19:20,159
+the datum could possibly sit, so
+the transaction will provide the
+
+217
+00:19:20,159 --> 00:19:26,070
+redeemer as it also provides the
+redeemer for all script inputs.
+
+218
+00:19:27,530 --> 00:19:34,310
+So, for each currency symbol in
+this value, with the non-zero
+
+219
+00:19:34,310 --> 00:19:40,820
+amount, the corresponding minting
+policy script will be run with
+
+220
+00:19:40,820 --> 00:19:43,340
+the redeemer and with the context.
+
+221
+00:19:43,370 --> 00:19:48,470
+So the context would get as Tx info
+the transaction that's being validated
+
+222
+00:19:49,160 --> 00:19:54,020
+and as script purpose, it will get
+minting with the currency symbol that
+
+223
+00:19:54,020 --> 00:19:58,100
+is currently checked, so who's minting
+or burning is currently checked.
+
+224
+00:19:58,790 --> 00:20:03,260
+So in principle, in this forge field,
+in the value of the forge, there
+
+225
+00:20:03,260 --> 00:20:06,380
+can be several currency symbols.
+
+226
+00:20:06,740 --> 00:20:11,750
+And then for each of those, the
+corresponding minting policy would be run
+
+227
+00:20:12,320 --> 00:20:14,780
+and the purpose would change accordingly.
+
+228
+00:20:15,140 --> 00:20:18,110
+So with the appropriate currency symbol.
+
+229
+00:20:19,460 --> 00:20:23,630
+So let's look at an example of
+a minting policy and let's start
+
+230
+00:20:23,630 --> 00:20:27,920
+with a very simple one, similar
+to what we did for validators.
+
+231
+00:20:29,415 --> 00:20:37,405
+I created a module free and as for
+validators, we first define a Haskell
+
+232
+00:20:37,425 --> 00:20:44,175
+function that represents the policy, and
+then will compile it to Plutus core..
+
+233
+00:20:44,985 --> 00:20:51,555
+So a validator takes the datum,
+the redeemer and the context.
+
+234
+00:20:52,065 --> 00:20:56,205
+And as I explained, there is
+no datum for policies so we
+
+235
+00:20:56,205 --> 00:20:57,915
+just have redeemer and context.
+
+236
+00:20:59,025 --> 00:21:05,115
+And for this simple one as redeemer,
+we can use just unit and then
+
+237
+00:21:05,955 --> 00:21:11,715
+script context as before and again
+bool, so this is the typed version.
+
+238
+00:21:12,975 --> 00:21:19,415
+So I mentioned before that there's
+low level Plutus, which just uses data
+
+239
+00:21:19,415 --> 00:21:25,735
+or built-in data for all arguments
+and then returns unit and failure
+
+240
+00:21:25,735 --> 00:21:27,745
+is indicated by thrown exception.
+
+241
+00:21:28,655 --> 00:21:33,185
+But we won't bother with that here
+and immediately use the typed version.
+
+242
+00:21:33,845 --> 00:21:37,475
+And normally for the redeemer
+I would need is data instance,
+
+243
+00:21:38,105 --> 00:21:39,814
+but unit has one already.
+
+244
+00:21:40,925 --> 00:21:47,074
+So the simple most policy we can write
+as the one that always returns true.
+
+245
+00:21:47,524 --> 00:21:51,455
+So no matter the script
+context, we just return true.
+
+246
+00:21:52,475 --> 00:21:57,695
+So this represents a minting policy
+that allows all sorts of minting
+
+247
+00:21:57,695 --> 00:22:01,564
+and burning for the currency
+symbol given by this policy,
+
+248
+00:22:02,850 --> 00:22:07,050
+Recall the currency symbol
+is the hash of the script.
+
+249
+00:22:07,620 --> 00:22:12,719
+Next, we have to compile this
+policy to Plutus script and
+
+250
+00:22:12,929 --> 00:22:14,639
+I called the result policy.
+
+251
+00:22:14,639 --> 00:22:20,779
+So it's of type minting policy, and very
+similar to what we do for validators.
+
+252
+00:22:20,850 --> 00:22:24,270
+There's a function called make
+minting policy script, and
+
+253
+00:22:24,270 --> 00:22:25,939
+then comes template Haskell.
+
+254
+00:22:26,610 --> 00:22:33,449
+And again, we use compile and Oxford
+brackets and he had slightly different
+
+255
+00:22:33,449 --> 00:22:35,219
+to what we do for validators.
+
+256
+00:22:35,580 --> 00:22:41,580
+So we take our policy, our Haskell
+function, but that still has to
+
+257
+00:22:41,580 --> 00:22:45,899
+be converted to the untype version
+that just uses built-in data for the
+
+258
+00:22:45,929 --> 00:22:48,149
+arguments and a unit return type.
+
+259
+00:22:48,570 --> 00:22:51,240
+And this is what wrap minting policy does.
+
+260
+00:22:52,560 --> 00:22:58,555
+So, as before this wouldn't work,
+because in these Oxford brackets,
+
+261
+00:22:58,945 --> 00:23:01,135
+everything has to be inside them.
+
+262
+00:23:01,495 --> 00:23:05,125
+So we can't have external definitions
+except if they can be inlined.
+
+263
+00:23:05,575 --> 00:23:09,415
+So again, we have to add
+this inlinable Pragma.
+
+264
+00:23:10,905 --> 00:23:14,775
+So let's do that, inlinable make policy.
+
+265
+00:23:16,705 --> 00:23:21,385
+And once we have the policy, we
+can get the currency symbol by
+
+266
+00:23:21,385 --> 00:23:26,065
+using the function script currency
+symbol, applied to the policy.
+
+267
+00:23:27,535 --> 00:23:33,895
+I should mention that similar to how
+we have parameterized validators, we
+
+268
+00:23:33,895 --> 00:23:36,475
+can also have parameterized policies.
+
+269
+00:23:36,745 --> 00:23:39,655
+So there could be additional
+arguments here in front of that,
+
+270
+00:23:39,895 --> 00:23:41,605
+the parameters of the policy.
+
+271
+00:23:42,985 --> 00:23:53,320
+So if I start the repl and load that
+module, then the currency symbol should be
+
+272
+00:23:53,320 --> 00:23:56,530
+available and I can actually look at it.
+
+273
+00:23:59,860 --> 00:24:05,740
+So this is now the hash of the script
+that we got from compiling the Haskell
+
+274
+00:24:05,770 --> 00:24:07,960
+function that represents the policy.
+
+275
+00:24:08,680 --> 00:24:14,530
+So that's the first currency
+symbol, that's not ADA that we see.
+
+276
+00:24:15,700 --> 00:24:20,740
+Going back to the editor, this
+completes the on-chain part, so
+
+277
+00:24:20,770 --> 00:24:24,910
+we define the policy as a Haskell
+function, compiled to Plutus script.
+
+278
+00:24:25,450 --> 00:24:28,180
+And we can also derive the
+currency symbol from that.
+
+279
+00:24:28,600 --> 00:24:31,570
+But in order to try it out, we
+also need an off-chain part.
+
+280
+00:24:31,750 --> 00:24:36,890
+So I prepared that already, and the
+idea is that we will have one endpoint
+
+281
+00:24:36,910 --> 00:24:44,610
+called mint, that takes as parameter
+the token name and the amount we
+
+282
+00:24:44,610 --> 00:24:47,010
+want to forge respectively burn.
+
+283
+00:24:47,070 --> 00:24:52,500
+So if the amount is positively forged
+and if it's negative, we will burn.
+
+284
+00:24:54,330 --> 00:24:56,639
+We only have to specify the
+token name because the currency
+
+285
+00:24:56,639 --> 00:24:58,470
+symbol is given by the script.
+
+286
+00:25:00,600 --> 00:25:06,300
+So the off-chain function in the
+contract monad, it takes these
+
+287
+00:25:06,300 --> 00:25:12,750
+parameters, then first we compute the
+value that we want to forge or burn.
+
+288
+00:25:13,230 --> 00:25:17,250
+So we use the singleton function
+that we saw before, currency symbol
+
+289
+00:25:17,250 --> 00:25:20,190
+is our shining new currency symbol.
+
+290
+00:25:21,149 --> 00:25:24,280
+And we extract the token name from
+the parameters and the amount.
+
+291
+00:25:25,470 --> 00:25:31,260
+And as lookups, we have to specify
+the minting policy, so the transaction
+
+292
+00:25:31,275 --> 00:25:36,075
+has to contain the actual script,
+the minting policy, the policy itself
+
+293
+00:25:36,855 --> 00:25:39,105
+for validation to be successful.
+
+294
+00:25:40,065 --> 00:25:47,055
+And the only constraint we put on our
+transaction is using something called must
+
+295
+00:25:47,055 --> 00:25:49,875
+mint value, which is self explanatory.
+
+296
+00:25:50,325 --> 00:25:54,675
+So this transaction must mint
+the value we computed before.
+
+297
+00:25:57,165 --> 00:26:02,685
+Then when we submit, so when we use
+submit Tx constraints with, with these
+
+298
+00:26:02,685 --> 00:26:09,255
+lookups and that Tx, then the algorithm
+will automatically take care to find an
+
+299
+00:26:09,255 --> 00:26:11,145
+input in the wallet to cover the fees.
+
+300
+00:26:11,535 --> 00:26:16,755
+And it will automatically transfer
+the minted value to the wallet if it's
+
+301
+00:26:16,755 --> 00:26:23,985
+positive, if it's negative, it will try
+to find sufficiently many tokens in the
+
+302
+00:26:24,045 --> 00:26:26,395
+user's wallet that can then be burned.
+
+303
+00:26:27,685 --> 00:26:32,475
+So we wait for confirmation and log
+a message that we forged this value.
+
+304
+00:26:33,825 --> 00:26:41,445
+So then we define the endpoints as
+before, so we just call mint and
+
+305
+00:26:41,445 --> 00:26:42,975
+then recursively endpoints again.
+
+306
+00:26:43,605 --> 00:26:48,955
+And mint prime is just using
+our mint, but using the endpoint
+
+307
+00:26:48,975 --> 00:26:54,105
+function to actually expose an
+endpoint and then feed the parameters
+
+308
+00:26:54,345 --> 00:26:56,565
+using bind into the mint function.
+
+309
+00:26:57,435 --> 00:27:03,195
+So this is boiler plate so that we
+could try it out in the playground and
+
+310
+00:27:03,255 --> 00:27:08,235
+additionally, I also defined emulator
+trace since the last lecture we know how
+
+311
+00:27:08,235 --> 00:27:13,365
+to do that, so we don't have to test it
+in the playground, we can also just run
+
+312
+00:27:13,365 --> 00:27:15,585
+it from the console using emulator trace.
+
+313
+00:27:16,245 --> 00:27:19,965
+So I define a token symbol, TN token name.
+
+314
+00:27:20,715 --> 00:27:26,760
+Then I run these endpoints, so the
+endpoints contract in wallets one and two,
+
+315
+00:27:27,120 --> 00:27:34,500
+so I start them, then I call the endpoint
+mint on wallet one where I use this token
+
+316
+00:27:34,500 --> 00:27:39,689
+name and I mint 555 coins of that token.
+
+317
+00:27:41,010 --> 00:27:45,270
+Then wallet two mints
+444 coins of the token.
+
+318
+00:27:46,800 --> 00:27:53,879
+I wait one slot and then I on
+wallet one burn 222 tokens.
+
+319
+00:27:54,330 --> 00:28:01,050
+So in the end wallet, one should
+have 333 and wallet two should
+
+320
+00:28:01,050 --> 00:28:03,810
+have 444 and I wait another slot.
+
+321
+00:28:05,310 --> 00:28:11,639
+I should still mention that here in
+the must mint value function, I'm just
+
+322
+00:28:12,659 --> 00:28:16,649
+mentioning the value and not the redeemer.
+
+323
+00:28:17,070 --> 00:28:21,330
+And that is because the case that the
+redeemer is of type unit is very common,
+
+324
+00:28:21,330 --> 00:28:23,050
+so there are special treatment for that.
+
+325
+00:28:24,715 --> 00:28:28,645
+Let's try this out in the
+repl, I have to reload.
+
+326
+00:28:37,525 --> 00:28:38,395
+Let's try it out.
+
+327
+00:28:43,195 --> 00:28:49,465
+And we see in the end, indeed,
+wallet one now has some ADA bit less
+
+328
+00:28:49,465 --> 00:28:55,525
+than before because of transaction
+fees and indeed 333, this currency
+
+329
+00:28:55,525 --> 00:28:58,045
+symbol, and that token name.
+
+330
+00:28:58,645 --> 00:29:03,325
+And wallet two has 444, so as expected.
+
+331
+00:29:04,105 --> 00:29:07,405
+Let's now try out the same
+scenario in the playground.
+
+332
+00:29:08,065 --> 00:29:12,715
+So two wallets and the
+beginning both mint.
+
+333
+00:29:14,665 --> 00:29:23,525
+Then we wait for one block and
+then wallet one means again rather
+
+334
+00:29:23,525 --> 00:29:31,199
+advanced, but of course the endpoint
+is the same and another wait action.
+
+335
+00:29:35,280 --> 00:29:49,920
+So token name was ABC
+and 555, 444 and -222.
+
+336
+00:29:49,920 --> 00:29:51,730
+Ok, let's see.
+
+337
+00:29:55,389 --> 00:30:00,760
+Okay, so as always the genesis
+transaction distributing the initial
+
+338
+00:30:00,760 --> 00:30:03,909
+funds, then here we have our two mints.
+
+339
+00:30:04,750 --> 00:30:06,509
+This is the one by wallet two.
+
+340
+00:30:08,559 --> 00:30:15,310
+So the UTxO coming from the genesis block
+goes in to pay for the fees, which in this
+
+341
+00:30:15,310 --> 00:30:27,865
+case are 8027 lovelace, wallet two gets
+the change and wallet two gets 444 of this
+
+342
+00:30:27,885 --> 00:30:30,555
+newly minted tokens that didn't come in.
+
+343
+00:30:30,645 --> 00:30:34,245
+So they have really been forged
+in this transaction as is also
+
+344
+00:30:34,245 --> 00:30:38,565
+indicated here in this forging block.
+
+345
+00:30:40,425 --> 00:30:44,535
+This is the same for wallet one, exactly
+the same, except everything is for
+
+346
+00:30:44,535 --> 00:30:48,795
+wallet one and it's 555 instead of 444.
+
+347
+00:30:50,175 --> 00:30:52,794
+And finally, this should be
+the burning by wallet one.
+
+348
+00:30:53,625 --> 00:31:01,035
+So in go some ADA to cover the fees
+and the UTxO we got in the previous
+
+349
+00:31:01,035 --> 00:31:05,235
+transaction with the 555 tokens.
+
+350
+00:31:06,015 --> 00:31:10,425
+Then in the forge field we see the -222.
+
+351
+00:31:11,685 --> 00:31:12,345
+And...
+
+352
+00:31:12,765 --> 00:31:16,155
+so the fees are paid and the
+change and the rest of the
+
+353
+00:31:16,155 --> 00:31:19,155
+token go back to wallet one.
+
+354
+00:31:21,060 --> 00:31:28,020
+And we also see that wallet
+one ends up with 333 and wallet
+
+355
+00:31:28,070 --> 00:31:30,890
+two with 444 of those tokens.
+
+356
+00:31:32,300 --> 00:31:35,270
+So the same result that we
+saw in the emulator trace.
+
+357
+00:31:36,350 --> 00:31:42,230
+So this concludes a complete through
+of our first monetary policy script.
+
+358
+00:31:42,650 --> 00:31:47,810
+One that doesn't put any
+restrictions on minting or burning.
+
+359
+00:31:48,320 --> 00:31:52,880
+And we saw in our simulation and in
+the emulator trace that indeed wallet
+
+360
+00:31:52,910 --> 00:31:56,840
+one and two can both mint the token.
+
+361
+00:31:57,639 --> 00:32:00,380
+And we also saw that wallet one
+can burn it again, but of course,
+
+362
+00:32:00,920 --> 00:32:02,810
+wallet two would also be able to.
+
+363
+00:32:03,710 --> 00:32:10,370
+So this is a maximally permissive policy
+that doesn't impose any restrictions.
+
+364
+00:32:10,910 --> 00:32:13,850
+Anybody can freely mint and burn.
+
+365
+00:32:14,330 --> 00:32:16,890
+Any transaction can freely mint and burn.
+
+366
+00:32:19,070 --> 00:32:24,060
+After the first example where there was
+no restriction whatsoever on minting
+
+367
+00:32:24,080 --> 00:32:28,160
+or burning a token, let's look at
+the somewhat more realistic example.
+
+368
+00:32:28,250 --> 00:32:31,610
+And I copied the free module
+to a new module called signed
+
+369
+00:32:32,000 --> 00:32:33,620
+and want to modify it now.
+
+370
+00:32:34,130 --> 00:32:41,720
+And the idea for more realistic example
+is that minting and burning can only
+
+371
+00:32:41,720 --> 00:32:46,580
+happen if the transaction that tries to
+do that is signed by a specific signature,
+
+372
+00:32:46,850 --> 00:32:49,400
+by the owner of a specific pub key hash.
+
+373
+00:32:51,100 --> 00:32:56,500
+So in order to do that, we need
+a parameterize minting policy
+
+374
+00:32:56,590 --> 00:32:59,770
+where the parameter is the pub
+key hash we are checking for.
+
+375
+00:33:01,180 --> 00:33:07,430
+So let's add that here and then we have
+additional argument, let's call it PKH.
+
+376
+00:33:08,110 --> 00:33:11,655
+And now we can't ignore the
+script context any longer.
+
+377
+00:33:12,615 --> 00:33:16,815
+And we can just use the Tx signed by
+that we have seen before, which takes
+
+378
+00:33:16,815 --> 00:33:26,625
+the Tx info and that we can get by
+script context Tx info of the context
+
+379
+00:33:27,645 --> 00:33:30,915
+and the public key we are looking for.
+
+380
+00:33:32,805 --> 00:33:37,065
+Now, of course, these other definitions
+have to change accordingly to
+
+381
+00:33:37,065 --> 00:33:38,715
+take the parameter into account.
+
+382
+00:33:38,715 --> 00:33:43,485
+So policy is no longer constance,
+it becomes a function that
+
+383
+00:33:43,485 --> 00:33:45,405
+depends on the parameter.
+
+384
+00:33:48,525 --> 00:33:57,675
+This is now similar to what we
+did before, so we have to apply
+
+385
+00:33:57,855 --> 00:34:00,255
+this to the lifted parameter.
+
+386
+00:34:00,405 --> 00:34:03,705
+So this now, because make policy
+is now also function, so I must
+
+387
+00:34:03,705 --> 00:34:06,255
+compose it with wrap minting policy.
+
+388
+00:34:07,275 --> 00:34:14,100
+Now, again, I can use plutus
+Tx dot apply code as before,
+
+389
+00:34:15,420 --> 00:34:21,049
+and Plutus Tx lift code PKH.
+
+390
+00:34:26,370 --> 00:34:31,080
+So finally for the currency symbol,
+this now also becomes a function that
+
+391
+00:34:31,560 --> 00:34:34,259
+takes the pub key hash as argument.
+
+392
+00:34:35,279 --> 00:34:37,199
+And I can simply compose here.
+
+393
+00:34:37,980 --> 00:34:42,029
+So this is very similar to before
+now for the off-chain code.
+
+394
+00:34:43,649 --> 00:34:47,759
+We don't have to change very much, for
+example, the parameters we can leave
+
+395
+00:34:47,759 --> 00:34:52,679
+as they are, we don't have to add the
+pub key hash here to the parameters,
+
+396
+00:34:53,190 --> 00:34:58,330
+because one of the features of the
+contract monad is that you can lookup
+
+397
+00:34:58,350 --> 00:35:05,580
+your own pub key and minting calling
+this mint function only makes sense.
+
+398
+00:35:06,149 --> 00:35:10,125
+If you actually want to, I mean,
+the currency that's given by your
+
+399
+00:35:10,125 --> 00:35:15,255
+own pub key because otherwise the
+minting policy would forbid it anyway.
+
+400
+00:35:15,825 --> 00:35:19,395
+You should rename this to sign schema.
+
+401
+00:35:22,835 --> 00:35:30,535
+Okey and now here, so we do have to
+lookup our own pub key, we can do that
+
+402
+00:35:30,535 --> 00:35:41,665
+with contract own pub key, and then we
+can align here where we compute the pub
+
+403
+00:35:41,665 --> 00:35:46,105
+key hash from that, pub key hash pub key.
+
+404
+00:35:48,165 --> 00:35:52,485
+However that can be shortened, it
+doesn't have to, I mean, this is
+
+405
+00:35:52,485 --> 00:35:59,195
+perfectly fine, but I would probably
+combine these two lines to one using
+
+406
+00:35:59,220 --> 00:36:03,940
+the fact that contract is a monad,
+and hence in particular a functor.
+
+407
+00:36:04,569 --> 00:36:08,850
+So recall functor has this F map function.
+
+408
+00:36:08,940 --> 00:36:13,089
+So if F is functor and we have a
+function from A to B and an F A,
+
+409
+00:36:13,140 --> 00:36:15,020
+then you can turn that into an F B.
+
+410
+00:36:15,600 --> 00:36:22,080
+Also, remember the prototypical example
+of functor is lists in which case
+
+411
+00:36:22,080 --> 00:36:24,660
+F map is just a usual map on lists.
+
+412
+00:36:24,990 --> 00:36:32,779
+So if I have map plus one of
+the list one, let's say ints 2,
+
+413
+00:36:32,779 --> 00:36:36,779
+3, then I get the map 2, 3, 4.
+
+414
+00:36:36,810 --> 00:36:41,790
+So that's the usual map, but four
+lists map is the same as F map.
+
+415
+00:36:41,940 --> 00:36:44,009
+So I can just as well do F map.
+
+416
+00:36:45,240 --> 00:36:48,629
+And there's also an
+operator version of F map.
+
+417
+00:36:48,690 --> 00:36:55,230
+So you can write this identical,
+like, so using this dollar in angular
+
+418
+00:36:55,240 --> 00:37:00,465
+brackets, which is often nicer and
+reads nicer and particular the dollar
+
+419
+00:37:01,395 --> 00:37:05,805
+looks similar to the usual dollar
+which is just function application.
+
+420
+00:37:06,615 --> 00:37:10,335
+So that somehow shows  that this
+F map is a bit like function
+
+421
+00:37:10,345 --> 00:37:12,495
+application just lifted into a functor.
+
+422
+00:37:13,665 --> 00:37:22,125
+So I want to apply that to F being
+contract and this F A being own pub key.
+
+423
+00:37:23,325 --> 00:37:28,575
+So we have something of type
+contract pub key, and we have the
+
+424
+00:37:28,575 --> 00:37:33,495
+function pub key hash, which goes
+from pub key to pub key hash.
+
+425
+00:37:34,245 --> 00:37:38,805
+So using F map it gets something from
+contract pub key to contract pub key hash.
+
+426
+00:37:39,915 --> 00:37:45,575
+So I can immediately get the
+pub key hash here if I F map pub
+
+427
+00:37:45,645 --> 00:37:49,845
+key hash over this own pub key.
+
+428
+00:37:49,995 --> 00:37:52,875
+And then after all I don't
+need this line anymore.
+
+429
+00:37:54,965 --> 00:37:58,460
+Okay, now that I have the pub
+key hash, I can apply it to
+
+430
+00:37:58,460 --> 00:38:01,970
+the currency symbol function to
+get the actual currency symbol.
+
+431
+00:38:03,590 --> 00:38:08,150
+That depends on this parameter
+and I can do the same for policy
+
+432
+00:38:08,150 --> 00:38:11,210
+here, which now also is a function
+that takes the pub key hash.
+
+433
+00:38:12,650 --> 00:38:22,190
+The rest should be fine, here I just have
+to rename to signed schema, here as well.
+
+434
+00:38:26,730 --> 00:38:30,240
+And I believe the trace
+is still perfectly fine.
+
+435
+00:38:31,390 --> 00:38:36,090
+One thing I forgot is here, I also
+have to rename to signed schema.
+
+436
+00:38:36,930 --> 00:38:38,550
+Let's try the trace.
+
+437
+00:38:42,460 --> 00:38:48,070
+So everything seems to work, we
+get the three forges where the
+
+438
+00:38:48,070 --> 00:38:51,520
+last one is actually a burning
+cause it's negative amount.
+
+439
+00:38:53,200 --> 00:38:57,365
+And we get the same amounts
+again, so 333 in the end on
+
+440
+00:38:57,415 --> 00:38:59,745
+wallet one, 444 in wallet two.
+
+441
+00:39:00,195 --> 00:39:05,505
+However, note that now
+these are different tokens.
+
+442
+00:39:05,805 --> 00:39:09,225
+They have the same token name
+ABC in both cases, but the
+
+443
+00:39:09,225 --> 00:39:10,605
+currency symbol is different.
+
+444
+00:39:11,175 --> 00:39:16,305
+And that is because now we had the
+parameterize minting policy and each
+
+445
+00:39:16,305 --> 00:39:19,215
+wallet applies its own pub key hash to it.
+
+446
+00:39:19,635 --> 00:39:23,325
+So the parameter is different, so the
+resulting script will be different.
+
+447
+00:39:23,715 --> 00:39:27,225
+So the hash of the resulting script
+will be different, which is the currency
+
+448
+00:39:27,225 --> 00:39:29,685
+symbol, so we get different tokens.
+
+449
+00:39:29,805 --> 00:39:34,965
+Wallet one can only mint this token and
+wallet two can only mint this token.
+
+450
+00:39:36,675 --> 00:39:41,325
+Because wallet one can only sign for
+this one and wallet two can only sign
+
+451
+00:39:41,325 --> 00:39:47,085
+for that one, the wallet only has its own
+signature to use, to sign transactions.
+
+452
+00:39:48,635 --> 00:39:55,734
+So this is more realistic example, which
+might actually be useful in practice.
+
+453
+00:39:56,065 --> 00:40:01,404
+It's a bit like a central bank where the
+pub key hash identifies the central bank.
+
+454
+00:40:02,245 --> 00:40:11,504
+So it's similar to fiat currencies
+like USD, Euro, or Yen where supply
+
+455
+00:40:12,174 --> 00:40:14,305
+is determined by a central bank.
+
+456
+00:40:15,055 --> 00:40:20,964
+The central bank can decide to mint
+more money or take money out of
+
+457
+00:40:20,964 --> 00:40:25,734
+circulation to control the total supply.
+
+458
+00:40:26,484 --> 00:40:30,215
+And this is somewhat similar,
+this parameterized minting
+
+459
+00:40:30,234 --> 00:40:32,214
+policy that we have seen here.
+
+460
+00:40:33,234 --> 00:40:38,634
+So, wallet one is in
+control of this currency.
+
+461
+00:40:39,480 --> 00:40:45,540
+And can mint then burn and freely, but
+nobody else can and wallet two is in
+
+462
+00:40:45,540 --> 00:40:51,570
+control of this currency and can mint
+and burn it freely, but nobody else can.
+
+463
+00:40:53,040 --> 00:40:58,390
+So it's a bit analogous to, I mean,
+this being something like USD and
+
+464
+00:40:58,660 --> 00:41:01,170
+wallet one is the us central bank.
+
+465
+00:41:01,170 --> 00:41:06,150
+And so this is like the Euro,
+this currency in wallet two is
+
+466
+00:41:06,540 --> 00:41:09,000
+the central bank for the Euro.
+
+467
+00:41:11,700 --> 00:41:16,259
+Let's talk about NFTs
+next non fungible tokens.
+
+468
+00:41:17,340 --> 00:41:22,920
+That is tokens that can only exist once
+where there's only one coin in existence.
+
+469
+00:41:24,450 --> 00:41:28,770
+The examples of native tokens that
+we have studied so far are definitely
+
+470
+00:41:28,770 --> 00:41:36,420
+not NFTs because we could easily
+mint as many as we wanted of those.
+
+471
+00:41:37,200 --> 00:41:42,210
+Both in the first example, the minting
+was totally uncontrolled, but also in
+
+472
+00:41:42,210 --> 00:41:47,430
+the second, as long as you are the owner
+of the specified public key hash, you
+
+473
+00:41:47,430 --> 00:41:50,100
+can mint as many tokens as you like.
+
+474
+00:41:51,840 --> 00:41:59,490
+Now in order to produce an NFT, maybe the
+first naive idea would be to actually,
+
+475
+00:41:59,820 --> 00:42:05,759
+in the policy, look at the forge
+field, which we haven't done so far.
+
+476
+00:42:05,970 --> 00:42:10,470
+All we did look at in the last example
+was the signatories of the transaction.
+
+477
+00:42:11,040 --> 00:42:14,930
+But if you actually look at
+the forge field, we could add a
+
+478
+00:42:15,069 --> 00:42:20,520
+condition to the policy that the
+forge value has an amount of one.
+
+479
+00:42:22,259 --> 00:42:27,225
+But that wouldn't help us, that would
+only mean that during one transaction,
+
+480
+00:42:27,495 --> 00:42:34,035
+you can only mint one token, but nobody
+could stop us from submitting as many
+
+481
+00:42:34,235 --> 00:42:36,705
+of these transactions as we like.
+
+482
+00:42:36,795 --> 00:42:39,715
+And then again, mint
+arbitrarily many tokens.
+
+483
+00:42:39,735 --> 00:42:43,575
+So that won't do, that won´t
+enable us to guarantee that the
+
+484
+00:42:43,575 --> 00:42:45,685
+given token can only exists once.
+
+485
+00:42:46,875 --> 00:42:52,115
+A second option, that is actually
+been used already on the Cardano
+
+486
+00:42:52,115 --> 00:42:58,535
+blockchain because native tokens
+are available since Mary, which
+
+487
+00:42:58,535 --> 00:43:03,005
+predates Plutus is to use deadlines.
+
+488
+00:43:03,365 --> 00:43:08,105
+So we saw in previous examples
+and previous lectures, how time
+
+489
+00:43:08,135 --> 00:43:11,345
+can be incorporated into Plutus
+script, and we can do the same,
+
+490
+00:43:11,345 --> 00:43:13,475
+of course, in policy scripts.
+
+491
+00:43:14,490 --> 00:43:19,440
+So the idea here would be to, to have
+a deadline that only allows minting
+
+492
+00:43:19,470 --> 00:43:21,210
+before the deadline has passed.
+
+493
+00:43:21,840 --> 00:43:29,130
+Then if you want to do an NFT, you mint
+one coin before the deadline has passed
+
+494
+00:43:29,460 --> 00:43:31,680
+and then allow the deadline to pass.
+
+495
+00:43:32,160 --> 00:43:36,000
+And then it's guaranteed that
+after the deadline, no new
+
+496
+00:43:36,000 --> 00:43:38,310
+tokens will ever be minted.
+
+497
+00:43:39,810 --> 00:43:44,580
+But in order to check that before the
+deadline, you only minted one, you need
+
+498
+00:43:44,580 --> 00:43:46,440
+something like a blockchain explorer.
+
+499
+00:43:46,830 --> 00:43:50,730
+You must check on the blockchain
+that only one of these tokens was
+
+500
+00:43:50,730 --> 00:43:52,200
+ever minted before the deadline.
+
+501
+00:43:52,290 --> 00:43:55,380
+You are guaranteed that after
+the deadline, no new ones can be
+
+502
+00:43:55,380 --> 00:43:58,710
+minted, but in order to make sure
+that only one was minted before
+
+503
+00:43:58,710 --> 00:44:01,950
+the deadline, you actually have to
+check with the blockchain explorer.
+
+504
+00:44:02,430 --> 00:44:09,779
+So in that sense, the NFTs that are on
+Cardano right now, are not true NFTs in
+
+505
+00:44:09,779 --> 00:44:15,509
+the sense that the currency symbol by
+itself guarantees that they are NFTs.
+
+506
+00:44:15,870 --> 00:44:20,220
+In order to check that only one exists,
+you have to look on the blockchain.
+
+507
+00:44:21,089 --> 00:44:27,089
+Now using Plutus, it's actually possible
+to mint true NFTs, where if you know
+
+508
+00:44:27,089 --> 00:44:31,710
+the policy script that corresponds to
+the currency symbol, you can be sure
+
+509
+00:44:31,799 --> 00:44:36,899
+that only one such coin can be in
+existence without having to resort to
+
+510
+00:44:37,319 --> 00:44:39,210
+something like a blockchain explorer.
+
+511
+00:44:41,939 --> 00:44:47,520
+And if you think about how to do
+that, you must prevent from there
+
+512
+00:44:47,520 --> 00:44:52,049
+ever being more than one minting
+transaction for the token in question.
+
+513
+00:44:53,129 --> 00:44:58,549
+So, whatever you write in your
+policy script, it must only result
+
+514
+00:44:58,620 --> 00:45:00,960
+in true for one transaction.
+
+515
+00:45:01,890 --> 00:45:06,230
+And it must be impossible to do the
+same again in another transaction.
+
+516
+00:45:07,470 --> 00:45:09,960
+And at first, that sounds impossible.
+
+517
+00:45:10,560 --> 00:45:17,370
+Because why can't you simply do the
+same transaction again later, and then
+
+518
+00:45:17,370 --> 00:45:23,160
+validation should again succeed and it
+should be possible to mint token again.
+
+519
+00:45:24,720 --> 00:45:29,430
+At least if you do it in the same slot,
+I mean, we mentioned deadlines before,
+
+520
+00:45:29,430 --> 00:45:35,430
+so of course times plays a role, but
+why can't you simply at one slot issue,
+
+521
+00:45:35,430 --> 00:45:37,500
+the same transaction several times?
+
+522
+00:45:39,450 --> 00:45:43,230
+And the key here is that we
+need something that's unique.
+
+523
+00:45:43,680 --> 00:45:46,800
+We need something on the Cardano
+blockchain that we can refer to
+
+524
+00:45:46,800 --> 00:45:51,090
+in our minting policy that is
+unique, that can only exist in
+
+525
+00:45:51,090 --> 00:45:52,920
+one transaction and never again.
+
+526
+00:45:54,240 --> 00:45:57,930
+And that is a very important
+trick, something to keep in mind.
+
+527
+00:45:58,350 --> 00:46:00,940
+And the idea is to use UTxOs.
+
+528
+00:46:01,740 --> 00:46:10,305
+Because for the reason how a
+UTxO works, UTxOs can only exist
+
+529
+00:46:10,305 --> 00:46:12,825
+once, every UTxO is unique.
+
+530
+00:46:12,884 --> 00:46:18,944
+You can never have the same UTxO again,
+a UTxO is there and at some point it may
+
+531
+00:46:18,944 --> 00:46:25,435
+be consumed as input to a transaction
+and there can never ever be the same UTxO
+
+532
+00:46:25,485 --> 00:46:28,785
+again later in the life of the blockchain.
+
+533
+00:46:30,285 --> 00:46:35,355
+Of course, there could be another UTxO
+that goes to the same address and has
+
+534
+00:46:35,355 --> 00:46:37,455
+the same value and has the same datum.
+
+535
+00:46:38,174 --> 00:46:40,805
+But that will still not be
+the same UTxO in the sense
+
+536
+00:46:40,805 --> 00:46:42,375
+that will have a different ID.
+
+537
+00:46:43,154 --> 00:46:45,385
+So what is the ID of a UTxO?
+
+538
+00:46:46,065 --> 00:46:53,085
+Well, a UTxO is the output of a
+transaction, so in order to pinpoint
+
+539
+00:46:53,145 --> 00:46:57,015
+a specific UTxO, you must pinpoint
+the transaction it came from.
+
+540
+00:46:57,285 --> 00:47:03,205
+Via its transaction ID, and you must say
+which output of that transaction it was.
+
+541
+00:47:03,685 --> 00:47:05,645
+The outputs of a transaction are ordered.
+
+542
+00:47:06,105 --> 00:47:11,205
+So by specifying the transaction
+that produced it and saying which
+
+543
+00:47:11,265 --> 00:47:15,945
+item it was in the list of outputs,
+you can uniquely identify an UTxO.
+
+544
+00:47:17,655 --> 00:47:23,175
+And transactions are unique, that can
+never be the same transaction again.
+
+545
+00:47:24,435 --> 00:47:30,585
+And because transaction and index
+determine the UTxO, this implies
+
+546
+00:47:30,585 --> 00:47:33,045
+that UTxOs are also unique.
+
+547
+00:47:33,975 --> 00:47:36,465
+So now of course you can ask
+why are transactions unique?
+
+548
+00:47:36,915 --> 00:47:40,995
+And that is a bit subtle
+because they wouldn't be unique
+
+549
+00:47:40,995 --> 00:47:43,425
+necessarily if it wasn't for fees.
+
+550
+00:47:43,905 --> 00:47:49,065
+If it wasn't for fees, you could have
+a transaction that has zero inputs
+
+551
+00:47:49,665 --> 00:47:52,605
+and only outputs without value.
+
+552
+00:47:53,235 --> 00:47:58,785
+So, transactions with no
+inputs and outputs where each
+
+553
+00:47:58,785 --> 00:48:00,585
+output doesn't have a value.
+
+554
+00:48:02,315 --> 00:48:07,335
+Such a transaction could exist
+several times, you could have the
+
+555
+00:48:07,335 --> 00:48:12,645
+exact same transaction and it would
+have the exact same hash enhanced
+
+556
+00:48:12,645 --> 00:48:14,535
+the except same transaction ID.
+
+557
+00:48:15,735 --> 00:48:20,535
+But in a system with fees like Cardano,
+you can't have such a transaction
+
+558
+00:48:20,535 --> 00:48:24,765
+because you always need an input
+that provides the fees to pay the
+
+559
+00:48:24,765 --> 00:48:26,295
+transaction fees for the transaction.
+
+560
+00:48:26,985 --> 00:48:30,195
+And as soon as you have an input,
+that input must come from somewhere,
+
+561
+00:48:30,195 --> 00:48:32,565
+it must come from a previous UTxO.
+
+562
+00:48:33,525 --> 00:48:38,025
+So basically by a simple induction
+argument, you see that as soon as
+
+563
+00:48:38,025 --> 00:48:42,405
+you have fees, transactions can never
+be repeated, you can never have two
+
+564
+00:48:42,735 --> 00:48:46,365
+identical transactions in the sense
+that they have that same transaction ID.
+
+565
+00:48:46,535 --> 00:48:52,805
+Because they must spend fees and
+these fees, because double spending is
+
+566
+00:48:52,805 --> 00:49:00,445
+impossible, must be different UTxOs for
+different transactions and the inputs are
+
+567
+00:49:00,465 --> 00:49:02,505
+incorporated into the transaction hash.
+
+568
+00:49:02,535 --> 00:49:06,945
+So if you have two transactions with
+different inputs, those two transactions
+
+569
+00:49:06,945 --> 00:49:09,105
+also will have different transaction IDs.
+
+570
+00:49:10,305 --> 00:49:13,935
+So that means that every transaction
+in the history of the blockchain
+
+571
+00:49:13,935 --> 00:49:15,675
+is unique, has a unique ID.
+
+572
+00:49:15,765 --> 00:49:21,294
+And that implies that also every
+UTxO in the blockchain has a
+
+573
+00:49:21,294 --> 00:49:26,195
+different ID, a different combination
+of transaction ID and index.
+
+574
+00:49:27,705 --> 00:49:31,475
+And this is a very important fact
+and that is a fact that we can
+
+575
+00:49:31,475 --> 00:49:35,255
+use in order to create true NFTs.
+
+576
+00:49:36,005 --> 00:49:45,785
+So the idea here is to name a specific
+UTxO as parameter to our minting policy.
+
+577
+00:49:46,205 --> 00:49:50,375
+And then in the policy check that
+the transaction that does the
+
+578
+00:49:50,375 --> 00:49:54,145
+minting consumes this specific UTxO.
+
+579
+00:49:55,095 --> 00:49:59,685
+And because of what we just said
+once a UTxO has been consumed in this
+
+580
+00:49:59,685 --> 00:50:02,355
+transaction, it can never exist again.
+
+581
+00:50:02,385 --> 00:50:07,815
+So there can't be another transaction
+that consumes the same UTxO, and this
+
+582
+00:50:07,815 --> 00:50:13,845
+guarantees, this strategy guarantees
+that with a minting policy like
+
+583
+00:50:13,845 --> 00:50:19,435
+that, there can only ever be one
+transaction that consumes this UTxO.
+
+584
+00:50:19,455 --> 00:50:24,075
+And that is what we want to achieve
+in order to guarantee that we have a
+
+585
+00:50:24,075 --> 00:50:26,775
+true NFT that can only be minted once.
+
+586
+00:50:27,435 --> 00:50:31,675
+In order to demonstrate the
+idea, I created the module NFT.
+
+587
+00:50:32,925 --> 00:50:38,645
+And in the make policy function, I
+now have two parameters, one of type
+
+588
+00:50:38,645 --> 00:50:42,135
+Tx out ref, one of type token name.
+
+589
+00:50:42,495 --> 00:50:48,930
+So Tx out ref as the name suggests
+references Tx out, so transaction
+
+590
+00:50:48,960 --> 00:50:55,200
+output UTxO, and token name will
+be the token name of the NFT.
+
+591
+00:50:56,400 --> 00:51:01,500
+There would be various other choices,
+for example, I could turn those two
+
+592
+00:51:01,529 --> 00:51:06,870
+pieces into one parameter, but I also
+wanted to demonstrate how to have
+
+593
+00:51:06,870 --> 00:51:08,730
+scripts with more than one parameter.
+
+594
+00:51:10,230 --> 00:51:11,850
+So how does it work?
+
+595
+00:51:12,029 --> 00:51:18,029
+So all ref is the reference to the output
+we want to consume in this transaction.
+
+596
+00:51:19,155 --> 00:51:22,665
+To make sure that this can only
+happen once in one transaction
+
+597
+00:51:24,075 --> 00:51:25,605
+and TN is the token name.
+
+598
+00:51:25,755 --> 00:51:29,205
+Again, we don't use the
+redeemer and the context.
+
+599
+00:51:29,745 --> 00:51:36,585
+So we have to check two things, that the
+UTxO specifies by oref is indeed consumed.
+
+600
+00:51:37,185 --> 00:51:42,975
+So that's the first condition here that I
+delegate to has UTxO, the helper function
+
+601
+00:51:43,425 --> 00:51:49,385
+and the second condition is that we indeed
+only mint the token once, exactly once.
+
+602
+00:51:50,495 --> 00:51:57,635
+So let's look at the helper functions,
+first just the Tx info, because I
+
+603
+00:51:57,635 --> 00:52:04,095
+need that in both helper functions,
+in both checks, now the has UTxO.
+
+604
+00:52:05,745 --> 00:52:10,365
+If you look at the documentation for
+Tx info again, this is now the first
+
+605
+00:52:10,365 --> 00:52:16,200
+time that we don't just use global
+field that applies to the transaction
+
+606
+00:52:16,200 --> 00:52:20,670
+as a whole, but have to actually look
+at the inputs at individual inputs,
+
+607
+00:52:20,670 --> 00:52:24,510
+because we have to make sure that this
+transaction, this minting transaction
+
+608
+00:52:25,620 --> 00:52:28,050
+indeed consumes the specified UTxO.
+
+609
+00:52:28,500 --> 00:52:36,510
+So we will use this Tx info inputs
+field, which a list of type Tx in info.
+
+610
+00:52:36,600 --> 00:52:44,760
+And if we check this, we see that
+a Tx in info has two fields and one
+
+611
+00:52:44,820 --> 00:52:49,650
+is called  tx in info out ref and is
+indeed of the right type of Tx out ref.
+
+612
+00:52:50,460 --> 00:52:55,230
+So as you recall, an input consumes
+an output from a previous transaction
+
+613
+00:52:55,800 --> 00:52:58,410
+and this specifies which output.
+
+614
+00:52:59,760 --> 00:53:10,485
+So going back to the code, any is a
+standard Haskell function that checks
+
+615
+00:53:10,485 --> 00:53:17,775
+whether any, that is at least one
+element of a list, satisfies a condition.
+
+616
+00:53:19,635 --> 00:53:26,595
+So for example, I can
+check any even 2, 3, 5.
+
+617
+00:53:27,405 --> 00:53:32,595
+That will be true because two
+is even, but if I changed it
+
+618
+00:53:32,595 --> 00:53:34,515
+into a one, it will be false.
+
+619
+00:53:37,095 --> 00:53:42,195
+Okay, so we check that any of these and
+this we just looked at, so that as an
+
+620
+00:53:42,285 --> 00:53:50,415
+input of the transaction, so I is now
+the input and we use this function we
+
+621
+00:53:50,415 --> 00:53:52,155
+looked at in the documentation just now.
+
+622
+00:53:52,155 --> 00:53:58,215
+So this is now the output reference
+that this input I consumes and we check
+
+623
+00:53:58,215 --> 00:54:01,775
+whether this equals that given UTxO.
+
+624
+00:54:03,105 --> 00:54:10,200
+So this line checks, whether there's
+any input that consumes this output.
+
+625
+00:54:11,370 --> 00:54:16,050
+So that's the first condition and the
+second condition, we actually look
+
+626
+00:54:16,050 --> 00:54:20,940
+at the Tx info forge field, which
+tells us which value has been forged.
+
+627
+00:54:21,770 --> 00:54:28,710
+Use the flatten value function I explained
+earlier, which will turn the nested map
+
+628
+00:54:28,980 --> 00:54:34,109
+of the value into a flat list of triples,
+currency symbol, token name amount.
+
+629
+00:54:35,400 --> 00:54:38,700
+And we expect that there's
+exactly one such triple.
+
+630
+00:54:38,910 --> 00:54:43,630
+So in this transaction, only this one
+NFT should be forged, nothing else.
+
+631
+00:54:44,220 --> 00:54:48,690
+So in all other cases, if we don't
+forge anything, or if we forge more than
+
+632
+00:54:48,779 --> 00:54:51,240
+one token, we immediately return true.
+
+633
+00:54:52,140 --> 00:54:59,100
+But if there's exactly one triple,
+then we want to check that this is,
+
+634
+00:54:59,600 --> 00:55:05,740
+the currency symbol is the currency
+symbol we are currently validating.
+
+635
+00:55:06,255 --> 00:55:11,325
+The token name is the given token
+name and the amount should be one.
+
+636
+00:55:12,665 --> 00:55:17,795
+So now there is a slight chicken and egg
+problem because in order to check that the
+
+637
+00:55:17,795 --> 00:55:23,255
+CS, the currency symbol is the currency
+symbol we are currently validating,
+
+638
+00:55:24,305 --> 00:55:26,045
+how are we supposed to do that?
+
+639
+00:55:26,134 --> 00:55:32,045
+Because what is this currency symbol
+we are currently validating, well it
+
+640
+00:55:32,045 --> 00:55:40,895
+will be computed from first taking
+this Haskell function, compiling it to
+
+641
+00:55:41,405 --> 00:55:44,255
+Plutus script and then taking the hash.
+
+642
+00:55:44,315 --> 00:55:47,975
+That will be the currency symbol,
+but we are in the process of
+
+643
+00:55:47,975 --> 00:55:49,475
+writing this Haskell function.
+
+644
+00:55:50,195 --> 00:55:55,415
+So how can we possibly inside this
+function already know what the
+
+645
+00:55:55,445 --> 00:56:01,745
+result of hashing the script, which
+is compiling this function will be.
+
+646
+00:56:02,505 --> 00:56:06,779
+And for this purpose, there is a
+special function that works on the
+
+647
+00:56:06,779 --> 00:56:10,020
+context on the script context, and
+that's called own currency symbol.
+
+648
+00:56:10,440 --> 00:56:12,629
+And this is made for exactly this purpose.
+
+649
+00:56:13,950 --> 00:56:19,140
+So that when we are in the process
+of checking a minting policy, that
+
+650
+00:56:19,140 --> 00:56:24,299
+we have access to the currency
+symbol we are currently checking to
+
+651
+00:56:24,480 --> 00:56:26,069
+solve this chicken and egg problem.
+
+652
+00:56:26,790 --> 00:56:31,259
+So this is the currency symbol
+that this policy is all about.
+
+653
+00:56:32,430 --> 00:56:37,109
+And we check that the value we are
+forging indeed uses that currency symbol.
+
+654
+00:56:37,500 --> 00:56:40,950
+And we check that it has the
+right token name and we check
+
+655
+00:56:40,980 --> 00:56:42,809
+that the amount is exactly one.
+
+656
+00:56:44,024 --> 00:56:47,805
+However, even though this
+is very useful in general to
+
+657
+00:56:47,805 --> 00:56:49,424
+have this own currency symbol.
+
+658
+00:56:49,995 --> 00:56:54,765
+In this case, it's actually not
+necessary because we made sure that
+
+659
+00:56:54,765 --> 00:57:00,075
+there's only exactly one currency symbol
+in the value that is being forged.
+
+660
+00:57:00,495 --> 00:57:03,915
+Otherwise we would run into
+this other case in line 48.
+
+661
+00:57:04,365 --> 00:57:07,484
+So we know we are in the situation
+where there's exactly one
+
+662
+00:57:07,484 --> 00:57:08,895
+currency symbol being forged.
+
+663
+00:57:09,524 --> 00:57:14,415
+So we know without even looking at
+it, that the policy we are running
+
+664
+00:57:14,415 --> 00:57:16,725
+right now, will be for this symbol.
+
+665
+00:57:17,265 --> 00:57:22,785
+So we can actually simplify this
+and don't even look at it and
+
+666
+00:57:22,785 --> 00:57:25,995
+just skip this condition because
+that's automatically true.
+
+667
+00:57:26,384 --> 00:57:30,615
+But only because we are in this special
+case where we know there's exactly one
+
+668
+00:57:30,615 --> 00:57:32,415
+currency symbol in the forge value.
+
+669
+00:57:33,285 --> 00:57:37,154
+So that completes this function,
+the make policy function.
+
+670
+00:57:37,605 --> 00:57:43,090
+Now we need to compile it to a policy, so
+given the two parameters, the Tx out ref
+
+671
+00:57:43,090 --> 00:57:48,570
+and the token name, we must compute the
+minting policy by compiling this function.
+
+672
+00:57:49,530 --> 00:57:53,760
+This is more or less as before, the only
+difference is that now for the first time
+
+673
+00:57:53,760 --> 00:57:55,620
+we have something with two parameters.
+
+674
+00:57:56,160 --> 00:57:59,580
+But that just means we
+have to apply code twice.
+
+675
+00:57:59,880 --> 00:58:03,480
+So giving this we have for
+function with two parameters, we
+
+676
+00:58:03,480 --> 00:58:08,070
+apply the first argument here,
+the lifted reference to the UTxO.
+
+677
+00:58:08,700 --> 00:58:12,750
+So we are left with the function with one
+parameter, the token name, and then we
+
+678
+00:58:12,750 --> 00:58:18,330
+apply the lifted token name, and we are
+left with something of the right type,
+
+679
+00:58:18,840 --> 00:58:21,350
+type redeemer to script context to bool.
+
+680
+00:58:23,710 --> 00:58:27,680
+So once we have our current, our
+policy, we can can compute the
+
+681
+00:58:27,680 --> 00:58:29,990
+currency symbol also as before.
+
+682
+00:58:29,990 --> 00:58:35,140
+So given the two parameters, we use
+the policy function we just defined
+
+683
+00:58:35,210 --> 00:58:39,020
+and then get the policy and then can
+apply script currency symbol to it.
+
+684
+00:58:40,620 --> 00:58:44,490
+So that concludes the on-chain
+part, the policy itself.
+
+685
+00:58:45,030 --> 00:58:50,220
+Now, in order to try it out, let's
+write a off-chain code contract
+
+686
+00:58:50,220 --> 00:58:52,260
+that can actually mint an NFT.
+
+687
+00:58:53,220 --> 00:58:57,600
+So let's define a schema with one
+endpoint mint, which just takes
+
+688
+00:58:57,600 --> 00:58:59,160
+one parameter, the token name.
+
+689
+00:59:00,120 --> 00:59:04,560
+And now we define the contract
+that mints given the token name.
+
+690
+00:59:06,630 --> 00:59:10,950
+So, first we lookup our own public key.
+
+691
+00:59:12,780 --> 00:59:17,670
+Now we must find a suitable UTxO that
+we can consume, that we can pass as
+
+692
+00:59:17,670 --> 00:59:22,500
+parameter to the policy, and that will
+then be consumed in the minting policy.
+
+693
+00:59:23,360 --> 00:59:28,424
+So we use a function that's available
+in the contract monad called UTxO
+
+694
+00:59:28,424 --> 00:59:30,194
+at and that takes an address.
+
+695
+00:59:30,645 --> 00:59:35,504
+In our case, we are interested in UTxOs
+that belong to us that sits in our wallet,
+
+696
+00:59:36,105 --> 00:59:40,335
+and there's a function pub key address
+that takes a public key and then computes
+
+697
+00:59:40,335 --> 00:59:42,645
+the corresponding public key address.
+
+698
+00:59:42,975 --> 00:59:47,654
+So using UTxO at that address,
+we now have all UTxOs, list of
+
+699
+00:59:47,654 --> 00:59:50,865
+all UTxOs that are in our wallet.
+
+700
+00:59:51,674 --> 00:59:54,975
+And I simply take the first one.
+
+701
+00:59:55,754 --> 00:59:59,984
+Maybe there could be some optimization
+to take one that's large enough to
+
+702
+01:00:00,404 --> 01:00:04,815
+also cover the fees so that we only
+need one input, but I ignore this.
+
+703
+01:00:05,774 --> 01:00:10,365
+So, if there is no UTxO in our wallet,
+then we can't proceed, so I log an error.
+
+704
+01:00:10,904 --> 01:00:15,404
+If there is one, at least one, I just
+take the first one, the head of the lists,
+
+705
+01:00:15,435 --> 01:00:18,375
+ignore the rest, and now I can proceed.
+
+706
+01:00:18,404 --> 01:00:24,975
+So this first UTxO that I find in my
+wallet will be the one I'm using in
+
+707
+01:00:24,975 --> 01:00:27,975
+the policy as a parameter for the NFT.
+
+708
+01:00:28,845 --> 01:00:31,695
+So first I compute the
+value that I want to forge.
+
+709
+01:00:31,845 --> 01:00:33,945
+So I use the singleton function again.
+
+710
+01:00:34,605 --> 01:00:38,155
+Now I need the currency symbol, for
+that I have my cur symbol function.
+
+711
+01:00:38,235 --> 01:00:41,445
+And now I have both parameters,
+the UTxO and the token name.
+
+712
+01:00:42,245 --> 01:00:44,835
+Token name will be the token
+name and amount will be one.
+
+713
+01:00:45,795 --> 01:00:51,705
+Now for lookups, I need two, first
+the minting policy which I provide
+
+714
+01:00:51,705 --> 01:00:53,685
+here again with these two parameters.
+
+715
+01:00:54,255 --> 01:00:57,295
+And secondly, I also need
+to lookup for the UTxO.
+
+716
+01:00:58,025 --> 01:01:05,795
+So I indicate that I want to use unspent
+output, make the algorithm that balances
+
+717
+01:01:05,795 --> 01:01:10,565
+the transaction aware of this and spend
+output and I just use all of them.
+
+718
+01:01:11,045 --> 01:01:14,005
+It wouldn't be necessary, it
+would be enough to just provide
+
+719
+01:01:15,455 --> 01:01:20,595
+this one, the oref one, but it
+doesn't matter to provide more.
+
+720
+01:01:21,975 --> 01:01:24,195
+Finally the constraints
+from my transaction.
+
+721
+01:01:24,525 --> 01:01:33,165
+So I want to mint this value val, and I
+insist that the UTxO I have picked, the
+
+722
+01:01:33,165 --> 01:01:35,175
+first one in my wallet must be spent.
+
+723
+01:01:35,205 --> 01:01:37,965
+So that can be done with
+my spent pub key outputs.
+
+724
+01:01:39,555 --> 01:01:43,605
+Then as before I can submit
+the transaction, wait for
+
+725
+01:01:43,605 --> 01:01:45,915
+confirmation and log a message.
+
+726
+01:01:46,455 --> 01:01:53,325
+Now the usual thing to define endpoints,
+where I use the endpoint function
+
+727
+01:01:53,325 --> 01:01:57,675
+and then call the function I just
+defined, the mint function, then the
+
+728
+01:01:57,675 --> 01:02:00,795
+usual boiler plate for the playground.
+
+729
+01:02:00,855 --> 01:02:06,945
+And finally, a simple
+emulator trace to test this.
+
+730
+01:02:07,785 --> 01:02:15,205
+So as token name I use ABC again
+and now I activate the endpoints
+
+731
+01:02:15,225 --> 01:02:19,845
+contract for wallets one and
+two with handles H1 and H2.
+
+732
+01:02:20,985 --> 01:02:27,585
+And call the mint endpoint on both
+of them, on both wallets and wait
+
+733
+01:02:27,585 --> 01:02:30,135
+for one slot and see what happens.
+
+734
+01:02:32,925 --> 01:02:36,145
+If I reload and run test.
+
+735
+01:02:40,335 --> 01:02:47,775
+I do see that both wallets end up
+with a token, token name ABC, but
+
+736
+01:02:47,805 --> 01:02:50,415
+the currency symbol is different.
+
+737
+01:02:51,375 --> 01:02:55,905
+And that is because those two wallets
+necessarily have to use different
+
+738
+01:02:55,905 --> 01:03:02,775
+UTxOs specified as parameter for
+the currency symbol, for the policy.
+
+739
+01:03:03,525 --> 01:03:07,615
+So wallet one will use a
+UTxO it finds in his wallet.
+
+740
+01:03:07,615 --> 01:03:14,775
+And wallet two will have to find
+another one, in wallet two as wallet.
+
+741
+01:03:15,145 --> 01:03:18,660
+So, both are NFTs, but they
+are different NFTs because the
+
+742
+01:03:18,660 --> 01:03:20,400
+currency symbols are different.
+
+743
+01:03:21,180 --> 01:03:24,330
+And we also get the expected log messages.
+
+744
+01:03:26,290 --> 01:03:32,980
+So just as a recap, the idea of the
+NFTs, the idea to enforce that only one
+
+745
+01:03:33,070 --> 01:03:39,940
+transaction can mint, is to use a UTxO
+as input to insist in the policy, in
+
+746
+01:03:39,940 --> 01:03:45,580
+the minting policy, that the minting
+transaction uses a specific UTxO as input.
+
+747
+01:03:46,660 --> 01:03:52,660
+And because UTxOs can never exist
+again, once they've been consumed,
+
+748
+01:03:53,050 --> 01:03:57,670
+the same UTxO will never exist again,
+this would guarantee that such a
+
+749
+01:03:57,670 --> 01:03:59,530
+transaction can only happen once.
+
+750
+01:04:00,100 --> 01:04:04,660
+And if in addition, we enforce that in
+this transaction that can only happen once
+
+751
+01:04:05,380 --> 01:04:08,140
+a value of exactly one coin is minted.
+
+752
+01:04:08,770 --> 01:04:14,580
+Then we get a policy that guarantees
+that we have a proper NFT, where
+
+753
+01:04:14,730 --> 01:04:16,860
+there's only one coin in existence.
+
+754
+01:04:19,020 --> 01:04:25,470
+For homework, first I want you to look
+at the homework one module, and there,
+
+755
+01:04:25,560 --> 01:04:32,310
+I want you to implement a Mary era
+style monetary policy, minting policy.
+
+756
+01:04:33,600 --> 01:04:38,160
+So in Mary, it's already possible
+to use native tokens, even though
+
+757
+01:04:38,160 --> 01:04:43,680
+we don't have Plutus and you can
+specify minting policies, but
+
+758
+01:04:43,680 --> 01:04:47,130
+only of a relatively simple type.
+
+759
+01:04:47,880 --> 01:04:52,470
+And what you can do, is you can
+specify signatures that have to be
+
+760
+01:04:52,470 --> 01:04:56,460
+present in the minting transaction,
+and you can specify deadlines.
+
+761
+01:04:56,520 --> 01:05:00,450
+So you can say that minting must not
+happen after the deadline has passed.
+
+762
+01:05:01,620 --> 01:05:05,070
+And there's more you can do, you
+can also combine several such
+
+763
+01:05:05,070 --> 01:05:06,990
+policies with logical end or.
+
+764
+01:05:07,875 --> 01:05:11,175
+What I want you to do here in the
+homework is to implement a minting
+
+765
+01:05:11,195 --> 01:05:15,675
+policy that has two parameters,
+a pub key hash and a POSIX time.
+
+766
+01:05:16,545 --> 01:05:21,165
+And the idea is that minting should
+only succeed if the transaction is
+
+767
+01:05:21,165 --> 01:05:27,645
+signed by the corresponding signature,
+and if the deadline has not yet passed.
+
+768
+01:05:28,545 --> 01:05:34,515
+Then you have to implement the
+depending things like the policy
+
+769
+01:05:34,515 --> 01:05:35,985
+and currency symbol accordingly.
+
+770
+01:05:37,005 --> 01:05:40,785
+Now for the off-chain code,
+I already implemented that.
+
+771
+01:05:41,745 --> 01:05:47,595
+So as parameters for minting, you must
+provide the token name, the deadline
+
+772
+01:05:47,595 --> 01:05:49,005
+and the amount you want to mint.
+
+773
+01:05:49,785 --> 01:05:57,375
+And then in the mint contract, I
+first lookup my own public key hash
+
+774
+01:05:57,465 --> 01:06:02,775
+as I explained before, then I use
+current time to lookup as the name
+
+775
+01:06:02,775 --> 01:06:04,785
+suggests the current POSIX time.
+
+776
+01:06:06,270 --> 01:06:13,380
+I lookup the deadline from the parameters
+and if the deadline has already passed,
+
+777
+01:06:14,400 --> 01:06:16,110
+then I just look an error message.
+
+778
+01:06:16,110 --> 01:06:19,799
+So I don't even bother submitting a
+transaction because I know it will
+
+779
+01:06:19,799 --> 01:06:21,870
+fail any way during validation.
+
+780
+01:06:22,920 --> 01:06:28,110
+However, if the deadline has not yet
+been passed, I compute the value I want
+
+781
+01:06:28,110 --> 01:06:32,520
+to mint, so just using the currency
+symbol, the token name and the amount.
+
+782
+01:06:33,330 --> 01:06:36,600
+Then in the lookups I must
+specify the minting policy.
+
+783
+01:06:37,830 --> 01:06:42,660
+And finally, in transaction, I need
+two constraints that I combine, so
+
+784
+01:06:42,660 --> 01:06:48,450
+that I want to mint the value in this
+transaction and the validity interval.
+
+785
+01:06:49,335 --> 01:06:52,695
+And recall, normally the rule of
+thumb is to make it as large as
+
+786
+01:06:52,695 --> 01:06:55,245
+possible, but not too large, of course.
+
+787
+01:06:55,275 --> 01:06:59,325
+So, because in the validation
+it will be checked that the
+
+788
+01:06:59,325 --> 01:07:01,025
+deadline has not yet passed.
+
+789
+01:07:02,155 --> 01:07:05,355
+The largest interval I can
+basically use is to deadline.
+
+790
+01:07:06,495 --> 01:07:10,955
+And then I submit the transaction,
+wait for confirmation and log a
+
+791
+01:07:11,415 --> 01:07:12,975
+message that I forged the value.
+
+792
+01:07:13,845 --> 01:07:17,325
+Then the usual, I define the endpoints
+in terms of this mint contract
+
+793
+01:07:18,195 --> 01:07:20,235
+to the playground boiler plate.
+
+794
+01:07:21,315 --> 01:07:25,635
+And then I also provide an
+emulator trace, token name ABC,
+
+795
+01:07:26,475 --> 01:07:28,605
+deadline beginning of slot 10.
+
+796
+01:07:29,595 --> 01:07:34,875
+I only need one wallet, I start
+the endpoint on wallet one and I
+
+797
+01:07:34,875 --> 01:07:39,525
+immediately call mint 555 tokens.
+
+798
+01:07:39,585 --> 01:07:44,055
+And then I wait until
+slot 15 or four 15 slots.
+
+799
+01:07:44,535 --> 01:07:48,390
+So now the deadline wich is
+slot 10 should have passed.
+
+800
+01:07:49,170 --> 01:07:53,790
+So the second minting should fail and
+I wait another slot to see the effect.
+
+801
+01:07:54,600 --> 01:08:03,390
+However, when I try this trace in the
+repl and check, then I get an error
+
+802
+01:08:04,500 --> 01:08:10,410
+for the first minting, and this is
+not coming from the log message, but
+
+803
+01:08:10,410 --> 01:08:12,180
+it's really coming from validation.
+
+804
+01:08:12,180 --> 01:08:15,660
+So we see evaluation, error,
+deadline missed, which is the error
+
+805
+01:08:15,660 --> 01:08:22,760
+message that I use in validation,
+so I was puzzled a bit by that.
+
+806
+01:08:22,880 --> 01:08:27,260
+And then I finally understood what the
+problem is, so the off-chain code is
+
+807
+01:08:27,260 --> 01:08:32,479
+wrong and the reason is the switch from
+using slots to measure time, to using
+
+808
+01:08:32,479 --> 01:08:34,939
+POSIX time to measure time in Plutus.
+
+809
+01:08:35,330 --> 01:08:41,359
+So recall that validation works by
+checking that the validity interval is
+
+810
+01:08:41,359 --> 01:08:45,189
+contained in the two deadline interval.
+
+811
+01:08:45,809 --> 01:08:50,250
+So that's what it means, we must check
+that the deadline has not yet passed,
+
+812
+01:08:50,850 --> 01:08:54,150
+no matter what the current time is, we
+don't know for sure we just know it's
+
+813
+01:08:54,150 --> 01:08:55,470
+somewhere in the validity interval.
+
+814
+01:08:55,470 --> 01:09:00,779
+So the whole validity interval must be
+before the deadline, which means it must
+
+815
+01:09:00,779 --> 01:09:03,210
+be contained in the two deadline interval.
+
+816
+01:09:04,170 --> 01:09:09,600
+And that's why here, when I set the
+validity interval, I use two deadline
+
+817
+01:09:09,660 --> 01:09:13,830
+and I thought that's obviously
+correct because obviously two deadline
+
+818
+01:09:13,840 --> 01:09:15,540
+will be contained in two deadline.
+
+819
+01:09:16,620 --> 01:09:21,480
+However, what I forgot for us that
+the underlying transactions, the
+
+820
+01:09:22,470 --> 01:09:25,020
+Cardano transactions still use slots.
+
+821
+01:09:25,710 --> 01:09:31,410
+So even though Plutus switched to POSIX
+time, the transactions still use slots.
+
+822
+01:09:33,090 --> 01:09:36,960
+So for example, if the deadline is
+the beginning of slot 10, somewhere
+
+823
+01:09:36,960 --> 01:09:39,540
+in the beginning of slot 10 or
+the very beginning of slot 10.
+
+824
+01:09:40,819 --> 01:09:48,225
+Then this here, this interval to beginning
+of slot 10 in the real transaction must
+
+825
+01:09:48,225 --> 01:09:50,325
+be translated into a slot interval.
+
+826
+01:09:51,165 --> 01:09:55,725
+And that will be the interval
+that goes to slot 10 inclusive.
+
+827
+01:09:56,175 --> 01:10:01,095
+So all of slot 10 will be in the validity
+interval of the actual transaction.
+
+828
+01:10:02,085 --> 01:10:07,425
+So now during validation that is again
+Plutus, this validity interval will
+
+829
+01:10:07,425 --> 01:10:13,335
+be translated back into a POSIX time
+interval, but now because the slot
+
+830
+01:10:13,405 --> 01:10:20,400
+base interval includes all of slot 10
+and that's converted back into POSIX
+
+831
+01:10:20,420 --> 01:10:27,110
+time, will get the end of slot 10 as
+the POSIX time, not the beginning.
+
+832
+01:10:27,470 --> 01:10:32,180
+And that means validation will fail
+because now suddenly the validity
+
+833
+01:10:32,210 --> 01:10:36,530
+interval is larger than the two deadline
+interval, because the two deadline
+
+834
+01:10:36,530 --> 01:10:40,160
+interval stops at the beginning of
+slot 10, but the validity interval
+
+835
+01:10:40,190 --> 01:10:42,380
+now only stops at the end of slot 10.
+
+836
+01:10:43,310 --> 01:10:47,090
+So that's a bit unfortunate and
+might lead to subtle errors.
+
+837
+01:10:47,150 --> 01:10:50,210
+So one really has to be aware of
+that, that this conversion happens.
+
+838
+01:10:50,240 --> 01:10:54,020
+So Plutus works in POSIX time,
+transactions are based on slots.
+
+839
+01:10:54,380 --> 01:10:59,600
+So when we go from off-chain to on-chain
+code, this conversion happens twice,
+
+840
+01:10:59,600 --> 01:11:04,370
+the POSIX time gets translated into
+slots in the transaction, and then
+
+841
+01:11:04,370 --> 01:11:08,955
+during validation get translated back
+end because lots are of course much
+
+842
+01:11:09,224 --> 01:11:13,785
+coarser grain than POSIX time,, this
+conversion is not perfect, so it's lossy.
+
+843
+01:11:14,384 --> 01:11:17,655
+So that means if we start with a
+POSIX time convert slot and then
+
+844
+01:11:17,655 --> 01:11:21,255
+back, we won't necessarily get
+the original POSIX time back.
+
+845
+01:11:22,094 --> 01:11:23,415
+So that's what I overlooked.
+
+846
+01:11:23,894 --> 01:11:26,174
+And let's try to fix that.
+
+847
+01:11:27,105 --> 01:11:29,174
+I honestly don't know
+what the best way is.
+
+848
+01:11:29,205 --> 01:11:35,474
+One way is instead of using two deadline
+to just use a time, that's a bit in
+
+849
+01:11:35,474 --> 01:11:41,565
+the future from now, and then hope that
+we are not too close to the deadline.
+
+850
+01:11:41,985 --> 01:11:44,144
+So that, that goes past the deadline.
+
+851
+01:11:45,045 --> 01:11:50,264
+So for example, what I could do is
+I use now and add, I don't know,
+
+852
+01:11:50,445 --> 01:11:53,445
+two seconds, something like this.
+
+853
+01:11:54,105 --> 01:11:58,275
+So this gives the transaction two
+seconds to get to the validating
+
+854
+01:11:58,275 --> 01:12:00,585
+nodes, which should be enough, I think.
+
+855
+01:12:02,780 --> 01:12:06,590
+Maybe we could make it five seconds,
+I don't know actually, how long it
+
+856
+01:12:06,590 --> 01:12:11,090
+would take and the larger we make it
+the higher, the risk that if you're
+
+857
+01:12:11,090 --> 01:12:15,650
+close to the deadline, then there's
+now plus 5,000 just after the deadline.
+
+858
+01:12:16,550 --> 01:12:20,059
+But the smaller we make it, the
+faster the transaction has to
+
+859
+01:12:20,059 --> 01:12:22,150
+be distributed to all the nodes.
+
+860
+01:12:22,460 --> 01:12:25,370
+So I'm not exactly sure what
+the best number here is.
+
+861
+01:12:25,790 --> 01:12:28,550
+Of course not for now, if we just
+simulate it, it doesn't matter
+
+862
+01:12:28,550 --> 01:12:34,070
+because there is no delay, no
+network delay, so we could use this.
+
+863
+01:12:34,670 --> 01:12:37,760
+So I made the same change
+in my sample solution.
+
+864
+01:12:37,880 --> 01:12:44,330
+And if I run the emulator trace in the
+repl again, then I get the desired result.
+
+865
+01:12:45,080 --> 01:12:50,000
+So here in slot one, I mint and it works.
+
+866
+01:12:50,929 --> 01:12:56,175
+And when I try and slot 15, It
+doesn't, but the transaction doesn't
+
+867
+01:12:56,175 --> 01:13:01,035
+even get submitted, I just get the
+log message from my mint contract
+
+868
+01:13:01,335 --> 01:13:03,285
+that the deadline has already passed.
+
+869
+01:13:03,765 --> 01:13:10,425
+But now, because I used five seconds,
+slack basically, if I tried minting
+
+870
+01:13:10,695 --> 01:13:13,455
+too close to slot 10, when the
+deadline passes, for example, in
+
+871
+01:13:13,455 --> 01:13:16,725
+slot eight, it would also fail,
+it would fail you in validation.
+
+872
+01:13:17,085 --> 01:13:21,315
+But of course, in a realistic
+scenario, the deadline wouldn't
+
+873
+01:13:21,315 --> 01:13:23,025
+just be 10 seconds in the future.
+
+874
+01:13:23,295 --> 01:13:26,805
+It would be, I don't know, a day
+in the future, so to give you
+
+875
+01:13:26,805 --> 01:13:30,945
+enough time to mint what you want
+to mint before the deadline passes.
+
+876
+01:13:31,215 --> 01:13:37,995
+As second homework, I want you to
+slightly modify the NFT contract
+
+877
+01:13:37,995 --> 01:13:42,345
+that I demonstrated by making the
+token name fix and just fixing
+
+878
+01:13:42,345 --> 01:13:43,845
+it to the empty byte string.
+
+879
+01:13:44,475 --> 01:13:49,065
+So we don't need the token name as
+parameter any longer, we just need the
+
+880
+01:13:49,065 --> 01:13:51,285
+UTxO that's supposed to be consumed.
+
+881
+01:13:52,005 --> 01:14:00,365
+So I want you to implement this and
+also the corresponding minting contract,
+
+882
+01:14:00,515 --> 01:14:06,245
+which you can just adapt from the one we
+had in the NFT module, or also provide
+
+883
+01:14:06,245 --> 01:14:11,495
+a test emulator trace where I just
+activate the contract for wallets one
+
+884
+01:14:11,495 --> 01:14:14,384
+and two, and then call the mint endpoint.
+
+885
+01:14:14,615 --> 01:14:19,805
+The advantage of this way fixing the
+token name is that you don't need any
+
+886
+01:14:19,925 --> 01:14:24,305
+arguments for the mint endpoint, because
+the only argument we had before was
+
+887
+01:14:24,305 --> 01:14:26,375
+the token name, so now it's just unit.
+
+888
+01:14:27,035 --> 01:14:32,295
+And if you try this out in the
+repl, It works as expected.
+
+889
+01:14:32,325 --> 01:14:38,264
+So we get the two minting transactions and
+wallet one and wallet two end up with a
+
+890
+01:14:38,264 --> 01:14:42,465
+shiny new NFT, but it's a different one.
+
+891
+01:14:42,945 --> 01:14:46,934
+The two are distinct because the
+currency symbols are different.
+
+892
+01:14:46,934 --> 01:14:51,705
+And you see the token name in both
+cases is the empty byte string.
+

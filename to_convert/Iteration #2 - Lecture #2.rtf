@@ -1,0 +1,380 @@
+{\rtf1\ansi\deff0
+\margl1800\margr1800\margb1440\margt1440\deflang1033\lndscpsxn
+{\colortbl;
+}
+{\fonttbl;
+{\f0 Arial}
+}
+{\pard  \line \par}
+{\b\fs36 [00:00:00] 0201 Triggering change\b0}
+{\pard  \line \par}
+{Before I come to the main topic of today's lecture, I briefly want to talk about an important point that was brought up by one of the pioneers after watching the first lecture. If you recall in the auction example that I showed you, I created three endpoints, start to start the auction, bid to make a bid, and then close to finalize the auction and for close there were two scenarios. }
+{\pard  \line \par}
+{Either there was a bid high enough in that case when invoking close the token goes to the highest bidder and the highest bid goes to the seller of the token. And if there was no such bid, then on invoking close, the token goes back to the seller. And this pioneer asked the question, what would happen if the close endpoint wasn't there and surely the money couldn't stay forever be locked in the contract.}
+{\pard  \line \par}
+{And that is a really important point because what you have to realize is that the blockchain itself, the UTxOs on the blockchain are just data, they're absolutely passive. So in order for anything to happen, there must be a transaction. So in order to make progress, in order to change the state of the blockchain, there must be a new transaction being submitted from somebody from the outside that consumes various UTxOs and produces new ones.}
+{\pard  \line \par}
+{So only new transactions change the state, an UTxO it's just a passive thing, just passively sitting there. So it will never spring into action by itself and do something. So you can't have a smart contract that sits on the blockchain. And then at some point suddenly performs an action. If you want anything to happen, it must always be triggered by a transaction and transactions always come from the outside from a user, from a wallet. }
+{\pard  \line \par}
+{Therefore we really need this close endpoint if we want the auction to be settled. So, of course, in my example, the close was manually triggered, so I invoke that in the simulator. Obviously you could write a contract for the wallet that runs on the wallet in a way that automatically does that.}
+{\pard  \line \par}
+{So, when we talk about how to write scripts for the wallet later, you will see that, that you can do quite sophisticated logic. So you could do something that automatically sleeps until the deadline is reached in the auction example, that then automatically invokes the close endpoint and triggers the close transaction.}
+{\pard  \line \par}
+{But from the point of view of the blockchain, that doesn't matter, it's always an external trigger that does something. So nothing happens if it's not externally triggered. So that's a very important to keep in mind. And thank you very much for bringing that up. }
+{\pard  \line \par}
+{\b\fs36 [00:03:15] 0202 Low-level, untyped on-chain validation scripts\b0}
+{\pard  \line \par}
+{I've explained in the first lecture that they are two parts, two sides to a smart contract, an on-chain part and an off-chain part. The on-chain part is about validation, it allows nodes to validate a given transaction and decide whether the transaction is valid. And when it, whether it's allowed to consume a given UTxO and the off-chain part lives in the user's wallet and constructs and submits suitable transactions.}
+{\pard  \line \par}
+{So both are important topics and we have to master both in order to write smart contracts, but for now I want to concentrate on the on-chain part. So let's recall the extended UTxO model where the idea was that we introduce the new type of addresses. So, the type of addresses used in the simple UTxO model is so-called public key addresses where the address is given by public key or the hash of a public key.}
+{\pard  \line \par}
+{And if a UTxO sits at such a public key address, then a transaction can consume that UTxO as an input. If the signature belonging to that public key is included in the transaction. And what the (E)UTxO model does is extend this by adding a new type of addresses so called script addresses that can run arbitrary logic.}
+{\pard  \line \par}
+{And then when a transaction that wants to consume a UTxO sitting at a script address is validated by a node, the node will run the script, and then depending on the result of the script, decide whether the transaction is valid or not. And recall that they've two more additions. So one was that now instead of just having signatures on transactions, we have so-called redeemers arbitrary pieces of data.}
+{\pard  \line \par}
+{And on the UTxO side, on the output side, we have an additional arbitrary piece of data called datum, which you can think of as a little piece of state that sits at the UTxO. Finally, we have the context and then I explained last time that there are various choices, what this context could be. It could be very restricted, just consisting of the redeemer, or it could be very global consisting of the whole state of the blockchain.}
+{\pard  \line \par}
+{But as I said in Cardano, it is the transaction that is being validated, including all its inputs and outputs. So there are three pieces of data that a Plutus script gets, the datum sitting at the UTxO, the redeemer coming from the input and a validation and the context consisting of the transaction being validated and it's inputs and outputs.}
+{\pard  \line \par}
+{So in a concrete implementation like Plutus, these three pieces of data obviously have to be represented by some concrete data type, a Haskell data type. And as it happens, the choice was made to use the same data type for all three of them, at least at the low level implementation of Plutus. }
+{\pard  \line \par}
+{So we'll look at that first, but in real life, nobody would actually use this low level and there are more convenient ways to use more suitable data types for these things and view we'll come to that a bit later today. But first I want to talk about this low level implementation of validation. So datum, redeemer, and context all use the same Haskell data type and we'll look at that first.}
+{\pard  \line \par}
+{This Haskell data type is defined in the package plutus-core in plutus-core/src/PlutusCore/Data.hs and it is called simply data. And if we look at the definition of this data data type, you see it has five constructors and isn't run of the mill algebraic data type. So it has five constructors, Constr it takes an integer and recursively a list of data. Then a constructor map that takes a list of pairs of two data items.}
+{\pard  \line \par}
+{So you can think of it as a lookup table with key value pairs where both the key and the value are data again, then the list constructor that takes a list of data, the I constructor that takes an integer and the B constructor that takes a string or rather a byte string. And for those of you who are familiar with the JSON format for example, this is very similar to something like JSON.}
+{\pard  \line \par}
+{I mean, the constructors are not exactly the same, but like JSON, it can represent numbers and strings and lists of data. And key value pairs. So it's what I would call, even though that's probably not an official thing. I would call a blop type. So it's, it can basically represent arbitrary data, which makes it very suitable for, for our purpose, because, and I explained the extended UTxO model, I was always talking about arbitrary custom data. }
+{\pard  \line \par}
+{We can play with this type in the repl, so I'm in this week's code folder and I fire up a repl with cabal repl. Now, in order to get access to the data type I can import Plutus Tx. It wasn't defined in Plutus Tx, but it gets exported or re-exported from Plutus Tx.}
+{\pard  \line \par}
+{So if I do colon I for info and ask for information about the data type, then I basically see the same that we just saw in the source code. And here we also see where it is actually defined. Now I can play with this so I can try to define values of this type. So for example, I can use the I constructor with an integer.}
+{\pard  \line \par}
+{So, I 42 that can ask for the type, and that is indeed of type data. If I want to use the B constructor, I need a byte string and the easiest way to quickly get a byte string is to activate an extension at GHT extension that's called overloaded strings. And what that overloaded strings extension does, normally in Haskell literal strings are of type string, the Haskell string type, which is just a synonym for lists of characters.}
+{\pard  \line \par}
+{But with this extension I can use literal strings for other string like types as well. And one of those string like types is the byte string type. So now that I have this extension, I can now use the be constructor, for example, Haskell, and I get again something of type data. And of course I can also use the more complex constructors like map.}
+{\pard  \line \par}
+{So if I have map, now I need a list of pairs of data, key value pairs. So for example, one key could be I 42 and the value could be Haskell. And the key can also be more complex. So I can, for example, use the List constructor. I don't know, I 0 and as value I 1000 and again, I get something of type data.}
+{\pard  \line \par}
+{In order to write our first validator, I create a new Haskell module, I called it gift and I more or less just copy pasted all the language extensions and the imports from last week's auction example. Now let's write the validator and of course the validator itself in the end will be a script living on the blockchain in Plutus core, low level language based on the Lambda calculus, but we don't have to write Plutus core, we'll write Haskell. }
+{\pard  \line \par}
+{And I will explain later how we convert that Haskell into Plutus core script. So we write a Haskell function that represents our validator. Let's call it make validator. So what is the signature of this function? As we know from the UTxO model, these validation scripts, these validators get three pieces of information, the datum, the redeemer, and the context, the datum comes from the output that is being consumed.}
+{\pard  \line \par}
+{The redeemer comes from the input that is consuming, and the context is the consuming transaction with all its inputs and outputs. And as I just said, at this low level, all three types, datum, redeemer and context are represented by the data data type that we just looked at. So this will be a function that takes three arguments, all of type data.}
+{\pard  \line \par}
+{And it so happens that the first one is the datum, the second one is the redeemer and the third one is the context. So now what is the return type? And that is somewhat surprising it's unit. So this opening closing parentheses it's the unit type in Haskell. It's a built-in type and it is similar to the void type in mainstream languages like C# or C or Python or Java.}
+{\pard  \line \par}
+{And this type, the unit type only has one value, which is also called unit. So if we go back to the repl, start up a new repl. And let's load this module I called gift. So there's this value, it's also called unit and it looks exactly like the type unit. And if I ask for the type and it's of type unit, and that is the only value.}
+{\pard  \line \par}
+{So that means this type or value of this type doesn't carry any information because there's only exactly one value of this type.}
+{\pard  \line \par}
+{Now, if you are somewhat more familiar with Haskell, you will be surprised about this signature because in Haskell it's very rare that we have a function with a return type of unit. In other, in mainstream programming languages, you often see functions or procedures with the result type of void. And the value of such functions lies in the side effects.}
+{\pard  \line \par}
+{The end result is not interesting avoid result or in the Haskell case, a unit result carries no information as I just said. We know what the result of the function will be, it will be unit. So why would you bother writing such a function. Now in other languages, the reason is that in other languages functions can have arbitrary side effects.}
+{\pard  \line \par}
+{So a function with return type unit in Java, for example, could write something to the screen or do networking or access the hard drive or whatever. In Haskell that's not possible, not with the signature. That would be indicated by an IO to indicate that it has side effects I'll get to that a bit in a later lecture.}
+{\pard  \line \par}
+{So this is very unusual and the way it works is there's one thing that a Haskell function can do apart from returning a result. And that is, it can have an error or an exception, it can fail. So the way validators work at this low level is that if there's no error, then validation passes and if there's an error, then it fails.}
+{\pard  \line \par}
+{So in order to write the simply most validator possible, we can write a validator that completely ignores all three inputs and always passes. So we can ignore by using underscores for the inputs that indicates that we don't care about the value and we simply return unit. So this is arguably the simplest validator you can possibly write, it completely ignores its three arguments.}
+{\pard  \line \par}
+{It doesn't care about the datum, it doesn't care about the redeemer, it doesn't care about the context and it immediately returns unit without having or producing an error. So that means it always passes, it doesn't care what datum, redeemer contexts are, it always passes validation. And what does that mean for the corresponding script address?}
+{\pard  \line \par}
+{So recall, a script address is more or less the hash of the validator. So I'll show in a second, how we turn this Haskell function into Plutus core script. And then if you take the hash of that script, you get the address, this script address. So what would it mean to have an output sitting at this script address?}
+{\pard  \line \par}
+{Well, would mean that arbitrary transactions can use that output as input. Arbitrary, because it doesn't matter what redeemer is used, it doesn't matter what datum was used at the output, and it doesn't matter what structure the transaction that consumes that input has. So that's why I call this module gift, because if anybody sends funds to this script address, then anybody else can immediately consume that output and use it for their own purposes.}
+{\pard  \line \par}
+{So if you send ADA to this address, it's a gift. Anybody can immediately take it.}
+{\pard  \line \par}
+{We should check in the repl, we should reload and let's ignore the warnings, they are just unused imports. So we don't get an error. We should always frequently switch between the repl and the editor and save our work frequently and try to load it into the repl to see that everything is still fine. }
+{\pard  \line \par}
+{It's a nightmare if you write hundreds of lines of code without ever checking whether compiles and then you get hundreds or thousands of compiler errors. So ideally your program should always compile, so I made it a habit to very frequently save my work and checking the repl whether it still compiles.}
+{\pard  \line \par}
+{Now that we have defined this Haskell function, we want an actual validator, and that is of type validator. And in order to get the validator, we have to compile this function to Plutus script and take this script to create a validator. So let me first write down how we can do this. And that uses an advance Haskell feature called template Haskell.}
+{\pard  \line \par}
+{And I'll explain it in a minute, but the good news is that the pattern how this is used in order to work with Plutus is always the same. So you don't really have to understand the intricacies of template Haskell in order to use it. It's more or less always a copy paste of the same pattern.}
+{\pard  \line \par}
+{Okay, let's first look at the types in the repl. So I start the repl again with cabal repl and load the module with colon L module name, and now I need to import ledger scripts and Plutus Tx. Now let's first look at the type of make validator script.}
+{\pard  \line \par}
+{Okay, so it produces a validator, which is what we want, but it takes something that's of type compiled code parameterized by data to data to data to unit. So this already looks promising because this is the signature of our make validator function. So that, I mean, as the name suggests, this type indicates, is the result of compiling a Haskell function of this type. So let's check what the type of compile is. }
+{\pard  \line \par}
+{That looks a bit scary, but it's mostly because of these qualifications here. So what this says is it takes an expression of type A and compiles it into something of type compiled code of type A. So in our case, we apply this way is data to data to data to unit.}
+{\pard  \line \par}
+{So we must somehow plug in something of this type, the syntax of something of this type. And we get out the syntax of something of type compiled code A. So now what's this syntax business. This is where template Haskell comes in. So template Haskell does what other programming languages solve with macro systems?}
+{\pard  \line \par}
+{So macro, what's a macro? Macro is something that gets expanded before the compiler runs. So it's basically at compile time, macros get somehow evaluated and expended into code, that's then inserted next to the code that the user manually typed. And then the compiler is run over all of that. So the user code and the expanded macros.}
+{\pard  \line \par}
+{So it's a way to basically generate code at compile time. So macros are another expression for macros is programs that write programs. And in Haskell, this is done with template Haskell. So template Haskell allows you to, to write Haskell functions that produce other Haskell functions or Haskell types or general Haskell expressions and insert those into the source code and then run the compiler over that, to compile the program and then actually run it.}
+{\pard  \line \par}
+{Right, and so these expressions, this syntax stuff this is the type of Haskell code. So something of type expression A, if you have Haskell for example, of type Int, if you have an Int then exp Int would be a piece of code that represents an int. }
+{\pard  \line \par}
+{Okay, so if we need a piece of code that represents something of type data to data to data to unit, I mean, we have our make validator function, but that is a Haskell function, it's not code. }
+{\pard  \line \par}
+{So somehow having this function, we must get our hands on the code of that function, the actual syntax, the syntax tree. And this is what these so-called Oxford brackets are for. So they allow us to quote the technical term is quote. So having some Haskell expression, we can quote it using these brackets to get at the underlying syntax tree.}
+{\pard  \line \par}
+{Okay, so this is the first part. So we have our make validator Haskell function. We put it in these Oxford brackets. So the result of that is the syntax tree defining this function. So you, in principle, you can imagine that the result of this is something like this string that defines the extra function.}
+{\pard  \line \par}
+{It's not really a string, it's a more complicated data type, but you can sort of think of it like that, that this is now this piece of source code. Okay, and that is exactly what the compile function expects, and it compiles it and produces another syntax tree. But now Plutus core syntax. So outcomes, basically the syntactical representation of the compiled make validator function now in the programming language Plutus core, but this make validator script doesn't expect syntax, it expects an actual script. }
+{\pard  \line \par}
+{And this is now what the double dollar is for. That is in a way the opposite of the Oxford brackets. So the Oxford brackets take an expression, a Haskell expression and convert it into a syntax tree of that expression. And the dollar dollar is a so-called splice and it takes a syntax tree and splices it into the source code at that point.}
+{\pard  \line \par}
+{So this here gives us basically the Plutus core syntax tree. And by using this dollar dollar, in the first pass of compilation before the actual compiler runs, this will run. So we get the Plutus core syntax and then you can imagine that, at this point where the dollar dollar is, this syntax will be spliced in.}
+{\pard  \line \par}
+{So that is as if we had hard-coded instead of this, if we had hard-coded the correct Plutus core expression at this point in the source code. And then the make validator script function takes this and turns it into a validator. But as I said, you don't really have to understand it because it's always the same pattern.}
+{\pard  \line \par}
+{We will see somewhat more complicated pattern for so-called parameterized script in a later lecture. But once you have seen a couple of examples, it always follows the same pattern, but still might be good to understand what's going on. So we have this Haskell function, it has the logic, use the Oxford brackets to convert that into a syntactical representation of this function.}
+{\pard  \line \par}
+{And compiler takes its syntactical representation of that Haskell function, turns it into syntactical representation of corresponding Plutus core function, and then the dollar dollar takes that Plutus core and splices into the source code at this point. And then it is as if we had manually type make validator script, and then a complicated expression for Plutus core.}
+{\pard  \line \par}
+{And that then turns that into a validator. Unfortunately, there's one additional thing you have to do. Normally these Oxford brackets don't allow you to reference definitions outside of them. So normally you have to inline all your code into these brackets. So in our case with this extremely simple validator, that wouldn't be a problem.}
+{\pard  \line \par}
+{We could easily not have defined this make validator function. And just inline here in the brackets wrote this expression. But of course you can imagine that realistic Plutus validators will be much more complicated and you will also want to use helper functions or maybe even library functions that are defined elsewhere in order to avoid code duplication.}
+{\pard  \line \par}
+{And you want to maybe reuse pieces of code also in the off-chain part of your contract. So you don't want to inline everything into these brackets. You want to have separate definitions of the validator and helper functions. And normally that wouldn't be allowed, but we can fix this by adding a so-called pragma to our make validator function.}
+{\pard  \line \par}
+{And that's the inlinable pragma. And as argument it takes the name of the function we want to make inlinable, so make validator in our case and this curly brackets minus hash hash minus curly brackets. This is just a syntax how you do pragmas in Haskell. So by adding this, we allow the compiler to inline the definition of make validator inside these brackets, these Oxford brackets, and then it's fine.}
+{\pard  \line \par}
+{And we would do the same for helper functions that are may be referenced in the make validator function. So if you look at the source code of Plutus, then in certain libraries, especially in the Plutus prelude, you will see this inlinable pragma all over the place. Virtually every function there has that.}
+{\pard  \line \par}
+{And that is always a good indication that those functions are meant to be used in validators, in on-chain code. Because everything that's supposed to be used in on-chain code needs this pragma. If you go back to the repl and type validator. Then it seems to work, but I mean, we don't see much because where the Plutus core script is, it's just indicated with this word script, but we can ask for the definition of validator and we see it's just a newtype repl around the script, so that we can get access to with get validator.}
+{\pard  \line \par}
+{So let's try this if we have get validator. Okay, that's also not very enlightening, we just see script, but if we ask for information on script, you see, we can unwrap that with unscript to get something of type program. So let's try this.}
+{\pard  \line \par}
+{And we see something. I mean, it looks very complicated and those of you who have seen Lambda calculus before spot that this is some version of the Lambda calculus that uses De Bruijn index for variables. But I mean, here you can see the actual honest to god Plutus core script in this representation.}
+{\pard  \line \par}
+{So it worked, we did compile something. We did compile our make validator function and turned it into Plutus core. So now we have our first validator, given this validator, we can create values of two related types that will also be important. One is validator hash. So as the name suggests, it's basically just the hash of the validator and we can turn our validator into a validator hash by using this validator hash function.}
+{\pard  \line \par}
+{So I call the result valHash and also given the validator, we can turn it into an address. So this is a real address on the blockchain. So we no longer only have pub key addresses. We also have script addresses and this is how you get it. So we apply the function script address to the validator and you get an address.}
+{\pard  \line \par}
+{So let me reload and see whether you see anything.}
+{\pard  \line \par}
+{Okay, so the val validator hash indeed looks like a hash. Yeah, script address. Okay. And we see this is more or less just given by this hash. So the so-called script credential is just this validator hash. And then there are other informations in a, in an address we see that is something taken related. So an address can also always contain staking information so that it steaks to a given stake pool.}
+{\pard  \line \par}
+{But we see essentially this script address just consists of the hash of the validator. And it is important to keep in mind that most of this code is boiler plate. So the actually business logic, the validation logic in this example is just in this line where we say validation always succeeds, no matter what datum or redeemer or the transaction that spends it are or look like. Then the rest you will see in this form or very similar in all Plutus code.}
+{\pard  \line \par}
+{So the way to take this Haskell function that gives the business logic of validation and turns it into an actual validator by compiling into Plutus core script, and then how to take that validator and turn it into a validator hash on address. So this is just boiler plate, the only interesting line is line 34. Now, of course, in order to try this, we also need an off-chain part.}
+{\pard  \line \par}
+{And because the focus of this lecture is on validation on on-chain Plutus and not on off-chain Plutus I've already prepared this, so this is that. And I don't want to go into any detail, but just briefly go over it. So this type definition defines the so-called endpoints. Endpoints are ways for the user to trigger something and enter data, give input parameters.}
+{\pard  \line \par}
+{So in this case, I want two endpoints, give and grab. Give takes an integer parameter, grab doesn't take any parameters, which is representative by giving a unit parameter. So the idea is that somebody can send money, ADA to the script address we just defined and the integer argument specifies how many lovelace. And the grab endpoint is for people that want to spend such addresses so that will just look for all UTxOs sitting at this give address and creating a transaction that grabs all of those and sends them to the user wallet.}
+{\pard  \line \par}
+{The next I define, the actual behavior of these two, give and grab. So give taking the integer amount of lovelace, I want to put at that address. So I create the transaction by specifying constraints. So this says, must pay to other script. So this transaction should have an output at a script address, which is given by the validator hash.}
+{\pard  \line \par}
+{So this is our script address that we just defined. And this is one of the points where you need this validator hash with a given datum so because of how we define our validator, the datum is completely irrelevant, but I must specify one. So I just picked an arbitrary one. And then I must specify how much funds.}
+{\pard  \line \par}
+{So ADA dot lovelace value of takes an integer and converts it into lovelace. So this says the transaction must pay this many lovelace to that script with this datum. And this line submits that transaction, this line waits for confirmation of the transaction and that line logs information. So in the playground, for example, we can, can see these log messages, so that just logs the line made a gift of so-and-so many lovelace.}
+{\pard  \line \par}
+{Now the grab endpoint, no parameters. This line looks up all UTxOs sitting at this address. So this is our script address, so this will find all UTxOs that sit at that script address. Then this line gets all their references, references to these UTxOs. Then I need a so-called lookups in order to tell the wallet basically how to construct the transaction.}
+{\pard  \line \par}
+{So I tell it where to find all those UTxOs. And I also inform it about the actual validator. Remember I explained earlier, if you want to consume an UTxO sitting at the script address, then the spending transaction needs to provide the actual validator code. Whereas the producing transaction only has to provide the hash.}
+{\pard  \line \par}
+{So this grab is now a spending transaction because I want to grab all the UTXOs. So I must somehow include the actual validator in that transaction. This is what that line does. And then I define the transaction again, giving constraints. So in this case I have a list of constraints, one for each UTxO that are found here.}
+{\pard  \line \par}
+{So for each UTxOs sitting at this give address. I say, okay, the transaction I'm constructing must spend that UTxO and I must give a reference to it. I must provide a redeemer. And again, the redeemer gets ignored by our validator, so I can do something completely arbitrary. So I pick this one here and that's it.}
+{\pard  \line \par}
+{So this line basically says, okay, construct a transaction that spends all those script outputs sitting at this address. Then there's a variation of the submit Tx I used in line 78, submit Tx constraints with, that also takes these lookups. So that allows the compile allow the wallet to construct a transaction that has a necessary information, how to find those UTxOs and the actually validator script.}
+{\pard  \line \par}
+{Then again, I wait for a confirmation and I log a message collected gifts. And finally, I put it all together in these endpoints function. And that basically says, okay the select is it offers the users choices. So this means make available, give prime or grab prime, and then afterwards recurs and do the same over and over again.}
+{\pard  \line \par}
+{And give prime in principle just uses our give that we defined above, but recall the give needs an integer argument. And this endpoint give, operationally what it does is it will block execution and wait for the user to provide an integer. And once that is provided, execution will continue and will pass on this integer argument to this give function.}
+{\pard  \line \par}
+{And similar for grab, except that grab doesn't expect any arguments so this will just block until the user unblocks it and then run the grab function. And because of this select that means at every point in time, we have these two options. We can either provide an integer and trigger the give or we can not provide anything and trigger the grab.}
+{\pard  \line \par}
+{And after the give or the grab has finished, we are again present with the same choices. So this wraps up all the functionality we want for this example in this one function. And then there's some boiler plate to generate schema for that in this make no currencies. So that in the playground we have ADA available.}
+{\pard  \line \par}
+{Let's test this in the playground. So I started a local playground, as I explained in the first lecture and copy pasted the code into the editor and compile it.}
+{\pard  \line \par}
+{And simulate. Okay. Let's use three wallets and then give each, I don't know 10 ADA to begin with. So 10 million lovelace.}
+{\pard  \line \par}
+{And let's say that first, both wallet one, and wallet two invoke the give endpoint. So see this give and grab that's exactly the two endpoints I defined in my off-chain code in the endpoints function. And the playground picks that up and renders a UI for those. So I must specify how much, so let's say wallet one gives four ADA, 4 million lovelace, and wallet two 6 ADA.}
+{\pard  \line \par}
+{Okay, then let's wait one block to give those a chance to be incorporated into the simulated blockchain and now wallet three grabs. So grab doesn't take any parameters and let's wait again for one block to allow the grab transaction to get onto the blockchain. }
+{\pard  \line \par}
+{Now evaluate. Ok and we see five transactions, four transactions. So the first one is as I explained last time, always there that's the Genesis transaction that distributes the initial funds. We can see that here. So that gives 10 ADA to the wallets 1, 2, 3. Now these two are the give transactions and they both happen in the same slot, in slot one, because I didn't put a wait in between those.}
+{\pard  \line \par}
+{And the grab happens in slot two. So let's look at the first one. This happens to be the give of wallet two. So the other one is the give of wallet one. So we see the order here doesn't reflect the order in which we did it in the simulator. Which makes sense because in the real blockchain is also indeterministic, it depends on the timing between those two wallets.}
+{\pard  \line \par}
+{Okay. So wallet two, so the input is the one UTxO that wallet two had, the, that comes from the Genesis transaction, the 10 ADA, and then there are some fees, 10 lovelace in this case, then this is what goes to the script. No, sorry. This is the change, so 4 ADA minus fee go back to the wallet and this is the script.}
+{\pard  \line \par}
+{So this is our shining new script address that we got. Remember we defined the validator and then hashed it and the hash of that at the hash of the validator is more or less the script address. And we see that now 6 ADA sits at that script address. If you look at the other give, it's very similar except now it's wallet one and set of wallet two.}
+{\pard  \line \par}
+{And the amounts are different because here we only gave four ADA to the script. So six ADA minus fee are change. And finally grab, so the off-chain code scan the blockchain for UTxOs sitting at the script address and found those two. And uses both of them as input and then has to pay some fees, in this case significantly higher than just 10 lovelace.}
+{\pard  \line \par}
+{This is because now scripts are actually executed. So script execution makes it more expensive the transaction, but I don't know whether those costs are realistic yet, probably they are not. But we do see that having scripts that need to be validated has an effect on fees. The amount would probably still change until it's fully calibrated.}
+{\pard  \line \par}
+{And the sum, so the four and the six ten minus fees go to wallet three. So wallet three successfully grab those two UTxOs. Use them as input for this transaction. And the output is to wallet three's own address. If we scroll down, let me see how many balances are there in the end. So we see wallet one ends up with six more or less, wallet two with four and wallet three with 20, the initial 10 plus the 6 and the 4 that it grabbed from the donations made by the other players.}
+{\pard  \line \par}
+{We also have logs and trace, I can see some more detail about the execution. So yes, that's the arguably a simplest validator you can write and it's of course a bit stupid and silly, but it might even in some situations be useful if somebody wants to for whatever reason give ADA away to the community, then in principle, this script address could be used. }
+{\pard  \line \par}
+{For our next example, I just copied the gift module that we looked at just now and do a new module and I called that one burn. But right now the code is identical, so everything is exactly the same. So the first example, the gift example was a validator that always succeeds.}
+{\pard  \line \par}
+{It ignores its three arguments and always succeeds by returning unit unconditionally. So in this example, in the burn example, I want to do the opposite. A validator that again ignores all its three arguments, but then always fails. So how do we do failure in Plutus, in a Plutus validator, we have error function for it.}
+{\pard  \line \par}
+{Let me go to the repl and load the burn module.}
+{\pard  \line \par}
+{If I ask for the type of error, I see that it takes a string and returns an arbitrary type, but this is not the error I am using in the code. This is the standard Haskell error coming from the Haskell prelude. So in order to look at the error I'm using, I must import Plutus Tx, or I must qualify it with Plutus.Tx.Prelude error. }
+{\pard  \line \par}
+{So this is the one I'm using. It takes a unit and returns an arbitrary type. And this brings us to an important point. I mentioned before when I explained this inlinable pragma that whenever you want to use, a library function or a helper function inside the validator in order for the template Haskell mechanism to work, everything must be inlinable.}
+{\pard  \line \par}
+{So this inlinable pragma has to be edit, but in the standard Haskell prelude, of course, that's not the case because the standard Haskell prelude is like decades old and nobody had Plutus in mind when that was written. So for that reason, the Plutus team has provided their own version of a prelude that's suitable for Plutus.}
+{\pard  \line \par}
+{And this is here in, in Plutus.Tx.Prelude, and a lot of functions types defined in this standard Haskell prelude have an analog in the Plutus Tx prelude. The problem is that normally in Haskell by default, the standard prelude always gets imported, you don't have to import it, explicitly it always gets imported automatically.}
+{\pard  \line \par}
+{And if that was the case here, then we would have a lot of name clashes between names in the standard prelude and names in the Plutus prelude, but there is a GHC extension for that, there's no implicit prelude. So by adding that, the standard Haskell prelude does not get automatically imported. And by adding this line we import the Plutus prelude instead.}
+{\pard  \line \par}
+{So that's why here when we just say error, we don't get the standard Haskell error that takes a string, but instead the Plutus error that takes a unit. If you look down here, I do import something from the standard Haskell prelude as well, but that's for other reasons that have nothing to do with validation, that is for something the off-chain code and for the playground to work, for example, the IO I need to import so that the playground doesn't complain.}
+{\pard  \line \par}
+{Another thing is that it can be confusing. I mean, a lot of the definitions that are in the standard Haskell prelude and in the Plutus prelude, we have the same signature and the same behavior, but that's not always the case and error is an example. So the standard one takes a string and the Plutus one does not.}
+{\pard  \line \par}
+{So, one has to be careful, sometimes code that should work, I mean, if you have some experience with Haskell and use some ordinary things from the prelude, then in Plutus suddenly might not work anymore or might work differently. I also noticed that there are issues with preferences, sometimes operator precedences. So arithmetic expression or some other combination of operators that would work fine without parentheses in the standard Haskell prelude suddenly doesn't work in Plutus and you have to add some parentheses. }
+{\pard  \line \par}
+{So we have to be a bit careful there. Okay, but with this one change, we should now have a validator that always fails. And if I leave everything as is, I can try this in the playground. I replaced the code in the editor with this change code where only the one line has changed replacing unit with error unit.}
+{\pard  \line \par}
+{And my scenario, my simulation is still there. I think the playground keeps that if the endpoints haven't changed. And we still have the same endpoints with the same signatures. So let's evaluate.}
+{\pard  \line \par}
+{Now we see, we only have three transactions. So the grab obviously failed, which is expected. The give should still work as before we can send our funds to that new script address, but it should be impossible to retrieve the funds from there. And if you scroll down, you see wallet one and wallet two have made the gifts, but wallet three was not able to grab them.}
+{\pard  \line \par}
+{And if we look at the log we see an error here, wallet error, validation error, script failure, so we see validation failed.}
+{\pard  \line \par}
+{In the first example, as I said was of a validator, of a script address that allows arbitrary transactions to consume outputs sitting at that address. And now we have the opposite where something sitting at that address can never be retrieved. So it's locked at that UTxO forever, no following transaction can ever use those outputs as inputs.}
+{\pard  \line \par}
+{And that's why I called it the module burn, because it's a way to burn your funds, make them inaccessible forever. So that also in some circumstances might turn out to be useful. One thing that's somewhat unsatisfactory is that we don't see why a validation failed, we just get this evaluation error. So there's a way around this, a variation on the error function.}
+{\pard  \line \par}
+{So if we check the type of Plutus Tx prelude trace error, that takes a Plutus string and produces an error and results in arbitrary type. So one thing we can do to somewhat improve this is to use trace error instead. And then it doesn't take unit, it takes a string, so we can use a literal there. So for example, let's just say "Burnt!". }
+{\pard  \line \par}
+{In order for this to work, we have to use this overloaded strings extension that I explained earlier when we wanted to produce a byte string. As I said, normally string literal only produces a Haskell string. So if we wanted to also produce a Plutus string, you also need this. So let's try again.}
+{\pard  \line \par}
+{Okay, now it compiles. I replaced the code in the editor and evaluated it again. Here again only get three transactions, but now if you scroll down we see here in the error message that this log string, the string we defined in the code is now visible here in the playground trace. So we get some information what went wrong, at least in the playground.}
+{\pard  \line \par}
+{As our next example, let's write a validator that does not completely ignore all its arguments. So let's say we want a validator that expects a specific redeemer. So we do here about the redeemer and recall the first argument is the datum, the second is the redeemer and the third is the context. So the redeemer is this one.}
+{\pard  \line \par}
+{So let's call it R and let's say validation should pass if the redeemer is I 42 (Integer 42). So using this guard so we can say if it is I 42, then we return unit, so it passes and otherwise it fails.}
+{\pard  \line \par}
+{Ok, let's see whether it compiles, it does not. Oh, yeah... I must, again, I copied the original gift, so I must again have this overloaded strings.}
+{\pard  \line \par}
+{Okay. So far so good. Now we should also change the off-chain code in order to try it out, because I would like to try it out with the correct redeemer and also with the wrong redeemer and see that in the one case it passes and the other it fails. And I think the easiest way to do is to also provide an integer argument to the grab endpoint.}
+{\pard  \line \par}
+{So here, let's call that N and then instead of hard coding the redeemer to I 17, I just use I N. And then I also have to change this here, because now it also has an argument, so I have to pass it onto grab. Okay, that compiles. Now, if I go to the playground and I replace the code in the editor with our newest version and compile, and now we see that the scenario I prepared for the give and the burn is gone.}
+{\pard  \line \par}
+{And that is because now the endpoints have changed. Now the grab endpoint suddenly takes an integer parameter. So in that case, this is gone and I have to redefine the scenario. I think in this case, it's enough to just use two wallets, but let's increase this to 10 ADA each again.}
+{\pard  \line \par}
+{Okay, let's say wallet one gives maybe three ADA. We wait one block. Now wallet two grabs and let's first use the wrong redeemer. So for example, 100 and wait again, and let's try it out. And we expect grab should fail because this now uses as redeemer I 42 and validation will fail in that case, it should only pass if it's I 42. }
+{\pard  \line \par}
+{Indeed, we only have two transactions. So this is the Genesis transaction and the give transaction but grab failed. If we look, so, wallet one gave the three, but wallet two didn't get them. If we look at the trace, we see validation error, wrong redeemer as expected. Now, let's go back and change the 100 to 42 and try it again.}
+{\pard  \line \par}
+{And now it seems to have succeeded, we see the third transaction, indeed wallet two able to get three ADA minus fees. We also see this here in the diagram, wallet two now has 13 and the error is gone. So that's the first example of a validator that actually looks at at least one of its arguments. }
+{\pard  \line \par}
+{\b\fs36 [00:58:46] 0203 High-level, typed on-chain validation scripts.\b0}
+{\pard  \line \par}
+{So in the next example, I want to show how, instead of using this low level Plutus, the untyped version we can use a typed version. So I copied the example that we just looked at into a new module called typed. And this is just the validator we just saw. And all these three arguments are of the same type data and that is really very unpleasant and very unHaskell like it almost feels like programming in a untyped language like JavaScript or Python. And what we would like is strong types here. So that only redeemers and datum that actually make sense are expressible. And it's especially bad with his third argument, the context, because even though it's easy to imagine that you can somehow encode a transaction into his inputs and outputs into this data type, it's not at all clear how that is done.}
+{\pard  \line \par}
+{And it would be very complicated to understand that encoding and then use it in the business logic of the validator. Luckily we don't have to, and nobody would, instead we would use typed version. So instead of data, I just pick a type for the datum. Let's pick the unit type, which makes sense because we completely ignore it in this validator.}
+{\pard  \line \par}
+{And here let's pick integer for the redeemer and instead of datum there's a type called script context, which is much nicer. And also I explained earlier that it's very unHaskell like to have a unit return type and that is also nicer in the typed version of Plutus, that's Bool. So it's as one would expect, if the result is false validation fails and if the result is true validation succeeds.}
+{\pard  \line \par}
+{Now to convert this into this version, the easiest would be to simply say R equals 42. So if, so, ah... His Integer is no longer data. So I can compare it to 42. And if it is equals 42, the result is true and validation succeeds. And if it's not 42, then validation fails.}
+{\pard  \line \par}
+{This however would have the same problem that we had before. When you just used error that in the case of failure, we don't get a nice error message, but there's a nice Plutus function call trace if false. So if... Plutus Tx prelude trace if false, and we see that takes a string and a boolean and returns a boolean.}
+{\pard  \line \par}
+{So the idea is if this boolean is true, the result is just true and the string is ignored. However, if this boolean is false, then the result will be false, but this string will be log. And this is exactly what we want here, so we can use wrong redeemer again as our string and then we use this condition.}
+{\pard  \line \par}
+{Oh, okay... trace if false.}
+{\pard  \line \par}
+{Okay, and that compiles. Next, we need to adapt our boiler plate, and this unfortunately in the type version is more complicated and cumbersome. So let's look at this, first of all, we need something that we haven't used before, we introduce a dummy data type equity typed now because of the module name. And we must provide an instance of a class called validator types for this dummy data type.}
+{\pard  \line \par}
+{And the purpose of this instance is to somehow wrap together packing packages together, the datum type and the redeemer type. So if we give a type instance for the datum type, in our case that's unit, and we give a type instance for the redeemer type in our case, it's integer. So this basically just makes a parser out of these two types.}
+{\pard  \line \par}
+{Next we want to compile, and earlier we use this make, make validator script function. Now we use something called make typed validator, and the result is no longer a validator, it's of type typed validator and that takes as type parameter this type that we defined here, it's relatively similar.}
+{\pard  \line \par}
+{So first we have to give as a type argument, this type, this line is as before more or less. So we again use Plutus Tx compile, make validator is again with the Oxford brackets and the dollar dollar, but now we also somehow have to provide a way to interpret this typed as untyped as so the boiler plate for this looks like this.}
+{\pard  \line \par}
+{So we have another argument where we again compile a wrap function at the wrap function uses a function has provided by the Plutus libraries, that's called wrap validator. And that also needs two typed arguments, which are again, the datum type and the redeemer type. So this is also boiler plate and it's always the same, so you can always copy paste that.}
+{\pard  \line \par}
+{Now in order to get the validator from a typed validator, we can use a function called validator script, and it takes a type validator and turns it into an untyped validator as we have seen before. }
+{\pard  \line \par}
+{To get the hash, we could, of course use the validator we now have, and then turn that into a validator hash as we did before.}
+{\pard  \line \par}
+{But there's also more direct way, there's another function called validator hash, that's now in a different module, even though it has the same name, it's in the typed version of the script and Ledger.Typed.Scripts. And it takes the typed validator and produces the validator hash. }
+{\pard  \line \par}
+{And finally, the address that's as before, so we take the validator and apply the script address function to it. }
+{\pard  \line \par}
+{So, admittedly, this example doesn't really demonstrates nicely why we would bother with type validation instead of untyped as we had before, because the boiler plate is much more complicated and we don't really see an obvious advantage.}
+{\pard  \line \par}
+{I mean, we save two lines of code, but it barely seems worth it. But of course, if you have more realistic, more complex examples, then it becomes more and more helpful if you can use specific types that are suited to your business case of the validation logic and don't have to bother with this block typed data.}
+{\pard  \line \par}
+{And then it becomes much more useful. So in practice all validation scripts or other scripts in Plutus will use this typed version, the untyped version will never be used. Finally, let's look at the off-chain code, that is almost identical to what we had before. There's one slight change here in this line, earlier we had must pay to other script, but now that we use typed validator, there are special convenience functions for the common case}
+{\pard  \line \par}
+{that one script is especially important in off-chain code. I mean, sometimes you deal with more than one, but often the on-chain code is about one specific script and then there's this function must pay to these script instead of two other script. And that has the advantage that you don't have to provide the datum as data, but you can provide the datum with the type that you used in the typed validator.}
+{\pard  \line \par}
+{So in our case unit, so I can just use unit here. Apart from that, I believe everything else is the same as before. And if we check in the repl, it also compiles. Now we could try that in the playground, but I think it's not interesting because the behavior of this code will be exactly as before. So if we provide 42, then the grab will succeed, and if we provide a different value, then it will fail, So in the playground, you won't be able to see a difference.}
+{\pard  \line \par}
+{We have exactly as before. Next, let's try to understand how this actually works. So the typed validators are just this thin layer on top of the untyped ones and this wrap function, or rather the wrap validator function converts a function of this type of a typed validator into an untyped version. And in order to do that, it's obvious that somehow you need to convert the datum and the redeemer type in our case unit and integer into data and script context as well.}
+{\pard  \line \par}
+{So this wrap basically what it does is, it takes the data arguments that it gets in the typed version, converts them into... in this case unit integer and script context, then runs the typed make validator function. And then if there's an exception, it will return... No, no... If there's false it will throw an exception and if the result is true it will return true... unit.}
+{\pard  \line \par}
+{So we need a way or there must be a way to convert between at least unit and integer in data. And this is done by a class called is data. This is in module PlutusTx.IsData.Class. And this class has two functions, to data and from data. So to data, so if a type A is an instance of this class, then to data of an A will convert this into a data.}
+{\pard  \line \par}
+{And from data given a data will try to convert it back into an A, and this can fail, so we have this maybe type here. So if it succeeds, we get just the A and if it fails, we get nothing. You can try this in the repl, so let's import Plutus Tx and Plutus Tx is data class. So we can look for is data here as well.}
+{\pard  \line \par}
+{And we see more or less the same that we saw in the documentation. And in particular, we see that there are some predefined instances, for example, int and bool and integer, and unit should also be somewhere, here. So this explains why it worked out of the box for integer and unit as in our example. }
+{\pard  \line \par}
+{Now let's play with this to data and from data a bit. So for example, we can try to data of 42, the integer. Just make sure it's an integer and we get I 42, which is not surprising, that's what we did by hand before. So when we work with integers in... as a data value, use the I constructor, should also work. The other way around, so if I do from data I 42, now I must have the compile and tell it what type I expect.}
+{\pard  \line \par}
+{So I expect the maybe integer, then it succeeds, so I get a Just and 42. In order to see it fail, let's take another constructor, for example, the list constructor with an empty list and that fails. So this doesn't correspond to an integer, so if we get nothing.}
+{\pard  \line \par}
+{And we see here that there are some predefined types that have instances. And that's, as I said, the reason why it worked in our example, but of course this is still not completely satisfactory because what we really want is we want to use custom data types that are very sweet suited for the validator we want to write. And in order for that to work, normally we would have to write by hand instances for the is data class for these custom types, which is quite tedious and also quite mechanical.}
+{\pard  \line \par}
+{So we don't really want to do that. But the good news is we don't have to, because Plutus also provides an automatic mechanism to use custom types and make them instances of is data. }
+{\pard  \line \par}
+{So finally, let's look at how to make custom data types work with is data and typed validators. So I copied the typed module under the name is data, and let's say instead of integer for redeemer, we want a custom data type.}
+{\pard  \line \par}
+{Let's use a simple newtype, my silly redeemer that just wraps an integer. And let's try to replace the integer here where we have the redeemer with this type. So in order to pattern match, we can just pattern match against this. So R is now an integer again. So this should still be correct. Here in the type instances we have to replace the integer with my silly redeemer.}
+{\pard  \line \par}
+{Okay, this should be fine here, my silly redeemer.}
+{\pard  \line \par}
+{So that should be it for the off-chain code, the on-chain code. Now for the off-chain code, we must just in the grab instance where we give the redeemer, we must somehow now provide the right thing there. And actually we don't really know what to write there. So what we can do is to data of my silly redeemer R.}
+{\pard  \line \par}
+{So if we now try to load that module.}
+{\pard  \line \par}
+{We do get, okay. First we get the error that that is ambiguous. Let's call it Plutus Tx to data.}
+{\pard  \line \par}
+{Okay.}
+{\pard  \line \par}
+{Okay. But now we get the error message that no instance of is data for this class, my silly redeemer, in order to fix that, we could write an instance for is data of my silly redeemer by hand, which in this case would prevent if he is straightforward, because we could somehow reuse the one for integer, but we don't have to.}
+{\pard  \line \par}
+{Instead we can use Plutus Tx unstable make is data, which is again, a function using template Haskell like this, let's first see whether that works.}
+{\pard  \line \par}
+{Yes. Now it compiles. So this is a template Haskell function, and it takes a type and the syntax to provide a type is to use two single quotes in front of the name of the type. And this will then at compile time, write an instance for is data for this type and splice it in here at this point. So this is as if we manually at this position here in the source code had written an instance for is data.}
+{\pard  \line \par}
+{Now actually, we should be able to try that out as well. So if we, again, import Plutus Tx and Plutus Tx is data class, and now we do something like to data, my silly redeemer 42.}
+{\pard  \line \par}
+{Then it works and we see it doesn't just what we might have expected, reuse the instance for integer. So in that case, it would just be I 42, but it uses the constructor of the data class. So that's not obvious maybe, but that's how it, how it's done. Okay. So, and this of course works for other custom types as well.}
+{\pard  \line \par}
+{So using this Plutus as the template Haskell function unstable make is data, we can turn custom data types into instances of is data and then use them in our validator scripts and now are typed validators. In case you're wondering why it's called unstable, there's also a stable version, which you should use in production code.}
+{\pard  \line \par}
+{So this is about constructors, we saw that in this case, the my silly redeemer constructor was translated into constructr zero. I suppose if there's only one constructor for a data type, it will always be zero. But if there are several constructors, it's not so clear in how they are ordered. And the difference between the unstable and the stable version is that the unstable version does not make any guarantees that between different Plutus versions, the constructor number corresponding to a given constructor will be preserved.}
+{\pard  \line \par}
+{And that of course would be bad because if you use an older version of Plutus to serialize something to data, and then a new version of Plutus makes it in a different way, that's it in a different way then it would be incompatible and you would have version problems and if you use the stable version, then you can explicitly specify which constructor corresponds to which index.}
+{\pard  \line \par}
+{So then it's guaranteed to work between different versions of Plutus, but for now for quick and dirty trying, I always use the unstable make is data. So let's quickly try this out in the playground whether it still works as before it should be exactly the same behavior. So I pasted the new code into the editor and compiled and same scenarios before first with the wrong redeemer.}
+{\pard  \line \par}
+{And here we now get two transactions and wallet two didn't successfully grab, now let's provide the right redeemer and try again. Now we have three transactions, so the grab worked and the balances are also correct. So we see that both, the untyped and the typed version behave exactly the same, but the typed version is much nicer to work with.}
+{\pard  \line \par}
+{\b\fs36 [01:18:04] 0204 Summary\b0}
+{\pard  \line \par}
+{So to summarize in this lecture have looked at simple examples of validators first untyped and typed. And we started with a validator that always succeeds, completely ignoring its arguments. Then a validator that always fails again, completely ignoring its arguments. Then at one, that actually looks at the redeemer and checks whether it has a certain predefined value.}
+{\pard  \line \par}
+{Then we turn that into a typed version, which is the one that will be used in practice, first with built-in data types. Then we saw how we can also use custom data types, but we haven't looked at examples where the datum or the context is actually inspected. Which of course in realistic examples will mostly be the case.}
+{\pard  \line \par}
+{So we will do that in next lectures. }
+{\pard  \line \par}
+{\b\fs36 [01:19:05] 0205 Homework\b0}
+{\pard  \line \par}
+{Finally, let's look at some homework for you. I prepared two models, homework one and homework two. So in homework one, I changed the redeemer type to a pair of booleans. And as it says, in the comment, the logic should be that validation should succeed if these two booleans are the same, true true or false false, and it should fail if they are not the same.}
+{\pard  \line \par}
+{And so everything should compile, but I left lots of undefineds here. And here the logic is wrong, so where it says fix me, you have to do something. And the off-chain code which is not focus of this lecture, I already implemented correctly.}
+{\pard  \line \par}
+{So, if you look at the playground for this homework one, then here in the grab. So this case false, true. If I evaluate the grab should fail, but if I have true true or false false the grab should succeed. Finally, the second homework is very similar instead of a pair of booleans, I'm now using a custom data type, my redeemer is a record type with two fields called flag one and flag two both have type bool. But the logic again should be the same.}
+{\pard  \line \par}
+{Validation should succeed, if these two booleans these two, flag one and flag two are the same and fail otherwise. So in the playground, this looks very similar, except now the UI is rendered a bit differently. So the field names appear here, but same behavior so this should, the grab should succeed should also succeed if both are true, but if one is false and the other is true or the other way around, it should fail.}
+}

@@ -1,0 +1,380 @@
+{\rtf1\ansi\deff0
+\margl1800\margr1800\margb1440\margt1440\deflang1033\lndscpsxn
+{\colortbl;
+}
+{\fonttbl;
+{\f0 Arial}
+}
+{\pard  \line \par}
+{\b\fs36 [00:00:00] 0901 Start\b0}
+{\pard  \line \par}
+{Welcome to the second to last lecture of the second iteration of the Plutus Pioneer Program. This lecture is not about Plutus, but about Marlowe, which is a domain specific language for financial contracts built on top of Plutus. And even though Marlowe has also changed a little bit since the recording of this lecture for the first iteration. The changes are much smaller than those that happen Plutus all the time. }
+{\pard  \line \par}
+{So I decided to not update or edit this lecture because I think it's still mostly accurate. And in particular, the demo at the end still works. In the previous lectures we have learned about all the important ingredients for writing a Plutus application, we first looked at the extended you take or model, the accounting model that Cardano uses, and the addition that Pruett was brings to it, then we have talked about on-chain validation about meeting policies, about writing off-chain code. }
+{\pard  \line \par}
+{You have seen how to deploy smart contracts and also how to test And Plutus is a very powerful language, so powerful in fact that you can implement other languages on top of it. So you can write an interpreter in for other languages. And one such language is Marlowe, which is a so-called DSL [domain specific language] for financial contracts. }
+{\pard  \line \par}
+{And because this is the second to last lecture of this course, I thought you should do something special. So I invited professor Simon Thompson who was a very prominent figure in the Heska community and who leads the malware team. And one of his colleagues, Alex Nimesh to give guest lectures and tell us a bit about Marlowe in this lecture. }
+{\pard  \line \par}
+{And afterwards I will do a small demo of the model playground and demonstrate playing with a simple Milo country. }
+{\pard  \line \par}
+{\b\fs36 [00:02:15] 0902 Marlowe Overview\b0}
+{\pard  \line \par}
+{Hi, I'm Simon Thompson from the Marlowe team. And we're here this afternoon to give you an introduction to Marlowe Let's get started. So Marlowe is a special purpose language for writing financial contracts on Cardano. }
+{\pard  \line \par}
+{Now, why do we build special purpose languages? Or sometimes we call them domain specific languages? Well, One reason is that we want to build languages that are closer to the, the language of the user and not so much the language of the of the system. So they're designed to be in the specific domain of the, the application. }
+{\pard  \line \par}
+{So a financial language you're talking about payments, For example, And when did we write a uh, special purpose language, we get some advantages. You, we can write down things in that domain, but we can't perhaps write as much as we could in a general purpose language. And if we do. Work in this more specialized context, we have the advantage of being able to give people better feedback, better error messages, but also we can give more guarantees on program behavior. }
+{\pard  \line \par}
+{And that's one of the things I'm going to stress in this Gotcha. Okay. of assurance can we give? We can give two kinds of assurance really. We can say, we can make sure that contracts do what they're supposed to do, great? But we can also make sure they don't do what they shouldn't. Um, And we'll see we'll see both aspects of that as we go along, we've designed the language to be as simple as it can be and the implementation reflects that. }
+{\pard  \line \par}
+{And I'll talk a bit about that in some more detail later on, contracts are nice and readable and also we can easily simulate them. Um, And so we can present to users a very clear picture about how their contracts in Marlowe will behave. And in fact, we can do more than that, because they're particularly restricted, we can, before a contract is executed, I explore every possible behavior path it can take. }
+{\pard  \line \par}
+{So we can give complete guarantees about how a contract will behave, not just on one or two tests, but on the every possible execution sequence. And also it's more straightforward to actually write mathematical proofs of various kinds of safety. So that's, if you like the strongest criterion that we can we can hit in this kind of in this kind of world, that we have a mathematical proof that the system will do certain things won't do wouldn't do others. }
+{\pard  \line \par}
+{Okay. But let's start, start by asking the question, what does a financial contract do? And let's let's think, let's step back from from what we see in the... }
+{\pard  \line \par}
+{in, um, So what can a contract do? Well, let's take a look at what various things a contract can engage it. It can accept payments from participants in the contract, and then according to things, choices perhaps made by um, one of the participants, it can evolve in different directions. Do I sell or do I stick with the contract for example, or it can make decisions based on external information, such as the the, um, information coming from an exchange, a stock exchange or a currency exchange, for example. }
+{\pard  \line \par}
+{So information coming from an Oracle can determine the future behavior of a company. And finally the contract can also make payments out. If money has been deposited in the contract, it could also make payments out to, um, to participants. So we have payments, flows of money, we have choices according to um, external factors. }
+{\pard  \line \par}
+{And one final thing that we have, um, that the roles in a contract are themselves things that can be owned. So we represent that in Cardano, in in Marlowe, by minting tokens that represent those roles. Now that means that we can use those tokens as um, as evidence that somebody is meant to be playing a role. }
+{\pard  \line \par}
+{So we can, they're, they're a form of, of security, of a validation that the person um, submitting a particular transaction is meant to be able to submit that transaction it's fits with their role, but also it means that these roles can become themselves tradable. So we can trade roles in a running contract. }
+{\pard  \line \par}
+{I could transfer a role in a contract that I have to you, perhaps for perhaps for some money or indeed, that that role could be um, that that token, could be traded by another Malo contract or a Plutus contract. So we use the native tokens to represent roles in contract. So we have roles, we have payments, we have external choices, external um, information coming in through Oracles, so those are the general ingredients. }
+{\pard  \line \par}
+{Now let's think about how to design a language based on those ingredients. And remember when we designed. Uh, language of contract. What we're really doing is designing a programming language. but contact is just a smart contract is just a program running on a blockchain. }
+{\pard  \line \par}
+{So a contract in principle could run forever Um, and also more, more subtly, it could um, for example, just get stuck waiting for an input forever. If it's waiting for me to make a choice, it could potentially wait forever. It could also, as a program holding assets, it could terminate holding onto those assets, so it could lock up those assets forever. }
+{\pard  \line \par}
+{And potentially, it could, it could double spend I guess, um, you know, in principle, a program could, could try and do that. So there's a whole lot of security issues that a program might might have, a contract might have. So what we chose to do was design for safety. So we designed first of all, for contracts to be finite, their life will be finite, there is no recursion or loops in Marlowe. We'll come back to that a bit later on when we talk about Muller being embedded in other languages, but Malo contracts themselves are finite. Moreover, we can be sure that contracts will terminate. And we do that by putting timeouts on every external action, every choice or deposit of money into the contract comes with a deadline, comes with a timeout. And so Marlowe contracts cannot wait forever for somebody to make a choice for an action to happen. }
+{\pard  \line \par}
+{If you hit the timeout, then an alternative course is taken. reading from a contract, because we have these timeouts in the contract. It's Each volume contract we'll have a defined lifetime, we can read that off from the timeouts. So we have a very clear constraints on what we can do, but that gives us safety built in. }
+{\pard  \line \par}
+{And finally, we've designed the semantics of the language so that when a contract reaches its close at the end of its lifetime, any money left in the contract will be refunded to participants. So we've built into the semantics into the way the language is defined that no money is retained when things terminate. }
+{\pard  \line \par}
+{So we got those safety properties. Your money is always going to only going to be committed for finite length of time, it will always, if money is not spent by the contract, it will be returned to its it's rightful owner. conservation of value is something that we get really for free from the underlying blockchain. }
+{\pard  \line \par}
+{We can't, the underlying blockchain guarantees double spend. And because we're using the transaction mechanisms of the underlying blockchain, we can be sure that we are getting conservation of value. }
+{\pard  \line \par}
+{Okay, so that's giving, that's giving us a whole lot of of guarantees just um, after the box. And these are not guarantees that there are for Plutus contracts in general, in general the police contract could go on forever. }
+{\pard  \line \par}
+{didn't need not terminate. And it could it could terminate with with having control of a whole collection of assets, which are, then become unreachable. Okay. So those just distress these, these these properties I'm highlighting here, safety properties are assurances that we can give to Mahler users. }
+{\pard  \line \par}
+{Now, what does the language look like? Let's cut to the chase. So Marlowe is um, at heart it's a represented as a Haskell data type and you can think of, I'm sure you're familiar with data types in high school data types in high school, we can think of a syntax of, of simple languages. And let me just talk you through the constructs that we have in the language. }
+{\pard  \line \par}
+{We have a pay construct, and in that I party, one of the parties in the contract makes a payment to a pay of a particular value. And then the contract continues. We've what we call the continuation contract. }
+{\pard  \line \par}
+{Okay. go in two separate directions, we can observe whether or not um, a particular observation is true or not, if the observation is true, we follow the first contract, if the observation observations false, we follow the second. So simple payment and then a simple conditional the most complex construct in Marlowe is the when construct. }
+{\pard  \line \par}
+{And you can see it takes three arguments. And the first of those is a list of um, action contract pairs, the list of cases. And let's look at what that list represents. Let's think what it represents, what the when construct does, is wait for one of a number of actions. And when one of those actions happens, it's performs the corresponding contract. }
+{\pard  \line \par}
+{So it could be waiting for a deposit, if I have a case where the first part of the case pair isn't deposit, then we will execute the corresponding second part. Similarly, with making your choice. Similarly with getting a value from an Oracle. So we, hear we're waiting for external actions. And of course the contract can't make those actions happen. }
+{\pard  \line \par}
+{A contract can't force somebody to make a choice, You can't force somebody to make a deposit, but what we can do is say, well, if none of these actions takes place, no action taken place, no corresponding contract, we will hit the timeout. And when we hit the timeout, what we'll do is perform this contract. }
+{\pard  \line \par}
+{So we can guarantee that something will happen in this construct, either because one of the actions triggered. success of the contract, or we simply hit the timeout and go to that continuation. So we know by the time we hit the timeout, something will have happened. We can't sit there waiting forever. }
+{\pard  \line \par}
+{And then finally we have the close, um, which has the semantics defined so that nothing is retained when we close. So there is the Marlowe language, a very simple set of constructs, but we'll see that we can use those in a variety of different ways that we can construct Marlowe contracts in a variety of different ways. }
+{\pard  \line \par}
+{Okay. So there's the language, what is the Marlowe product itself? Well, what we have, is, is a suite of things. And what I'm describing here is the, the um, the overall vision for Marlowe. And I'm going to describe that and then tell you where we are with fulfilling that. So at the moment, what we have is um, you might've seen, and I'm going to show you a demo shortly. }
+{\pard  \line \par}
+{Um, We have a prototype for Marlowe rum, and that is the system through which an end user will interact with contracts running on the Cardano blockchain. So if you like Marlowe run is the Marlowe DAP. It's the thing that allows Malo contracts to be executed. We're also building a, a market where contracts can be uploaded, downloaded... where we can provide various kinds of assurance about those con those contracts. }
+{\pard  \line \par}
+{We allow contracts to be simulated, interactively, and then we call that Marlowe play and we allow contracts to be built in various different ways. And we call that Marlowe build. Now, in fact, what we've done at the moment is bundle those two, Mahler play and build into what we call the Molo playground. So as this, as things stand at the moment ,you can, it's been available for awhile. }
+{\pard  \line \par}
+{Use the Muller playground to simulate and construct Malo contracts. We're in the process of redesigning the user interface of that, the user experience. um, On the basis of what we'd done with Marlowe run. So we're able to um, uh, build and and simulate Mahler contracts. What we're releasing very shortly is the prototype of Marlowe run. }
+{\pard  \line \par}
+{And this is the prototype of how end users will interact with um, with Marlowe, fine, with Marlowe, um, on the blockchain. And our intention is that we'll have all these products available. Um, When running on the Cardano blockchain, when we have the full support for this on, um, on Cardano, which will involve having the Plutus application backend and uh, wallet backend and so on working as they should. }
+{\pard  \line \par}
+{Okay. You going to do now, is just take a short break and show you a demo of what we have in Marlowe run to give you a sense of what we can do with, it. at the moment, with, with giving users, the experience that they will have when Marlowe is running on blockchain, this will be the app that is, is is going to provide that experience. At the moment it's running locally. }
+{\pard  \line \par}
+{We will, in a few weeks time be releasing a version that runs in a distributed fashion on a simulated blockchain and then as we go into um, the end of the, the end of the year, we expect to have this running for real on the Cardano blockchain itself. So let's go to the demo Yeah.}
+{\pard  \line \par}
+{Mono run runs in the browser, and what it does is provide the end user interaction with contracts running on the blockchain, for the moment we're simulating that blockchain inside the browser, but eventually this will be the tool you'll use to run contracts for real on Cardano. Now to interact with the contract, your wallet needs to be involved to control your, your SIG signature and to control your assets. }
+{\pard  \line \par}
+{So we link up Malo, run with a wallet, let's link it up with true cheese wallet. So in this window you see the world from Shruti perspective and let's open up another window and link in that window, the world with Charles his perspective No, at the moment, neither of them has any contracts running. They're like space there, but let's see. let's start a contract up. }
+{\pard  \line \par}
+{Let's set up a zero coupon bond, which is a fancy name for a loan. And let's suppose that Shruti is making a loan to Charles. She's the investor, he's the issuer of the bond. And Charles wants to borrow one aider from Shruti and he's promised to pay back 1.18. So we set it up, we've said who the issuer and investor are. }
+{\pard  \line \par}
+{We said what the price and the the eventual value will be. And we're now going to create the contract. In order to do that, we have to make a payment of 30 lovelace to get the contract started. So let's pay and we asked to approve that and the payment goes through. And you can see now intrusive.}
+{\pard  \line \par}
+{Marlowe run, we've got the zero coupon bond Ronnie, but also if you look at Charles his view of the world, it's running there too for him. }
+{\pard  \line \par}
+{Let's see what it looks like for him. We're at the first step and it's saying it's waiting for something from the investor who is Shruti. So let's see what's happening in her view. Yes, she's asked to make a deposit, so let's click on that to make the deposit and click to confirm with her fee of 10 lovelace and make that deposit. }
+{\pard  \line \par}
+{And then you can see her view has changed. Now she's waiting for the issuer to pay her back. And a whole, We look in Charles's view, She's incidentally the mobile view of of Malo.}
+{\pard  \line \par}
+{Ron. He's asked to pay his uh, 1.1 aider. Let's make him do that now. Um, And he'll also have to pay a 10 lovelace transaction fee and let's make that deposit. }
+{\pard  \line \par}
+{And you see now from both their perspectives, that loan is completely. You can see the history of what's gone on. You can see at particular points, of the balances that the contract holds. And in fact, we can, we close that. We can see the history of all the contracts that um, that Trudy has taken part in. }
+{\pard  \line \par}
+{so I think that pretty much covers the basics of what you get from all around. It's a intuitive interface to a contract running on the blockchain. And you see that each participant in the contract gets their view of the contract in real time, updated from what's in this case, in the browser, but eventually what's on the blockchain. }
+{\pard  \line \par}
+{Okay. So that's giving you an idea about what Marla run looks like and um, let's now take a look under the hood and see how it is that Marla will be executed on campus. Well, here's the diagram, just to give you the context, I'm sure you understand um, most parts of this diagram already. We have a Cardano root node on which Plutus is running and as you know, Plutus is a, a, uh, a dialect of Haskell more or less. Um, Now Marlowe is embedded in our school, um, and Marlowe compiles... is executed using Plutus. }
+{\pard  \line \par}
+{So Marla sits on top of Bluetooth, but it's also linked to, um, in the three Malo run and uh, attachment to a wallet, you'll be able to, um, we'll be able to interact with as an end user with a running Malo contract. And also it gets linked um, to Oracles and so on, sitting out there in the real world. Now, what does it mean to to execute a Malo contracts? Again, I think this will be familiar to you from your work with Plutus, but let's let's just talk through precisely how it works. }
+{\pard  \line \par}
+{Executing them on the contract will produce a series of transactions on the blockchain. Okay. obviously what Plutus running on cardano checks the validity of transactions. We have a validation function and what's the validation function for these Malo transactions is essentially is a Marlowe interpreter, It's checks that the transactions indeed conform to what... conform to the steps of executing the Malo contract. }
+{\pard  \line \par}
+{And that's done using the EUT XO model. So, we we pass the current state of the contract and some other other information through as datum. So the Malo interpreter uses that to ensure that the the transactions that are submitted, meet the criteria for the particular Molo contract. So that's the on-chain fart. And obviously off-chain. There's a component as well, so we have to have Marlowe, Ron We'll have to build the transactions that meet the the, um, the validation step on-chain. And if and when the contract requires crypto assets, it will have to, we will have off-chain to ensure that transactions are appropriately signed so that we will have authorization for spending crypto assets effectively. }
+{\pard  \line \par}
+{using Marlowe run and an associated wallet, we construct the transaction and we you get a flow of information in both directions, Marlowe run we'll submit transactions to the blockchain that then can be checked, validated by the Muller interpreter, which is itself a Plutus contract. It's the, it's one of the largest polluters contracts that exist, But there's also information flow another way. Cause suppose that the transaction I've submitted is a deposit of money into a running contract. And suppose the contract also involved. Yes, Charles Hoskinson. So my instance of Mahler run has submitted that transaction, but Charles has also to be notified about that and the information flow. in the other direction um, using the the companion contract to ensure that every instance of this client, the Malo, Ron gets informed about activity in that contract. }
+{\pard  \line \par}
+{Yeah. We'll talk some more about the details of the implementation, but here you're seeing the... um, here you're seeing an outline of how it all, how it all works. Transactions are validated on online through the interpreter, but they have to be built offline and um, in some cases have to be authorized. And we use essentially the blockchain is the, is the the central synchronization point for the distributed system. }
+{\pard  \line \par}
+{That is the collection of instances of Marlowe run that are interacting to make the contract, to execute the column. And you saw in the demo just before that um, we could see in those two separate windows, we were sharing information. Um, Now that we're simulating it locally, but um, in production, this will be information that's stored on the blockchain. }
+{\pard  \line \par}
+{Okay. talk a little bit about how the system, the system is designed in a, in a high-level way. }
+{\pard  \line \par}
+{Here's a piece of um, the semantics of Marlowe. And as you can see, It's a high school. We take um, an environment, current environment, the current state take a con contract to be executed. And based on what contract that is, is it a close, is it a pay we can reduce, we can take some steps of computing that the results of that contract. And we do that in a way that uses uses Haskell in a in a quite straightforward way to um, to advance the contract. And what we have is that this specification in hot school is an executable specification of um, of the Symantec. And this is.. uh, this, This gives us some very nice consequences. }
+{\pard  \line \par}
+{We've got, if you like, we've got the Dean of station, we've got a high level description of what the semantics is, and we're doing that through something that is effectively an interpreter. So we're defining at a high level, this interpreter um, which an interpreter in high school for Malo contracts. Now, one really nice thing about writing it in this sort of way is that we can be sure we, we cover all cases because it's a um, it will be obvious if we're missing some cases, writing it as something that's an interpreter ensures that we will hit. }
+{\pard  \line \par}
+{Um, We'll hit all cases we need to in describing the semantics. And also it really helps us to understand the semantics. So this was a... it's a really... when you're, when you're designing a language, Okay. You haven't, you have an abstract idea about how you're going to, what it's going to mean, but there's nothing like having a, an implementation of it. }
+{\pard  \line \par}
+{So you can actually run the semantics. You say, well, what would it mean if we were to add this construct? What would it mean if we were to modify the semantics in this way? Now, if you'd written it in a purely, purely logical format, it's difficult to, um, to unscramble just from the rules as they're laid out, what precisely a change in rule might mean. }
+{\pard  \line \par}
+{Here, it's straightforward we can run the Symantec. So we've got this this specification in high school, and what's what's even nicer is that we we can reuse this semantics in a number of different ways. So in the theorem prover Isabel, we can use the semantics for for reasoning and proof. And we use pretty much not just the same semantics, because Isabel uses a functional language as it's, as it's subject. }
+{\pard  \line \par}
+{Um, we can, We can run the semantics in Plutus. It was written in Haskell initially, but Plutus is more or less Haskell, perhaps not with all the libraries but, um, we can in principle, at least build our implementation on blockchain from our semantics. And also we can, we can translate the semantics into pure script for simulation in the browser. }
+{\pard  \line \par}
+{Um, Now pure script is not the same, exactly the same as high school. Isabelle's language is not exactly the same as Haskell. How can we be sure that all these versions are the same? Well, one way of doing it, is to um, extract Haskell code from Isabelle and test the original against um, this extracted code. }
+{\pard  \line \par}
+{And we do that on random contracts and that's, it gives us a pretty high level of assurance that the two are the same. And down the line in our uh, in our roads, we certainly expect to be using a Haskell and JavaScript implementation at some point to replace pure script in the front end. So we don't have to write a pure script version of the semantics when we're doing the off-chain interpretation, building the transactions to be submitted, we can use the actual real Haskell implementation um, by coding it, combining it into JavaScript and running that in um, in Malo run, in the client code. So building the language in our school has given us these consequences that we use various different versions of the semantics. }
+{\pard  \line \par}
+{We can be... we can get a high level of assurance that these are all the same, and indeed we can in some situations um, to replace things like the JavaScript by um, the peer script by JavaScript. Okay. So that gives us a picture about how, um, how the system is put together. Let's go to to another aspect of Marlowe, which I talked about it being a special purpose language about it being um, a DSL and that pro promoted usability. }
+{\pard  \line \par}
+{Let me say a bit more about that. Um, One way we, we promote usability is that we we provide different ways of writing contracts, different ways of co author in contracts. And another way we promote usability is to be allow people to explore interactively how contracts behave before they're actually run in a simulation. }
+{\pard  \line \par}
+{So let's talk about those now. Um, Again, emphasizing these are another facet of assurance for that.}
+{\pard  \line \par}
+{You want to write them on the contract, how can we do it? Well, we can write Haskell... you know, Marlowe, the Haskell Marlowe datatype as text. That's one way we can do it and that's fine and we have an editor for that inside the playground that gives um, that has completion that has holes, which will, will uh, support completions, }
+{\pard  \line \par}
+{Um, we'll make suggestions and so on. So we can build all the contracts as pure Marlowe, but there are other routes as well. We have a visual editor for Marlowe so that you can produce Marlowe contracts visually with putting together blocks So in a way that doesn't require you to be a confident person, You can start off by using the visual version as a way of learning Marlowe as a way of, of um, engaging with it. }
+{\pard  \line \par}
+{If you are a coder perhaps in high school, perhaps in JavaScript, Marlowe is embedded in high school and in JavaScript. So we can use facilities in Haskell like recursion or JavaScript to describe Marlowe contracts. So we can say in high school, let's... um, you know, we want to do this particular pattern of behavior and times, and we can write that in high school. And then for a particular contract, we convert the model, the Haskell into Marlowe. We, as it were compile this Haskell description of a Marlowe contract into pure Marlowe. And we can also do that for JavaScript. So we have that, that functor. And then finally something I'm not going to talk about any more in this, in this talk is that we can generate contracts um, from initial conditions. }
+{\pard  \line \par}
+{Um, And we've been looking at that for the actor standard of financial contracts. So we we generate on the basis of some of the contract terms we generate code in Marla. So we write functions whose output is, um, is Marlowe code. So we provide users with as well as simply writing pure Marlowe. We provide them with a variety of different approaches, leveraging knowledge of JavaScript, for example, or leveraging um, uh, uh, normal code-based approach for describing the contracts. }
+{\pard  \line \par}
+{And. Also, we allow people to simulate the the behavior of contracts. Now, this is something that you can see in the current version of the Marlowe playground. I've taken a screenshot of that. That's something you can play with yourselves. Um, What I would say is that we are looking at different ways of describing the results of a simulation. }
+{\pard  \line \par}
+{So at the moment we have a transaction log, you're allowed to choose an action, the next action to perform, Um, you can perform that. You can undo the last step to take you back and then try another, another path. So you can, you can step interactively backwards and forwards through the source code, through the application of the contract. }
+{\pard  \line \par}
+{What we're looking at is changing the um, user interface, changing the UX for the Muller playground, Malo run a mother play. So that we'll use something rather than one like the the model run. Description of a running contract, so that you'll see the steps as a series of Um, cards like this, but that's that's work in progress. }
+{\pard  \line \par}
+{Okay. So we've talked about, um, we've talked about usability. What about the sort of assurance that Marlowe can give users? }
+{\pard  \line \par}
+{There are two gen apart from the things we've seen already, we've seen, we've seen that making the system transparent, making code readable is itself an advantage. We've seen that there's simulation to give people um, to give people, uh, the ability to understand, to validate their intuition about a contract, but rather more fully, we can use the power of logic to do two things for us. }
+{\pard  \line \par}
+{We can do what's called static analysis. So we can automatically verify properties of individual contracts. So that means we can guarantee this contract will behave as it should checking every route through the contract. And also we can do machine supported proofs, So not automatic any longer written by um, written by a user, but we can prove properties of the, the overall system. }
+{\pard  \line \par}
+{Let's talk about those two now. What about static analysis? Okay, Well, what static analysis allows us to do is check all execution files through a Marlowe contract, all choices, or choices of slots for a um, submission of a transaction. So every possible way in which the contract might be executed, we examine. }
+{\pard  \line \par}
+{And the canonical example here is the example of whether a pay construct might fit. Is it possible a pay construct could fail. And the answer is that we will, we have, we we use what's called an SMT solver. Um, It's an automatic logic tool that your powerful logic tool called Zed three is the one we use, others are available. um, That effectively checks checks all execution plans.}
+{\pard  \line \par}
+{Um, And what it does is, if um, if the property is is satisfied, that's fine, we get get the result. Yes, it's satisfied. If it's not satisfied, we get a counter example. we get told here's a way, here's a path through this contract that leads to a failed payment, or payment that can't be fulfilled. So here's an example of how it can go wrong. }
+{\pard  \line \par}
+{And that's really helpful because it means that you can debug if you don't, if, if you really want to make sure that failed payment can't happen, then this gives you a mechanism to understand, and to debug how that eventuality happens. And so it gives you a chance to think about how to avoid it. So very powerful and entirely push button. }
+{\pard  \line \par}
+{You push a button and you get the results and here you can see um, just again, to emphasize these here's the assurance. We can do this high-level check through all execution pals. So here you see a fragment of a Marlowe contract, escrow contract, the contract starts with a deposit of 450 Lovelace. }
+{\pard  \line \par}
+{And checking the analysis in um, in the playground, we've got the results, static analysis could not find any que any execution that results in any warning. So that's saying you're okay, it's not going to give you a warning, whatever you do. But if we change that deposit of 450 left lays to a deposit of 40 and analyze, we then get this warning, we get a transaction partial payment, and we're told we get to a payment where we're meant to pay 450 units of ADA Lovelace. }
+{\pard  \line \par}
+{Um, But there are only 40 available and we get given a list of transactions that take us So we're able to see from that, how we got to that. And the problem is that we didn't put enough money in, and then we reached a a place where we needed to make a payment 450. So it's easy for us to see that we need to either make the payments smaller or the initial deposit bigger, but it's entirely pushed buttons. }
+{\pard  \line \par}
+{So, you know, we do get that sort of assurance for free as it were. }
+{\pard  \line \par}
+{But thinking about verification, we can do rather more than that, we can do proof things, prove properties of system once and for all. So for example, just looking on the left-hand side here, we can prove that accounts, local accounts inside um, Amalo contract, as it executes. We can, We can prove from the semantics that these accounts never go next. You can't ever overdraw an account in a Malo contract, Okay. and we can also prove this theorem of money preservation. We can prove that if we look at all the money that's gone into the contract so far, that's equal to the sum of two things, the amount of money that's um, in the accounts held inside the contract, plus the amount of money that has been paid out. }
+{\pard  \line \par}
+{And that's, you know, that it gives a clear picture of of money preservation. So we're able to um, we're able to write proofs of these very general properties of the system. Now we're also able to prove other more technical things about the system. So for example, that um, a close construct will never produce any warnings. }
+{\pard  \line \par}
+{So if we're analyzing for warnings, we don't need to worry about closing. constructs. So that allows us to optimize the static analysis. And we're also able to prove that the static analysis, the way it works, which is, is makes a number of simplifications to speed things up is sound and complete. That means the static analysis will give us an error warning when the real contract can generate an error warning, and it won't give us an error warning if the real contract can't do that. }
+{\pard  \line \par}
+{And one thing that we haven't done, but we're, you know, is again on our roadmap. Is we, we can do these sorts of proofs for individual contracts or individual contract templates to, things that we can't necessarily prove with starting analysis, we can prove by proving the via, okay. High-level assurance we get, you know, if you're prepared to write proofs, the system is amenable to being, having these proofs written about it, and they give us the highest level of assurance about how it works. }
+{\pard  \line \par}
+{So, I think I've I've said enough for the moment about Mala. where can you go to find out more? Well, there's a Malo GitHub repository that has the semantics and the basics of our Marlowe. Quite a lot of the, the implementation of the tools from Arlo are in the plan is in the Plutus repository because it has that repository as a dependency, so we included it in that repository. }
+{\pard  \line \par}
+{So that's where you can find out, find a code itself. If you look in the IOHK online research library and search for Marlowe, you'll find a number of research papers. We've written about how the system was. You'll also find an online tutorial in the Malo playground. }
+{\pard  \line \par}
+{And finally, Alex is going to give some more information in his presentation coming up next. So just to summarize what we have in Marlowe is a DSL, a special purpose language for financial contracts running on top of Plutus because it's a DSL, it gives us assurance. It allows us to give the assurance that it's harder to give for a general purpose language. }
+{\pard  \line \par}
+{And also it allows us to, to orient it's designed around users as well as um, developers. And also that we get um, assurance of contracts behave as they should and um, don't do what they shouldn't, that's some of that is built into the way that the language is designed, Um, the language is simple and therefore we get readability, }
+{\pard  \line \par}
+{we also get simulator ability and we get these stronger assurances of um, static analysis and verification. So, okay. Thanks very much for listening. And um, here's the link to go and see them on the playground in action, thanks very much. }
+{\pard  \line \par}
+{\b\fs36 [00:46:12] 0903 Marlowe in Plutus\b0}
+{\pard  \line \par}
+{Hello, my name is Alex Nemesh. I'm one of the Marlowe developers. And today I'm going to show you a bit of Marlowe semantics and um, part of PAB contracts, Marlowe PAB contracts. }
+{\pard  \line \par}
+{Uh, That'd be uh, I go into use, I'll start with a brief description of Marlissa mandate. That's implemented in this uh, semantics of it. Chess file. And then I'll show you the PAB contracts. I assume you're familiar with HESCO here, familiar with uh, Marla semantics and high level. And uh, I expect you to uh, see the large presentations. }
+{\pard  \line \par}
+{So I expect you to know how PAB works in a nutshell, and uh, how state machine library works and state machine library based country I'm gonna have to get started. Okay. Here are the main data types for Marlowe. It's a contract, essentially those are six constructors that you construct marble contract with. }
+{\pard  \line \par}
+{Uh, And here's the state that is going to be an ask Stuart, uh, on a blockchain. So we have a state of uh, balances of accounts uh, by party. Uh, Here restore the choices. Bart is made here restore both variables that are essentially the labs bindings. And here his main slot is uh, essentially a first slot that the contract sees and this just to prevent to go back in time. }
+{\pard  \line \par}
+{Okay. But datatype contains um, essentially actions for a Marlowe con it's either deposit or choice or any notification of a slot change. }
+{\pard  \line \par}
+{And here is the. Here is the transaction input data type. That's what we uh, give us an input. So we have a slot interval, so everything's action must be, must have a defined slot interval and the list of uh, inputs. So you can, you can combine multiple inputs within a single transaction, so you can make multiple deposits or choices uh, and notifications and we gather transaction output which contains the payments that we expect to happen. }
+{\pard  \line \par}
+{The output state and the output contract result in state and result in contract. Here's the moral data. That's essentially, what's going to be stored on a blockchain. So it's a current state of a contract and the actual contract. }
+{\pard  \line \par}
+{So the main function, the main entrance to the semantics uh, is a computer inspection function. }
+{\pard  \line \par}
+{That's, the guest transactional inputs... uh, garden state, current contract, and gives different section. Now, First of all uh, we fixed the interval, we check the slot interval for errors. Um, For example, um, we these allow, um, slot interval to contain any uh, timeouts inside. So for example, if you have a contract with a when construct with a slot 10, for example, you cannot produce a transaction that has a slope interval from five to 15, because it's going to contain a timeout inside of it, is going to be invalid Sloughing durable. So here reject this, then it'll be apply all inputs. If it's successful, Uh, we returned with the transaction outputs with uh, warnings. We found the payments we expect, you state a continuation. So what happens in apply all inputs? }
+{\pard  \line \par}
+{Essentially, it's a loop that first of all reduces current contract until it's square scent. And then when we get this question state, we take first input and try to apply it until we get that, apply it. And, essentially continue Did they slope If it's applied successfully, until we get an empty uh, input list, then we return current state on continuation. }
+{\pard  \line \par}
+{Reduce contract until quiescent is essentially functioned. that again goes through a loop and tries to apply reduce contract step function which uh, essentially evaluates a contract. So if we get a close, then we are in equestrian state. If we get a payment, we have held you at value updates, uh, balances and return her terminal that the contract was renewed. Um, we Do the same with if, Latin assert but for when um, we only evaluated if it's timed out, otherwise we say it's not reduced. }
+{\pard  \line \par}
+{So when we get this not reduced, then we say that the contract is west So, and a not so Marwell contractor affiliation consists of two steps. We reduced current contract until it squares. And so essentially it's either closed or we get to a one that's not timed out yet. Um, And the second part, we try to apply inputs and evaluate the contract further. Okay. }
+{\pard  \line \par}
+{Let's see how it works Um, from the client side, as you might have noticed, the Marlowe Symantec's code is quite abstract and it does not depend on the Cardano uh, neon systems, actions and stuff. So let's take a look at the actual Marlowe validator that's been executed Uh on-chain. So here's the script instance, essentially just calls this make Marlowe validator code, uh, that uses the state machine library makes that machine call and provides a, um, two functions state transition function, and finality check uh, for a state machine. }
+{\pard  \line \par}
+{So finality check is very simple. We just check the current contract is close, than the state machine is done and the state machine transition function is the actual um, uh, meet all the validator. So to receive some little Browns later type, we're going to talk a bit later, uh, current state of the state machine, Marlowe data. um, Marlowe input, this is essentially a transaction input expressed in uh, uh, Cardano types. And uh, it's going to return either nothing in case of an error or a set of transaction constraints that must uh, apply uh, to validate it in. And, and you uh, state new marble data, uh, continuation contract and home plate. So here we are check that that it's, uh, the balances are valid. So we uh, require uh, balances in a state to be positive, here would produce an input constraints given these inputs. So in case of deposits, we expect money uh, go into a contract and case of choices we expect uh, signatures or witnesses of uh, respective parties. }
+{\pard  \line \par}
+{We calculate the total balance that the contract claims that contains um, and check that it actually contains uh, these um, values. We construct in turn section input, given the slot interval and list of inputs, and we call the computer and a transaction functions that we saw in semantics that the chest and we uh, given a computer to result, we can you can start in you Marlowe data with a new contract continuation and updated state and produce an output constraints that constant contained, uh, payouts to the respective parties. }
+{\pard  \line \par}
+{And we calculate new balance, uh, new total balance. Um, give them the income and outcome of uh, subsection and inputs. And we combine all those constraints with a range for the day.}
+{\pard  \line \par}
+{while validating inputs, we check that uh, there are signatures from uh, part is presented by public key hashes, and there is a spending of role tokens for parties that um, represented by arrow. }
+{\pard  \line \par}
+{Payments to parties Uh, go either uh, by checking the the resistance section I'll put, goes to a public key for O for all four parties that presented by public hashes or the payment goes to roll P out, validate her hash that is custom validator that you can provide on your own within Marlowe proms, or we have a default one. }
+{\pard  \line \par}
+{This is appropriate for the data that is used by default, that it simply checks that a transaction contains a spending of a roll doll. Can you given a currency. For off-chain execution we provide three Marlowe, B B contracts, Marlowe follower contract, Marlowe control contract, and Marlowe companion contract. Let's go through all of those. }
+{\pard  \line \par}
+{Let's start with Marlowe follower contract. It's a very simple one is, um, the only one in point called follow and it's, uh, basically subscribes to a validator address, a Marlowe contract address, essentially. And it subscribes to all changes to fit some dress. So we get all the transactions that spanned, uh, this bank transaction outputs will this uh, uh, Marlowe contract. }
+{\pard  \line \par}
+{So we can store all the inputs, um, all the inputs that are applied to a Marlowe contract. So here you can see that we call the sublet history from transaction that um, in a nutshell finds an input. Um, Marlowe, uh, inputs in the transaction and if it finds it, constructs at transaction input uh datatype and update uh, the baby contract state with this transition. }
+{\pard  \line \par}
+{So if you're um, connected to have up socket of this uh, contract, he will be notified about state transition changes and this um, state of this contract called contract history, ads, essentially um, stores and initial Marlowe proms, initial Marlowe data, and the list of all transaction labels that uh, uh, were applied to this contract. }
+{\pard  \line \par}
+{And you can always restore the latest state by applying leased up transaction inputs to an initial state. }
+{\pard  \line \par}
+{Uh, This contract is used by Marlowe rung to show uh, a Marlowe contract execution history. And you can use it for same purposes Um, on your own. This Marlowe Plutus contract is essentially a control contract, it allows you to create a Marlowe contract, an instance of Marlowe contract apply inputs to the instance. Auto execute the contract if it's possible. Redeem tokens from payments to roles, to your role, by spending transaction output protected by role pay out validator script, or just close this contract. }
+{\pard  \line \par}
+{Let's uh, go through Marlowe contract creation. Uh, So when you're calling the create and point, you provide and, and like show Marlowe contract to be created and a map of uh, roles to public keys uh, of role token owners. }
+{\pard  \line \par}
+{So what happens here is we need to set up a Milo promise. Let's take a look at this data type. So Milo prompts is a way to burn Tris, uh, AMR lo construct, and the following way you can specify your own role payout validator by providing Um, it's hash. So you can write anything you want, we have a default one that checks that the roll token is spent within transaction, but you can do whatever you like, and you can do this by specifying this hash in Marlowe prompts. Also when your contract uses roles um, we need to know a currency symbol of a role of currency. So you specify it here. So when we create a new country that uses roles as parties, we need to create new currency and distribute uh, real tokens to their owners. That's why we need this uh, map of um, roll tokens to their, to their owners. }
+{\pard  \line \par}
+{So let's take a look at, uh, look at the set up. Milo prompts, uh, fun. So what happens here? We get roles that are used within this contract. And if we have roles and we have owners or provided for these roles, we create tokens with role names. Uh, By default, we create a one token per role. Then the use this forge contract function. }
+{\pard  \line \par}
+{That's essentially we reusing other um, uh, BB contracts. Uh, This one is from currency construct that trades in you new currency, and oh, these tokens go to the creator. So whoever created. And Marlowe contract gets, initially gets all the roles uh, for this contract, but uh, we get full symbol from that. And we immediately within the same transaction, uh, centralization that creates Marlowe contract with distribute um, roll tokens to their owners. }
+{\pard  \line \par}
+{So I give them to respective parties and we create Marlowe Brahms that contains the uh, roll symbol, uh, currency, a symbol of currency we just created for roll tokens. }
+{\pard  \line \par}
+{Uh, Currently we use the default uh, roll payout day. so this is how, this is a set of constraints that create a new currency and distribute all tokens and create transaction output with the macro data. So we use um, state machine library to create state machine client, and construct a transaction that distribute tokens and uh, create a transaction output with the mobile data and pay value. }
+{\pard  \line \par}
+{this is a deposit value currently zero, but a later point is going to be some value. I believe it's going to be one HEDA. Uh, All transaction output must contain some ADA. uh, And it's just too. Um, essentially it's preventing the DDoS attacks and we submit this transaction, that's the way we create in Marlowe contract on chain Apply And point is very simple, The plan puts in points, um, just call the supply inputs, which is very very straightforward. We construct a slow trench and we use state machine library around stepped or run a second machine translation, uh, function. When we provide Marlowe input, which is a uh, payor of slot range and list of Marlena's, uh, list of inputs. }
+{\pard  \line \par}
+{Redeem and point allows you to get money from the that has been paid to arrow script. So we get this address, um, given the roles currency and spend all this outputs to a token owner. }
+{\pard  \line \par}
+{Alto is um, quite interesting little complicated thing. There is a set of contracts that can be executed automatically. Imagine any contract that contains only deposits and payouts. Um, So if this contract is eligible, so so no No participant needs to provide choices um, or any like interactive stuff. So only uh, scheduled payments. }
+{\pard  \line \par}
+{These contracts can be executed automatically, Um, this is, uh, listen point allows exactly that. So if the contract can be executed automatically for a party, they call how to execute country. Uh, This is essentially a state machine that's, uh, pays deposit or wait for other parties to um, do their the hair parts. The last interesting contract is Marla companion contract. This is a contract that monitors a participant and notifies when a roll token goes to your own address. So in trans, it listens to transactions that um, go to your own address and if there is a token and this token uh, is generated by a Marlowe contract creation, it tries to find the Marlowe contract. }
+{\pard  \line \par}
+{And if it succeeds, it notifies this contract updates its state. And again, if you're subscribed to this contract web socket, you'll get a notification about a roll token and you'll get Marlowe, Brahms, and Marvel data. to check this Marlowe company. the state, and this is essentially a map of Marlowe Brahms to Marvel data. }
+{\pard  \line \par}
+{So we can always get uh, notified about receiving their old token. }
+{\pard  \line \par}
+{Hope this helps. Thank you very much for listening. }
+{\pard  \line \par}
+{\b\fs36 [01:10:38] 0904 Marlowe Playground demo\b0}
+{\pard  \line \par}
+{Thank you very much Simon and Alex for these very nice introductions and explanations to Marlowe, they thought it would be nice if we play a bit with Malo in the playground. And when you go to the playground, by the way, I went to a different version than the one Simon showed in his lecture on his slides, because there was a problem with that one right now, but this one works. }
+{\pard  \line \par}
+{So it's alpha dot Malu dot IOHK Def dot And when you go there, you first get presented with three options in which language you want to write your mallow contracts. So you can do it in Heska. You can do it in JavaScript, or you can do it in Blockly or directly in Marlowe. So let's first look at this option because this is very nice and you don't need any programming experience to do this. }
+{\pard  \line \par}
+{So I start a new project Yeah, pick Blockly. this is graphical editor, so we can just click and drop a Marlowe contract together. And as an example, I want to write a contract where there are three parties, Ellis Pope, and Charlie, and the ideas that Ellison pop deposit the amount of ADA into the contract, let's say 10 ADA. }
+{\pard  \line \par}
+{And then Charlie decides whether Ellis or Bob gets the total amount. And depending on Charlie's decision, either Ellis gets 20 or pocket's 20. And of course there's always the possibility that one of the three doesn't play along. And Ellis doesn't make her deposit pop doesn't make us deposit, or Charlie doesn't make his choice. }
+{\pard  \line \par}
+{In which case everybody should just get reimbursed what they have paid up to that point. So when we stopped with Blockly, there's a contract and it's just a closed contract which in this case doesn't do anything, if there was money in internal accounts, it would pay back the money to the owners of the accounts. }
+{\pard  \line \par}
+{But um, you want to do something else. So let's first wait for a deposit by Ellis. and because that's an external action, that's triggered by one of the parties in this case Ellis, we need this win construct that Simon mentioned, and we can slide that into here and we see all the slots where other things need to go. }
+{\pard  \line \par}
+{And we see some fields that we have to set, so let's start here, so we can set a time out. So let's say this deposit by Ellis has to happen until slot 10. And if it doesn't happen, we can say what should happen afterwards. And there's not really a good choice to do anything except close in that case. So in that case, nothing will happen. }
+{\pard  \line \par}
+{So we can slide that in there. So now here we save. what external actions we wait for. Let's say we only wait for one action, namely that Ellis makes her deposit so we can check for actions and pick the deposit one and slide it in here. And we see a couple of slots we have to fill. First of all, who has to make the deposit? }
+{\pard  \line \par}
+{The party and there are two choices, public key or role. Let's take roll, because then I can just say Ellis. normally this would be the name of the role token. So whoever owns the token can incorporate that role. Okay. So Ellis makes a deposit. Now the amount that's a value, let's say we just pick a constant amount of 10 ADA. }
+{\pard  \line \par}
+{So the amount is 10 and that it is awe must specify here in the currency slept. There's also the option to use other tokens than ADA, but let's stick with ADA. Okay. Now there are these internal accounts that also belong to one of the parties. So let's say Ellis pays it into her own internal account. I just copy paste this, and now we must save what happens next. }
+{\pard  \line \par}
+{If Ellis makes this deposit. So afterwards we want Bob to make a deposit. So I can just copy this wholly wind block Yeah. and slide it in here How change. So, first of all, I changed the timeout to 20. So to give Bob also 10 slots to do something, and then wherever I said, Ellis, I now say Bob. So at this point, if both these actions happen, Ellis has deposited 10 into her internal account and Bob has deposited 10 into his inter internal account. So now we want Charlie to make a choice. So we need... and this is again an external action. So again, we need the win. I put the thing here, but this time it's not a deposit. So let me delete the deposit, but let's change the time out to 30 to give Charlie 10 slots to make his choice. And now I need a different action where earlier had deposit. Now I pick the choice action. It can give it a name, let's say winner, I must say who makes the choice. So that's supposed to be Charlie. }
+{\pard  \line \par}
+{And now I must specify what value is this choice can have. And um, that's numeric. So somehow, because Charlie is supposed to choose between Ellis and pops with it's two choices. So I can pick arbitrary value is like one and two, one for Ellis to football. So that's already the default, so that's fine. So this allows Charlie to only choose one or two. }
+{\pard  \line \par}
+{And then after he has made the choice, if he has made the choice, we continue. And now it depends, of course, on what choice Charlie has made. If he chose Ellis, then Ellis months, get all the money if he chose pop, then Bob must get all the money. So here in this continue contract, we now can use if simply the conditioner slide that in here. }
+{\pard  \line \par}
+{So first we need the observation. So we must somehow check whether the choice was, let's say one for Ellis. So this is an observation and there is value, equality is one of the options. So we want to compare the choice that Charlie made with one or two doesn't matter, but let's say one. So value. There is um, this one, just gives us the value of a choice. }
+{\pard  \line \par}
+{So here we need the name. Again, so winner was her name for that choice because there can be several choices. we must be able to distinguish between them. And we again need to make the choice. So this is now either one or two, and we can compare to, for example, one, so we can use the constant value one. }
+{\pard  \line \par}
+{Okay. Okay. And in this case, so if this is true, then Charlie chose Ellis. So we want Ellis to get all the money. So in the then branch, the can now take a pay contract, the pay years who gets the money. And now we have two choices that can be an internal account, or it can be an external party. And in this case, it doesn't matter because in the end, when we close all the parties get the money from the internal accounts as well. So I, it doesn't matter, I can just pick um, the internal account, Ellis' internal account. So let's do that pick ileus. So this now means that the PE is Ellis' internal account. Now how much, it's this constant 10, the amount of Bob Peyton, currencies ADA and now we'll pace. And that must be an internal account because this is something that this PI pay contract is something that contract has control over. So that's not an external action. So payments are triggered from internal accounts that are under the control of the contract. And that in this case is Bob's account. }
+{\pard  \line \par}
+{So this now says if Charlie picked one, which stands for Ellis, then pay from pops, internal account 10 ADA to Ellis' internal account. And afterwards he can dress clothes and close all the internal accounts will be paid to the external owners. So at this point Ellis's internal account will have 28 And when we close, she will get the 28 are paid out. Okay. And Ed's, this is now if Charlie didn't choose Ellis, if he chose Bob well, then we must do the same, but with reverse roles. So let me copy paste this whole pay thing and just exchange pop and Ellis. And this should do it. Now we can, for example, look at the pure model. So this is now the value, what I did graphically as a model. value, value of the Haskell data type called Malo acquired contract, actually. And I can send it to the simulator and I can start the simulation. And now whenever there is a wind, so when they are available actions, I get prompted, which of those to take. }
+{\pard  \line \par}
+{In our case, we always only had one available action at every point. So in the first when, there are only two possibilities, either Ellis makes her deposit or she doesn't under the timeout is reached. So in this case, if we wait for the timeout, it's very boring, the contract is over, it's reduced to close and nothing happened. }
+{\pard  \line \par}
+{So if she makes the deposit, then this contract simplifies. So it's now reduced to what happened. after she made the deposit and we see now we are in the second win, wherever you're waiting for Bob's deposit. And again, he can choose not to deposit. So if he does that, then we see here the actions, is deposited 10 and then after the timeout, because popped into any, anything, the contract paid 10 back to Ellis. Okay. Of course it's more interesting if Bob also makes us deposit. So we see that locked here as well. And now via the contract has simplified again. So now we are in the wind where the only available action is that Charlie chooses. So Charlie can not choose one or two, if he chooses or don't do anything. }
+{\pard  \line \par}
+{If he doesn't do anything, Bob and Ellis both get her money, the money back. If he picks Ellis. So choice one, then we see that um, the contract pays 20 units of ADA to Ellis. So she gets all the money. And if instead we pick two, then the contract pays 20 units to bop. So it seems to work. Let me reset this now and let me copy this Marlowe contract and to a new project and go to the Haskell editor instead, and let's not safe.}
+{\pard  \line \par}
+{And he, And this Haskell editor, there's a template. Basically all this Haskell pro program does, is it takes a contract, this is a Malo contract. And then it's a it's a simple executable, the hex Haskell executable that just pretty prints the contract. So all it does is it basically produces a nicely printed value of type contract. }
+{\pard  \line \par}
+{And this is then used to, for example, running the simulator. So we should be able to simply instead of close pastes, this expression here 50 quarts from our Blockly, probably I should indent. Okay. And that should compile so I can compile this and I can send it through the simulator and it should behave exactly as before. }
+{\pard  \line \par}
+{So Ellis makes a deposit, Pops makes us deposit. Let's say Charlie picks pop and pop gets the money. So, Have you don't really see a benefit of twins and Haskell. We could dress this way, do it in broccoli. Although I find that Blockly is really only useful for learning and for writing extremely simple contracts, because this is arguably a simple contract and already it was quite unwieldy in the blocky editor. }
+{\pard  \line \par}
+{And if you do something slightly more complicated, it gets really very um, confusing in the editor. But the point is we can do other things in this escort program as well. We don't have to literally define a contract. We can use the whole power of Haskell to help us write this contract. So for example, if we see there's lots of repetition, because we always have these roles, Ellis Pope, and Charlie. }
+{\pard  \line \par}
+{So for example, if we can define them separately, and just say endless pop. The type is party and the role constructor we can just um, use this overloaded string here to skip the road construction. just write like this. So party implements is string and the Fromm string method uses the role of constructor Charlie. }
+{\pard  \line \par}
+{Okay. And now I can replace this everywhere with Phyllis.}
+{\pard  \line \par}
+{He as well, I'm here as Well, and I can do the same for pop and shoddy. Okay, I think I have all the places. Oh, I can do the same, this constant tenders all over the place. So let's give that a name as well, It's quality, posit and that's of type value. }
+{\pard  \line \par}
+{Okay, Um, this token empty empty desk, the ADA abbreviation for that. }
+{\pard  \line \par}
+{Okay, and this it's like a more computation... um, duplication this choice it, so let's let's look at the name choice I, the type choice ID. }
+{\pard  \line \par}
+{And it takes to part on my test, the name, which was benign our case and to roll, which is Okay, now it's already cleaned up quite a bit. And now it's also easy to do more sophisticated things, for example, our contract is slightly asymmetric, even though it sounds like a symmetric situation. I mean, Ellison, Bob are completely symmetric, but in our contract, Ellis has to deposit first. And what we could do instead is um, allow Bob to deposit first as well. }
+{\pard  \line \par}
+{So in the outermost when you have two cases, fund where Ellis deposits and one where Bob deposits, so we can of course just now copy this case here and paste it below and change Ellison bop where appropriate, which is not everywhere because in this choice thing here, Um, Ellis keeps being choice one and Bob keeps being choice two, so would have to concentrate on that. }
+{\pard  \line \par}
+{But of course it's much nicer to extract that into a HIPAA function. So this is of type case. So let me just copy paste or complete this Yeah. and no, make a local definition. And I don't know what to call it. Let's just call it F and it takes two parties, to party that deposits first and the party that deposits afterwards. }
+{\pard  \line \par}
+{And it gives us a case, let's call it X and Y and just paste this whole thing there. Okay, and now of course, I am not using the X advice. So in this case, Alex Ellis was first. So Ellis is X and after Ellis is deposit, you wait for bop. Okay. And this year can stay the same, this choice. Okay. And now I can replace this whole thing with my hypofunction and right. F L is pop. And the advantage is that I know it's not easy to also add this symmetric case that Bob can deposit first. So I just add a new line with another case, Hey, Ellis, if all goes well, that should still compile. }
+{\pard  \line \par}
+{And if I now send it to the simulator and start the simulation, now I have two possible actions that can happen in the first step. Ellis can deposit 10 or Bob can deposit 10. So let's Bop start this time. So Bob deposits 10 and now it's Ellison. And if Charlie picks Ellis then as before Ellis wins. }
+{\pard  \line \par}
+{So the point I'm making is that, it's often a big advantage to use the Haskell editor, to write Marlowe contracts in Heska. So basically you write a program that produces something of type contract, and you can use all the features of HESCO like local functions or whatever to make your life easier and avoid corporate code application. And in the block editor, there's no such option if you had wanted to do the same in blocky, because there are no local definitions that you can do. You can't define local contracts or something like that. So we would have to paste, copy paste this whole case. And then manually change Ellis to pop in pop to Ellis in the first two deposits. }
+{\pard  \line \par}
+{And we would have lots of multiplication because this um, choice thing he had the thought when, would have been copy pasted, and that would have been no way to abstract that the way and only write it once. And of course you have other options, for example, if you could also parameterize our contract. So for example, if you could use the Leaf, the deposit variable, so we could, instead to contract is a function from value to contract. }
+{\pard  \line \par}
+{And the first parameter is deposit and I delete this year and now in the main program I can pick a value for the parameter, for example, 50. And now if I compile, oh, sorry, it's must be constant 50. So now if I compare, I have a version of the contract we are now Ellis and pop have to deposit 58 at each. }
+{\pard  \line \par}
+{And then the winner gets a hundred and obviously I could do the same for the parties. So I could parameterize it over the three parties, party, party, party. }
+{\pard  \line \par}
+{then if I call those Ellis Pope and Charlie. elite, this here. Then I must also be careful and this must not depend on the party. It's quite a P and at the appropriate spot here where the choice happens, I must say choice at Charlie. Yes. and now the contract is parameterized by the participants. So when step off Ellis Pope and Charlie, I can use uh, charts, Simon and LX, and a constant 100. }
+{\pard  \line \par}
+{fed will know. Oh yes, just a parenthesis problem. Okay. And now I have tried since Simon and deposits of 100. }
+{\pard  \line \par}
+{And lax picks the winner. And it works as before. So it's very nice and easy to using Hackage parameterizing contracts and saving a lot of quote duplications by just using usual Haskell Fang features like local definitions, HIPAA functions, and so on. I could even relatively easily um, generalized is to more than three participants. }
+{\pard  \line \par}
+{Maybe they are three people, I could even write a contract that's generic in the number of parties. So I get the list of parties and then each of them has to deposit. And that would be very inconvenient if I had to do that by hand, but just using Haskell, it's quite straightforward. }
+{\pard  \line \par}
+{And what is also noteworthy years that Marlowe in contrast to Plutus is extremely basic Haskell. So the miler team made a point of only using very basic Heska functions when features. So you don't need lenses, you don't need template Heska. You don't even need more nuts, um, type level programming. }
+{\pard  \line \par}
+{All of that is not present in Marlowe. It's extremely basic standard Tasker. So after what you have learned while learning Pluto is about Tesco, Malo should be a VOC in the park for you and uh, very relaxing and simple. Of course Marlowe is not always appropriate because specifically for financial contracts, but if it is appropriate, it's a very nice option because of all the safety, assurances that Simon mentioned and because it's much simpler and easier to get right than Plutus. }
+{\pard  \line \par}
+{\b\fs36 [01:35:25] 0905 Homework\b0}
+{\pard  \line \par}
+{For homework, I would like you to modify the contract that I wrote as follows. Charlie shoot, put down a deposit in the very beginning of twice the deposit that Ellison bought put down. And if he then doesn't choose when it's his turn to choose. Ellison, pop, get half of what he put down. }
+{\pard  \line \par}
+{So, Alison pop each end up with 20 in this example. So in the very beginning, Charlie supposed to put down 20. And then it proceeds as usual. So if all goes well, as, and Pope both put down 10 and Charlie makes this choice, for example, for Ellis, then as before Ellis gets the 20 and Charlie gets us originally deposit back. }
+{\pard  \line \par}
+{But if Charlie does not make a choice and the deadline is reached, then his 20 has split amongst Ellison, Popsicle Ellison, Pope both end up with 20.}
+}

@@ -1,0 +1,600 @@
+{\rtf1\ansi\deff0
+\margl1800\margr1800\margb1440\margt1440\deflang1033\lndscpsxn
+{\colortbl;
+}
+{\fonttbl;
+{\f0 Arial}
+}
+{\pard  \line \par}
+{\b\fs36 [00:00:00] 0801 Start\b0}
+{\pard  \line \par}
+{In the last lecture I introduced state machines and explained how they are very useful and often allow us to write much less code to express the logic of a smart contract. And part of the reason is that there's a lot of sharing between on-chain and off-chain code due to the use of these constraints.}
+{\pard  \line \par}
+{And another reason is that a lot of boiler plate is encapsulated in the state machine machinery, like the handling of this NFT stake token. And in today's lecture, I want to give another example because the concept is really very important. So I want to show another example of using a state machine, and I want to talk about testing.}
+{\pard  \line \par}
+{So first I presented example, and then I'll explain various ways to test that code. }
+{\pard  \line \par}
+{\b\fs36 [00:00:52] 0802 Another state machine example: token sale\b0}
+{\pard  \line \par}
+{the example I picked is a contract that allows somebody to sell tokens. So the idea is that if I own tokens, I can lock some of them in this contract, set a price, and then other people can buy it. And I get the money they paid for it. In the beginning, the seller, the person or party that wants to sell tokens starts with an NFT and it can be an arbitrary NFT, and it will just be used as before to identify the correct UTxO that contains the contract state. The first step is for the seller to lock his NFT at the script address of the smart contract, we are about to write and I called it TS here for token sale. So we create a transaction, submit a transaction that locks the NFT at this address. And as datum, we will use a simple integer, which indicates the price of the token.}
+{\pard  \line \par}
+{And this starts of as zero. There will be several operations that the seller can do. One of those is setting the price to a different value. And in order to do that, the seller needs to submit the transaction that has the current UTxO as input, and then update that UTxO as output where the datum has been changed to a different price.}
+{\pard  \line \par}
+{So in this example, the seller set the price to six, six ADA per token. And other thing the seller can do is actually lock some tokens in the contract. So in order to do that, he has to create yet another transaction that has as input. Again, the contract, the UTxO looked at the contract. And UTxO containing some tokens that the seller owns.}
+{\pard  \line \par}
+{And as output, just the updated UTxO at the contract address, which now contains the provided tokens as well. So in this example, the seller provides five tokens to the contract. Now for somebody to buy tokens, there needs to be created a transaction by the buyer that as input, of course, again has this UTxO sitting at the TS script address and the buying price in ADA.}
+{\pard  \line \par}
+{So if somebody wants to buy two tokens, it would create a transaction that has as input the price, 12 ADA and the UTxO at the TS script address. And then two outputs, one the updated contract state where now the tokens are taking out and the price has been added, And one output going to the buyer with the tokens he just bought.}
+{\pard  \line \par}
+{Finally, there must be a way for the seller to retrieve tokens and ADA. So in this example, if the seller after the sale wants to retrieve all the ADA and one token, he would create a transaction that again has the script UTxO as input. And then two outputs, one with the updated script UTxO when now some tokens and some ADA have been retrieved and one to himself with the retrieved funds.}
+{\pard  \line \par}
+{And of course this diagram just shows one example. So the idea is that these operations can happen in any order. So the price can be set several times, tokens can be added, tokens can be bought and funds can be withdrawn in arbitrary order. I implemented this in this week's code and I called the module token sale.}
+{\pard  \line \par}
+{And let's first look at this type data token sale, or that's the parameter I will use for the contract and it has three fields. The seller, the seller's public key hash. Then this token, that is the token being sold in this token sale given by its asset class. And finally the thread token, or maybe the thread token.}
+{\pard  \line \par}
+{So in production code, you would use a thread token, but as it turns out it's difficult to test when this thread token is present. So I also allowed it to be absent. And as I explained last time, this can go wrong because arbitrary people can send arbitrary stuff to arbitrary addresses. So in the real world, there could be more than one UTxO at the token sale address. And then we need this thread token, this NFT to identify the right one. But for all our tests, we can assume that there will only ever be one UTxO at the token sale address. So then we don't need the thread token and that will make testing easier. And as redeemer I provide exactly the operations we saw in the diagram, so set price to a new value.}
+{\pard  \line \par}
+{This is the token price and lovelace.}
+{\pard  \line \par}
+{Add tokens, where the argument gives the amount of tokens to add.}
+{\pard  \line \par}
+{Buy tokens, where the arguments gives the amount of tokens to buy. And finally withdraw, this is actually like bad practice to just give integer arguments, because now it's not clear which is which. So in this case the first one is supposed to be how many tokens to withdraw.}
+{\pard  \line \par}
+{And the second one, how many lovelaces to withdraw. And I have my helper function again, lovelace is that given a value extracts the amount of lovelaces in there. I also use that in last week's code I believe. And now the transition function of the state machine. So the first argument is the parameter and then recall, we get this date and then in this case for datum we will use integer, as I mentioned before, the price of the token and the redeemer, and then we must return a maybe constraints a state.}
+{\pard  \line \par}
+{So we return nothing. If the corresponding transition is illegal and just something, if it's not, and then we must provide the constraints and the new state and recall the state contains the datum and the value. So similar to last time I split this given state into the value and the datum, and then I have the redeemer.}
+{\pard  \line \par}
+{So I pattern match on these triplets in this case statement. And now I simply go through the four transitions. So the first one is for a set price. And if I want to set price, to a new price, P, I only allow that if the new price is not negative and in that case, the constraint is that that must be signed by the token seller.}
+{\pard  \line \par}
+{So only the token seller can change the price. But that's the only constraint. And the new state. So now the new datum will be this new price P that comes from here. And, I don't change the value in the contract. The second transition is add tokens. And here I demand that the amount of tokens to add is positive.}
+{\pard  \line \par}
+{So not negative and also not zero. And in that case, there's no constraint. I could of course have put as constraint that it must be added by the seller. But, the way I see it, I mean, this contract is created by the seller. The seller will set up the state machine and create the UTxO in the first place.}
+{\pard  \line \par}
+{So everything is written from the point of view of the seller. And the seller, he does care that only he can change the price otherwise the buyer could set a lower price and then buy it. So obviously the seller wants to be the only one that can change the price. However, if somebody so feels and wants to donate tokens to this contract, then the seller doesn't mind, therefore from the point of view of the seller, that doesn't have to be a requirement that he must sign that as long as in is positive.}
+{\pard  \line \par}
+{So if somebody adds tokens to this contract then the seller doesn't forbid it, of course in reality, probably nobody ever will, but there's no reason for the seller to allow that that's why in this case, no constraint is needed. And the new state will the price doesn't change. But, the value changes by this amount of tokens.}
+{\pard  \line \par}
+{So it's the old value plus the value of the tokens that I added. So with asset class value token, and this end, I get the value of adding N tokens. Third case is buy tokens. Again, there is no constraint. Anybody can buy tokens. There's no additional constraint on the transaction. And, the new state, the price again doesn't change.}
+{\pard  \line \par}
+{And the value changes. So we have the original value. We subtract the amount of tokens that are bought, which by the way, is again a positive number. So you can only buy a positive number of tokens and we also add the price. And the price is just the lovelace value of the amount of tokens times the current price, which is this P. Finally, we have to withdraw operation, so N tokens L lovelace. So we insisted both amounts are greater or equal zero. One of them could be zero. Maybe I should have forbidden that both are zero, but it also doesn't really matter. Then simply nothing will happen in this case that does have to be signed by the seller because only the seller wants to be allowed to withdraw from the contract.}
+{\pard  \line \par}
+{And the new state again, the price doesn't change and the new value is, well, the old value V minus the N tokens that are taken out minus the lovelace that are taken out. So minus. That's why I have that negate here. And that's all, all other transitions are illegal. So in all other cases, I return nothing in the transition.}
+{\pard  \line \par}
+{function. Now that we have the transition function, we can easily define our state machine. And in this case, we can use a smart constructor called make state machine. And the reason is last time we had to use the actual constructor of the state machine, because there was one check to check that the commitment there hash agreed with the actual choice.}
+{\pard  \line \par}
+{That was something we couldn't express as a constraint, but normally you can express everything as a constraint, and then you can use the smart constructor that just takes three arguments. So the first is the thread token, or maybe the thread token, which we have from our token sale type, then the transition function, which we just defined. And finally the function that determines whether states are final or not. And in our case, we don't have a final state. So none of the states is final so we can use the constant function that always returns false. So the idea is that once this token sale, state machine has been started, it will run forever.}
+{\pard  \line \par}
+{There is no operation to stop it again. So once the UTxO is there at the state machine address at the token sale address, it will always be there. You can't remove it. again. And that's it. So this gives us our state machine and then there's the usual boiler plate. So we can turn the state machine into a validator function like we saw last time.}
+{\pard  \line \par}
+{And then we get our type validator with the usual template Haskell. And from that we get the validator and the address. And we can also, as we saw last time easily define the state machine client, which if you recall, is used to interact with the state machine, from off-chain code, from the wallet. So the client allows you to start the state machine and step the state machine, make a transition.}
+{\pard  \line \par}
+{Then I need one helper function. That's also similar to last time because I want to use these operations from the state machine library, but they all use their own custom error type, some SM contract error. And I want to stick with text as error messages. So again, I, use map error and then show and pack SM contract error to convert it to text.}
+{\pard  \line \par}
+{So now let's look at the off-chain code first. There's a function that I called start TS start token sale. It takes two parameters, the asset class, which will be the token for sale. And the boolean I call use thread token. So if this is true, we want to use the thread token mechanism of the state machines.}
+{\pard  \line \par}
+{And if it's false, we don't want to. And as I mentioned before in production code, in real code, you would use true in order to be able to pinpoint the correct UTxO identified by the thread token. But because that complicates testing, I also have the false option, which will simply assume that there will only ever be one UTxO at the state machine address.}
+{\pard  \line \par}
+{So given these two parameters, I first need to create this value of type token sale. Then need the seller, the token and the thread token. So the seller should be myself. So start TS will be invoked by the seller to kick off the token sale. So I need to look up my own public key hash as we did before the token I have couse It was one of the parameters which leaves the threadd tokens. So now I have two cases. Should I use one or not? So if not, then it's easy. Then I just use nothing. Recall, this field was of type, maybe thread token. So if I don't want to use one, it's just nothing. So I don't have to do anything and immediately can return nothing.}
+{\pard  \line \par}
+{If I want to use one, Then as we learned in the last lecture, I can use the get thread token function to get a thread token, but because that's in the state machine library, the type wouldn't fit. So I use my map error state machine to convert the error type to text. And then I must just F map just over it, because this gives me a thread token, but in this case I want just the thread token. So then I can define my Ts, my token sale and having that I can get a state machine client, and now I want to kick off the state machine. So create the first UTxO at the state machine address and as in the last lecture I can use run initialize, which takes the client, and now the datum and the value. So datum is the initial price that zero and the value should be the zero value.}
+{\pard  \line \par}
+{And I can use mempty here because, value implements or is an instance of monoid. So mempty corresponds to the zero value. And again, I have to use map error as M to get text error messages, and I ignore the return. value. Then I tell last, just TS so I think we won't really make use of this in this lecture, but if you want it to use this for real, then other parties would need to be able to discover the value of TS in order to find the state machine.}
+{\pard  \line \par}
+{And that value depends on the thread token, which we use in, in a real scenario, so that isn't known before you actually execute this. So there must be some way to communicate the value out to other parties. So that's why I tell it here so that it can be observed from the outside. And finally, I just log a message.}
+{\pard  \line \par}
+{So now for the other operations, they are all very similar on all very simple. They're all one-liners, which again, shows how nice state machines work if they're applicable. So all of them take the token sale as one argument and an integer. So set price, I just use run step. So in all of these four cases, I just use run step, which will cause one transition in this state machine.}
+{\pard  \line \par}
+{And I always have to give the client and then the redeemer. So the client is always TS client Ts. And the redeemer depends on which case I am in. So if I want to set the price to P it's set price P for want to add N tokens,}
+{\pard  \line \par}
+{it add it's add tokens N if we want to buy N tokens, it's buy tokens N. And if I want to withdraw N tokens and L lovelace it's withdraw N L. So this really shows how nice state machines are, how easy it is to generate off-chain code for them. So all the details, adding the correct signatures, adding the correct values and so on will be taken care of by the state machine mechanism. Now, in order to make that usable from the outside, I need versions with endpoints so that I can trigger these operations.}
+{\pard  \line \par}
+{And I use two schemas. So one to start, and then once the token sale is up to interact with it. So the start will take a triple as an argument. Recall in order to start, I needed the asset class and the bool, but I split this here in this triple. So the asset class is split into the currency symbol and token name, and then the boolean whether to use a thread token or not.}
+{\pard  \line \par}
+{And for the use schema, it's what we expect. So the first three operations set price add tokens and buy tokens, take an integer each and withdraw takes a pair of integers because I must specify how many tokens to withdraw and how many lovelaces to withdraw. And then I can define versions of these operations with endpoints, but we encounter a slight problem here.}
+{\pard  \line \par}
+{And that is that since the last lecture, the signature of endpoints has changed. So we must look at that first. So if you look up the documentation for endpoint, it looks much more complicated now. It used to be that an endpoint that corresponded to parameters of type A simply gave a contract of type A and the behavior was give would block until A was provided from the outside and then it would continue and the result of this would be the A that was provided from the outside. Now it's different, so it's still an endpoint where the parameters of type A but now there's an argument to this endpoint function there wasn't before, and this argument is a continuation.}
+{\pard  \line \par}
+{So that tells us once we have the A, how can we turn this A into a contract with return type B? And then the overall result of this operation is something of type promise W S E B. So the W the S and the E are the same type parameters that we are used to from contract. So the writer type the endpoints and the error type, and the B is the overall result. So what's a promise? If you look that up, doesn't tell us anything, but we can look at the comment and it says a wrapper indicating that this contract starts with a waiting action for use with select. So promise is basically a contract, but a contract that first waits for external input. And, we see there's an await promise function that takes a promise and turns it into a contract.}
+{\pard  \line \par}
+{So that's how we can get a contract back. But we also see that in particular select now no longer doesn't take contracts, but promises. So let's see how to use that in practice first with the start endpoint. So the idea is that this should allow the seller to start the token sale over and over again, if we wants to, maybe for different tokens.}
+{\pard  \line \par}
+{So let's start at the end. So endpoint as before using type application and the type level string, we specify the name of the endpoint,. But now we have this new function argument that wasn't there before. The continuation that tells us what to do with the provided parameter values. So in this case, the parameter values are this triple currency symbol token name and useTT whether or not to use the thread token mechanism. So once I have them, I will use my earlier defined function start Ts, and that took the asset class and this bool. so I can assemble the asset class from the first two components of my triple. And then the last component is just the useTT. So this line now gives me a promise that will block wait for user input and then continue with this start TS parameterized by the provided values.}
+{\pard  \line \par}
+{Now I use await promise to turn that back into a contract, wrap it into an error handler so that if something goes wrong, the contract won't crash, but instead simply log the error. And then I use this very useful combinator from the standard Haskell libraries forever, which does as the name suggests so given some monadic computation, it just forever repeats it.}
+{\pard  \line \par}
+{And the use endpoints are similar. So first of all, here are these promises for the four operations set price add token, buy token and withdraw.}
+{\pard  \line \par}
+{So endpoint and now the continuations, which show how to continue once we have the parameter value. So in the first three cases, the parameter is an int and set price, for example, took the token sale and an integer.}
+{\pard  \line \par}
+{So set price TS partially applied. Just the TS is exactly what we need as continuation function from integer, the parameter value to contract. Same for the next two cases. The last one is a little bit different because we have a tuple of two integers as parameter value, but this withdraw TS took two integers, not as a tuple but just as two parameters, but uncurry can take care of that.}
+{\pard  \line \par}
+{That's exactly what uncurry is for. If we look at uncurry the signature, we see it takes a function with two parameters, A and B. And turns it into a function that takes A and B as a tuple. So for example, if as function we take plus addition which takes two A's. Then if we have uncurry plus that is now a function with one parameter a tuple. So for example, we can do uncurry three let's specify, it's an int and 4. and we get seven as expected. So we have these endpoints. So these promises, and now we can use select on those recall select now takes promises. So this will now be the promise that waits until one of those four will get input and then commit to that one and continue with that one.}
+{\pard  \line \par}
+{Then using await promise we turn it into a contract. And then again, we handle errors and do this forever. So once one of the four operations is finished, it will offer all four again, in order to try it out. Let's first use the emulator as we did before. So I define a run my trace function that again, uses run emulator trace IO prime with a custom emulator configuration.}
+{\pard  \line \par}
+{And my trace will get to my trace in a minute. Let's first look at the custom emulator configuration, where again, I specify an initial distribution that doesn't give only ADA to the wallets, but also some other token. So the idea is every wallet gets 1000 ADA. And in addition to that thousand tokens where token is just arbitrary currency symbol AA and token name capital A.}
+{\pard  \line \par}
+{These underscores, make it easier to read large numbers and they are provided by extension, GHC extension that's, called numeric underscores. So we'll only use three wallets 1, 2, 3, and each of them will have 1,000}
+{\pard  \line \par}
+{ADA and 1,000 of these tokens. Now for the trace first we activate the start endpoint for wallet one.}
+{\pard  \line \par}
+{So wallet one will be the one running the token sale, owning the token sale. And as parameters we give our currency and name that we defined here. So the AA and the A. So that will be the token that can be sold. And we specified true. So we will use the thread token or NFT mechanism for the state machine. So for this trace, that's possible, then we just wait for five slots to give this enough time to start the state machine.}
+{\pard  \line \par}
+{And we ask for the observable state, which if you recall, should be the token sale value that has been started, which in particular also contains this just thread token in this case, because we specified true here. And then there are two possibilities that this M is nothing. In which case the token sale hasn't started yet, or something went wrong.}
+{\pard  \line \par}
+{So we log an error message and in the good case, the one we expect, we do get our TS of type token sale. So we just log a message and now we can start the use endpoints. Remember the use endpoints are parameterized by this TS value. So we need to know the TS in order to start the use endpoints. So we start them on all three wallets one, two, three, and then we call various endpoints. So first wallet one sets the price to 1 ADA. We wait for five slots. Now, wallet one, adds 100 tokens to the token sale state machine for the token sale, UTxO we wait another five slots now, wallet two buys 20 tokens. And because the prize at the moment is one ADA, that should cost 20 ADA. we wait another five slots wallet three buys, 5 ADA sorry wallet three buys five tokens, which should cost 5 ADA, because the price it's still 1 ADA.}
+{\pard  \line \par}
+{We wait again}
+{\pard  \line \par}
+{and finally, wallet one withdraws, 40 tokens and 10 ADA. So originally there were 100 tokens, 25 have been bought that leaves 75 40 are withdrawn. So 35 should be left. And initially there were no ADA, but wallet}
+{\pard  \line \par}
+{two pay 20 and wallet three paid 5 makes 25. So if we withdraw 10, then 15 should be left and we can run that in the repl.}
+{\pard  \line \par}
+{Let's see. So here the start contract was started We get the log message started}
+{\pard  \line \par}
+{token sale with all the information in particular, also about the thread token that was picked.}
+{\pard  \line \par}
+{Now we start the other three contracts, the use contracts parameterized by this TS value, Here we set the price here add the tokens Wallet two buys, wallet three buys and wallet one withdraws and let's see the final result. So wallet one starts with 1,000 ADA. And 1000 tokens and set 100 tokens up for sale, but withdrew 14.}
+{\pard  \line \par}
+{So 940 tokens in the end. That's correct. And it also withdrew 10, ADA. So this is roughly 10 ADA and the discrepancy is due to transaction fees Wallet two started with 1,000 tokens and bought 20. So that's correct, but had to pay 20. So it's left with roughly 980 ADA Wallet three bought five tokens also correct and had to pay five.}
+{\pard  \line \par}
+{So left with roughly 995. And this here is the script UTxO, the token sale UTxO. And as we said, so this is also correct. 35 tokens are left and 15 ADA. So our contract seems to work at least as far as the behavior with this trace is concerned. But in order to come to that conclusion we had to execute that in the repl and manually check the result. Which of course you wouldn't want to do in a production environment, in a production environment. You want to have automatic tests for example, unit tests. So we'll look at how to do that in Plutus next. This is actually the topic of today's lecture, }
+{\pard  \line \par}
+{\b\fs36 [00:33:37] 0803 Automatic testing using emulator traces\b0}
+{\pard  \line \par}
+{and there are various testing frameworks in Haskell. test harnesses that can organize your tests, label your tests, group them, and so on, but Plutus uses the so called tasty test framework, you can find tasty on Hackage.}
+{\pard  \line \par}
+{And, there's also an example to basically you have a main program that uses, for example, default main, and then some tests and tests are of type test tree. And as the name suggests a test tree is a tree of tests so you can group tests and have sub groups and sub sub groups. and so on. They're special support for tests in Plutus and that is provided in module Plutus dot contract dot test in the Plutus minus contract package. And there are various types of tests that are supported. But today we'll only look at two of those one that works with emulator traces and one that's much more sophisticated and uses so-called property-based testing, which we will look at next, but let's start with the emulator trace based tests. So in this module, there's the chapter on checking predicates and there}
+{\pard  \line \par}
+{we see the connection with tasty.}
+{\pard  \line \par}
+{So there's this check predicate function it takes a descriptive name of the test. Then a trace predicate. we'll get to that in a minute and then emulator trace. Like the one we just used to manually test our contract. And the result is a test tree, which we just saw is the type of tests that tasty uses. So by using this check predicate, we can produce something that the tasty framework can understand. There's also a variation check predicate options, where we can set some options. So there's one additional argument of type check options. And if you look at that, then We don't see any constructors, so they are hidden.}
+{\pard  \line \par}
+{And in order to access the options and set various options, you need these operations here and they have this. We had typed that we haven't seen yet this lens prime and that is related to something called optics in Haskell. And that is a huge topic by itself. And whole books have been written about optics in Haskell.}
+{\pard  \line \par}
+{So I will ignore this for now. Just show you how to use this simulator trace, and then say a couple of words about optics. Unfortunately, I can't go into detail there and I find it a bit unfortunate that, you're basically forced to use these optics in order to work with this library. It would, in my opinion, have been better to expose the constructor so that we could have without using optics, interacted with this check options type, for example. But in any case, so this we can use here, this, emulator config lens to actually set an emulator config like we did before, when we ran the manual, trace to specify an initial distribution of funds. So let's look at this trace predicate now, and that specifies. some predicate, Some condition, some check that the emulator trace should satisfy.}
+{\pard  \line \par}
+{And this is then what will be tested when you run this test. And, first of all, we see that there are some logical combinators. so you have not to negate predicate and you have logical end to combine two predicates to, the combination. So this combination will only be true if both of the arguments are true.}
+{\pard  \line \par}
+{And then we see there's a variety of possible trace predicates, various checks. You can do some checking, some UTxOs and... check that a contract has completed or not completed and so on. But as an example, I will only use one that actually checks funds. So here we have, wallet one's check, which given a wallet and the value determines that after the emulator trace has executed the funds in the wallet have changed by this value.}
+{\pard  \line \par}
+{And interestingly fees are ignored. So we would have. A hard time to write precise tests, if you had to take fees into account, because we don't know exactly how high they are, and then we would have to like two approximations and so on. So it's nice that we have this available where we can ignore fees, but there is also a variation on this valid funds except change.}
+{\pard  \line \par}
+{We have fees are taking into account. And as you see, there are lots of other available trace predicates. So if we go back to the module where I defined my trace, you see there's one additional function here that I haven't shown you before. And it's called tests and it's of type test tree, and it uses exactly}
+{\pard  \line \par}
+{this check predicate options.}
+{\pard  \line \par}
+{And, for the options I want to use the same emulator configuration that I used before. That we also used for the manual trace here at this point, I showed you that earlier. So I want to do the same, but now unfortunately, in order to set that I have to use these optics. So let's ignore that for now.}
+{\pard  \line \par}
+{just this syntax, works. So these are the default check options, and then I modify the emulator, config in it to have this value. And then the next argument is the name. So I just call it token sale trace. And now I use this end Combinator. to Chain together, our three different trace predicates. And each of these uses}
+{\pard  \line \par}
+{these wallet, funds change where I ignore the fees and I just say, okay, wallet one, after being run should have 10, ADA or more and 60 tokens less Wallet two should have 20 ADA less and 20 token more, and wallet three should have five, ADA less and five tokens more.}
+{\pard  \line \par}
+{We can try this out in the repl. I just need to import test tasty. And then I have this default main available. I can do the default main tests}
+{\pard  \line \par}
+{and it passes and says, okay, let's see what happens if it doesn't pass. So let me just change value here. Let's say instead of 60, I have 50 and let's run it again.}
+{\pard  \line \par}
+{And now we see we get a failure and it gives us a nice error message that says what it expected. The funds should change by minus 50. But in actual fact, they changed by minus 60. And we also get an emulator log that we didn't see before when the test pass. This is probably the simplest and easiest way to write automatic tests for Plutus contracts.}
+{\pard  \line \par}
+{You simply write one or more emulator traces, and then use check predicate in combination with appropriate test predicates to check that those emulator traces lead to the desired result. And what you get is more or less traditional unit tests. }
+{\pard  \line \par}
+{\b\fs36 [00:41:23] 0804 : Optics\b0}
+{\pard  \line \par}
+{Before I get to the second way of testing Plutus contracts that I want to present today, I want to give a very brief introduction into optics and lenses, and they are various competing optics libraries on Hackage, but the most prominent and also most infamous one.}
+{\pard  \line \par}
+{And the one that the Plutus team decided to use is called lens. And it's authored by Edward commit, who is probably the most prolific contributor to Haskell libraries. And, you see already on the Hackage page, the overview page of the lens library, there's this scaring diagram and there's a whole zoo of optics.}
+{\pard  \line \par}
+{So there are lenses and prism, and}
+{\pard  \line \par}
+{traversals and ISOs and whatnot. And he has a nice diagram with all the operations, or some of the operations that the lens library provides. And what optics are all about. is Reaching deeply into like hierarchical data types and inspect parts that are deeply hidden in a data type and manipulate them.}
+{\pard  \line \par}
+{Let's look at a very simple example that I provide in module lens that shows the problem and how optics addressed that problem. So let's look at a company data type. It's just a newtype wrapper around a list of persons with the excess. So accord staff, and I provide an underscore in front of staff that has no semantic meaning.}
+{\pard  \line \par}
+{So it's just another letter in this case, but when dealing with lenses, it's stress convention to call fields with a leading underscore. So we have this company type wrap around persons. Then person has the record type with two fields name and address. When name is justice string and address is of type address again, following this convention to use underscores front of names.}
+{\pard  \line \par}
+{And finally address is yet another newtype wrapper around a string where excess called underscore. So there's nothing advanced going on. That's basically first week Haskell. And just as an example, I define two people, two persons, a hundred and last, with name and address. And finally, I define a company where the staff consists of these two persons.}
+{\pard  \line \par}
+{And now the task is to write a simple function, go to that gets a string as argument and a company and the suppose to create a new company, which you'll get from the oil company by changing all the city names or the cities of all the persons in the staff of the company to the given string. So if I apply that to IOHK and a string argument, I use Ethans.}
+{\pard  \line \par}
+{Then in the end, I should get a company with, again, two persons, again, name a hundred last, but now both of those should have city Athens. And I mean, that is not very difficult. So you can easily do that. You don't need any advanced test script for that, but it's a bit messy, even in this simple example. So if I implement this, go to there.}
+{\pard  \line \par}
+{So that's the new city and company then, I can use the old company and update the staff field in it. And this is remember list of persons. So I write the helper function, move person, and I map this helper function over the list over the staff of the given company. And now in order to implement this move person, I take the existing person.}
+{\pard  \line \par}
+{And then you was record app update syntax to change the address, or the name will be the same as the name of P, but I changed the address and what do I change it to? Whether I take the existing address and change the city name to there, we can try this out in the repl. So I can first look at the original company and it's as expected.}
+{\pard  \line \par}
+{And now I can apply, go to Athens, to IOHK and you see that the deep insight, I mean, a couple of levels down in the company. Now we have changed the city names here to Athens and here as well. So we see that I'm dealing with nested record types, even though conceptually, they are not complicated. It's just can be quite messy because you always have to like keep the oil fields in place and update the new ones.}
+{\pard  \line \par}
+{And if it's nested, it can be quite messy. And this is exactly what, optics try to solve and make it. The idea is to provide something like first class field exercise. And in the end, it's almost as easy, or it's very similar to dealing with such data types in Haskell than it is in an imperative language with multiple data types using these dot excesses.}
+{\pard  \line \par}
+{So in, in C sharp, you can, you could write something like company dot, staff dot, name, address city, for example, and with lenses, it looks very similar. So in that sense, I, when I introduced monads, I said that some people say that monads of a programmable semi-colon because the semi-colon is normally what's used in a lot of programming languages to chain statements together.}
+{\pard  \line \par}
+{And with the monad you can customize how this chaining of statements works. And similarly, you can say that optics provide a programmable.in the sense often xsr.like in Python or Java. And in order to work with lenses, I mean, you can, if you want to implement them by hand, but the lenses library provides some template, Haskell and magic to do that automatically, but that expects these underscore convention and a that's called make lenses.}
+{\pard  \line \par}
+{And then you provide the types for which you want these lenses. So I added these make lenses company, make lenses person make lenses address. And the names of the lenses will be the names of the original fields without the underscore. So that's why there's this convention. The fields will have the underscore and the lenses.}
+{\pard  \line \par}
+{Won't, there's a way to inspect what core template has rights at compile time from the repl for that you can activate a flick or dump places. Now, if I reload, I think happens, I think I must change to code. So let me just like this. Okay. And there we go. So this is now what template has good does. So we see the make lenses for company gives us a staff eyesore.}
+{\pard  \line \par}
+{So that's the type of uptick from company to list of person. Then make lenses person gives us an address lens from person to address and name lens from person to string. And finally make lenses address gives us a city ISO from address to string and ISO and lens are two different types of optics, but the convention or the order of type arguments is of is the same.}
+{\pard  \line \par}
+{So. Two type agreements, at least for these prime varieties outlets or more general optics with four type parameters. But these with tool, the first fund is always like the big data type. And then the second parameter is the one you zoom into the pot. So it's called optics because you can have this mental image of zooming into a data type.}
+{\pard  \line \par}
+{So the staff lens or ISO provides a way to zoom in from a company to the staff, which is a list of persons. The address lens allows us given a person to zoom into the address field of the person. The name lens gives us a way to zoom in from a person to the name, which is a string. And finally, the city ISO allows us to zoom in from address into the city named string.}
+{\pard  \line \par}
+{And we can try these out. So if you take, for example, loss and want to use the name lens one way is to trust. Look at the result of zooming in, I can do last and then use one of these funny operators provide by the lens library. That's this carrot dot and then one of the lenses. So let's take the name lens and I see, I have to import control lens for this to work.}
+{\pard  \line \par}
+{Then I indeed get last, which is not very exciting, but at least it works some life. Instead I use the address lens and I get the address. So one very important feature of lenses and that makes them so powerful is that you can compose them. So using the address lens, I get from a person to the address.}
+{\pard  \line \par}
+{But the address itself is again, a record type, which has this city field, and I can chain lenses together if they are compatible. So I have something going from person to address and I have something going from address to string. Then I can combine them. And the combination is actually just the usual function, composition dot, which is actually very cute because it's exactly like in a imperative programming languages with the XSR dot.}
+{\pard  \line \par}
+{And there is some quite advanced type level of machinery going on behind the scenes to make that work, but it works so I can just address.city for example, and now eyes womb into steps. So from the person last first to the address and then to the city, and I see the result, which is waking Spock and you can't only view the result of zooming in, you can also manipulate so you can set.}
+{\pard  \line \par}
+{So if I want to, for example, set my name to something else. Do the following. So here, the syntax would be this epicenter, which is basically just function application the other way round. So the argument comes first and then the function and now a lens. So name and now call on Tudor and new value. So if I want to, for example, renamed myself to all upper case, I can do this.}
+{\pard  \line \par}
+{And now the result is a new person where the name has updated. And again, I can compose, so I can do, for example, name taught or not name, address, and then.city. So I can reach into the present with the address and then deeper insight to the city and update the city from, for example, things, book to Munich and it auto box.}
+{\pard  \line \par}
+{So name and address are lenses and lenses. Uh, I mean the tuition is that it's a part of a data structure like the field and the record type. There's a different type of optics quote traversable, which doesn't only zoom into one field, one thing, one smaller part, but into many simultaneously. So if you have a list, it would zoom into each element.}
+{\pard  \line \par}
+{So for example, I can use, a list of integers three, four, And now I can use the, each traversable, which works for lots of container types, including lists and can set every elemental 42. And now I get a list with three 40 twos. And the cool thing is that various types of lenses, can we combine again with the dot operator?}
+{\pard  \line \par}
+{So for example, I had this IOHK type, sorry, the company type so I can have IOHK and I can, view the staff that we have seen before, but now the staff is a list. So now for example, I can compose it with the, each traversable. So now I focus on each element of the list, which is a person. Now I can compose this with address and that with the city, and finally set it to, for example, essence, oh, I wanted to set.}
+{\pard  \line \par}
+{So what I have to do as this, and this is exactly what this go to function. So I reach into the staff, then reach into each person in the staff, into each person's address into each addresses city and set it to essence. So instead of this relatively messy quote I wrote before using lenses, I can simply update the name of the city of each person in the company using this.}
+{\pard  \line \par}
+{If we go back to the quote, that's exactly how you can implement this to function using lenses. So you just, update the company using this composed lens or not. It's not the lens then anymore because there's a traversable in there. This compost optics, staff.each.address.city and set it to there. And this is actually what I did here when I configured our test.}
+{\pard  \line \par}
+{So this default check options is of type check options, but there's a lens from check options to emulator config. And I just wanted to change the emulator config so I can use this and, and then this emulator config lens and set it to the value I wanted to have. So that's how this works and that concludes the brief excursion into optics.}
+{\pard  \line \par}
+{It's a fascinating topic. I love lenses and optics. I think they're really cool. And you can do very cool things with that, but of course, it's not the topic of these lectures. }
+{\pard  \line \par}
+{\b\fs36 [00:55:55] 0805 Property based testing with QuickCheck\b0}
+{\pard  \line \par}
+{The second approach to testing plutus contracts, I want to present today uses a concept called property-base testing, and that is quite a revolutionary approach to testing that is much more powerful than simple unit testing.}
+{\pard  \line \par}
+{And it originally from Haskell and Haskell due to it's pureness and it's immutable data structures is particularly suited to this approach, but it has been copied by almost all other programming languages by now. So you get property-base testing diaries for Java and Python and C sharp and Javascript, and many more And the, one of the inventors of quick check, which is the most prominent.}
+{\pard  \line \par}
+{And it was the first library using this approach is, John Hughes, who is also one of the original inventors of Haskell And he and his company actually worked with IOHK to provide special support of this approach to testing plutus contracts. But before we go to that, let's first look at vanilla. Quick check for pure Haskell programs in particular property-base testing subsumes unit tests.}
+{\pard  \line \par}
+{So unit tests, are just a special case. So we can have a very silly, simple unit test. Something like simple, simple prop, just of type boolean, something like, two plus two equals four. I'd say ints. and if I import quick check, then I can test this property with the quick check function and quick check tells me it's okay.}
+{\pard  \line \par}
+{So the property is true. If I modify it and make it false, then it fails. Of course, that is not very exciting. Oh, by the way I see the convention is to call these quick check properties prop underscore not where I did it let's change that. Let's also make it correct again now to see a more interesting example, here is a implementation of a sort function sorting list of integers, which is using insertion sort which of course is not very efficient.}
+{\pard  \line \par}
+{So the idea of insertion sort is you saw at the tail of the list and then insert the hat of the list at the right position. And, this is a buggy implementation. And in order to test it, for example, a property that we could test would be after applying sort to list of integers to result in list is sorted.}
+{\pard  \line \par}
+{So I define a helper function is sorted that checks whether a given a list of ints is sorted. So the empty list is sorted. A one element list is sorted and list with at least two elements are sorted. If the first element is less than or equal the second element, if, and if recursively, the tail of the list is sorted and using that, we can now provide a quick check property like this.}
+{\pard  \line \par}
+{That is not just simply of type boolean, but instead is a function from list of ints to bool. So you can read that like a specification or like a mathematical property. Basically it says for all list of integers XS, if you apply sort to it, then the result should be sorted and quick check can deal with such properties.}
+{\pard  \line \par}
+{So I can try that in the repl and apply quick check to this new property. So it sorts and it fails And it gives me a counter example. So it says for this list, XS this property doesn't hold. So if I sort it, the result is not sorted. So I can try that out. And indeed I get zero minus one, which is indeed not a sorted list.}
+{\pard  \line \par}
+{And in addition to that, it also seems to have lost an element somewhere on the way. So how does quick chek do that? So if you provide a function with mon}
+{\pard  \line \par}
+{or also more arguments to the quick check function, it will generate random arguments for the function. So in our case, because we have one argument of type list of ints, quick check will generate random list of ints. And then for each of these random lists check whether the property holds and if it does then the test passes. But if it doesn't, it will report the counter example. However, we see that here in this error report, it says after eight tests and four shrinks. So this means quick check, try it eight. Random integer lists and then found a counter example where this property didn't hold, but then it didn't simply report the list it had at that point, but it tried to simplify it.}
+{\pard  \line \par}
+{And this is so-called shrinking and that's also very powerful feature of quick check because often the counter}
+{\pard  \line \par}
+{examples, to random counter example at}
+{\pard  \line \par}
+{quick check finds are very complicated, very long lists with very long numbers. But then once a counter example has been found quick chek tries to simplify these counter examples.}
+{\pard  \line \par}
+{So in the case of list of ints might try to drop an element of the list that it found as a counter example and check whether the property is still violated, or maybe make some of the numbers in the list smaller until it doesn't find a way to get an even simpler example. And this is really very powerful and very useful because if you want to, debug, it's very important to have not only a counter example, but a simpler counter example, as simple as possible.}
+{\pard  \line \par}
+{So it's this combination of random test generation and shrinking that makes quick shake so tremendously useful. And actually we can see what types of random lists quick check generates. there's a function called sample, and it looks a bit weird, but bear with me. So the way quick check does this run random generation is via type class and the type class is called arbitrary.}
+{\pard  \line \par}
+{with Capital a. So we can actually ask for information on the arbitrary class. And we see there are lots of instances already, and we see it has two methods. One is called arbitrary. One is shrink. So arbitrary is of type gen A and gen is here another monad. And basically what it allows is it allows random number generation for values of type a.}
+{\pard  \line \par}
+{So it has various methods provided by the monad that allow you to do random generation. And the second method is shrink. so given an, a provide a list of simpler versions of a whatever that means that depends on the type of course. And as I said, we have lots of predefined instances for this arbitrary class already.}
+{\pard  \line \par}
+{So in particular, we have one for int somewhere and given an arbitrary instance for A we also have an arbitrary instance for list of As. and therefore we check now how to generate random ints. And now, if we look at the result of the sample function that just}
+{\pard  \line \par}
+{in IO provides Some of the random, int lists that quick check will use}
+{\pard  \line \par}
+{And there.}
+{\pard  \line \par}
+{we see something interesting that the further we go down in the list, the more complicated the list becomes. So the first random one is just the empty list. And then we get two with just one element with quite small numbers, minus two and zero, and then we get longer lists, but the elements, yeah, still only one digit.}
+{\pard  \line \par}
+{And we get simple ones again, but towards the end, we have like long lists with quite light numbers. So in addition to just providing random generation in this, gen monad there is also concept of basically complexity. So not only if you implement it actually by hand, then you're not only supposed to, to some are generated random a but also a random, a.}
+{\pard  \line \par}
+{of some Sort of complexity, so a simple random a or more complex random A, And then when quick check actually checks a property, it starts with simple random arguments and then makes them more and more complex over time. And by default it tries 100 different random arguments to a given property, but that can be configured.}
+{\pard  \line \par}
+{So I think 100 is a good default for development, but probably if for production, especially for complex properties, something like a thousand or even 10,000 is maybe more appropriate, so that can be configured. Okay. And so we see that this random generation for int lists work and in our example, we found this counter example zero zero minus one.}
+{\pard  \line \par}
+{If we inspect the code, it's quite obvious that there's one back here, because all we do for non empty list is insert the first element into the tail. But we don't recursively sort the tail so we can try to fix this and test again, and now it doesn't find a counter example anymore. So this property now seems to be satisfied, at least for the 100 or 200 test cases.}
+{\pard  \line \par}
+{We tried. However, if I try the original. counter example that we found before fixing this back, we see that we still, I mean, we get this sorted list now, but it's of course still not correct. And this leads to an important point that obviously quick check can't do magic. So the results are only as good as the properties we provide.}
+{\pard  \line \par}
+{And what we see here is that this one property we have prop sort sorts is not strong enough to detect whether the function is actually correct. So in this case, we do get a sorted list, but it's still the wrong result. So for example, we could add a second property prop sort preserves length, which states that after sorting the result should be as long as the original list.}
+{\pard  \line \par}
+{So what we could say is, for example, length sort xs equals length. xs. If we try this, then we do find it another counter example zero, zero. And if you check sort of zero, zero, we see, we only get the one element list. And the bug is, here, because if X is less than or equal, Y, we append X to Ys but we forget about the Y. So that's insert that there and try quick check again, and it works, but of course there is still no proof that our function is correct because these two properties together that, actually the result is sorted and it has the same length as the original list is still not enough to fully specify a sorting function.}
+{\pard  \line \par}
+{For example, the sorting function could simply return a list of the same length, where all the elements are zero. So that would be sorted. And it would have the same length, but obviously it wouldn't sort the original list. So it's quite an odd to find properties that are strong enough to basically guarantee that if they are all satisfied, there is no bug. but nevertheless, this quick check approach is much more powerful than traditional unit testing because it tests so many hundreds of thousands of random test cases and often finds examples that a human programmer that writes unit tests wouldn't have thought of.}
+{\pard  \line \par}
+{And with a few lines of code. Now, these two properties that I provided, I test a hundred of thousands of scenarios. Which is much better than just writing two unit tests for specific lists. }
+{\pard  \line \par}
+{\b\fs36 [01:09:08] 0806 Property based testing of Plutus Contracts\b0}
+{\pard  \line \par}
+{Now that we have gotten a brief overview of quick check, we will apply it to testing of plutus contracts, but there we encounter a problem.}
+{\pard  \line \par}
+{Namely, how do you use quick check to test side effecting code, code that has effects, in}
+{\pard  \line \par}
+{the real world like on a blockchain and that problem doesn't only arise with blockchains. It arises with all systems that use IO that have effects. And, John Hughes himself always uses the example of, for example, file system.}
+{\pard  \line \par}
+{How would you test file system operations like open a file, write To a file, close, a file, read a file. And so on, using quick check and the approach one can use. There is very similar to the one that is used for plutus. And the idea is that you start with a model A model is basically an idealized model of how the real world system should work.}
+{\pard  \line \par}
+{So there must be some sort of relation between the model and the real system. So if the real system is a file system, then you could in the model have an idealized version of how you think file should work. And then what quick check does. In its random generation, it generates a random sequence of actions that you can perform on the system.}
+{\pard  \line \par}
+{So in the example of a file system, it would randomly generate the sequence of opening files, closing files writing to files, reading files and so on. And now you can basically step this model and the system in parallel. So you have some sort of action that you perform in the real world, and you apply the same type of action to your model.}
+{\pard  \line \par}
+{And then after that, your real system has progressed into a new state and your model has also been updated. And then after the step, you can compare the two and check whether they are still in sync and you continue this For several steps. So when our first quick check example we}
+{\pard  \line \par}
+{generate a random list of ints, the idea for testing a real word system is to generate random lists of actions and then apply those actions both to a model and to the real system and compare that the results are as expected and that the model and the real system stay in sync and shrinking in this case would be, if you have a list of actions that, that shows that there's a bug in your system, then you can, for example, drop some of the actions and see whether the problem still arises and try making this action, list}
+{\pard  \line \par}
+{shorter until you can't drop any more actions from the list and still reproduce the bug. And this is exactly how the quick}
+{\pard  \line \par}
+{check support for plutus also works. So in order to test the plutus contract, we have to come up with the model and define our expectations, how the various endpoints, for example, would change the model and provide a link between the model and the real system. Or actually it's not the real blockchain, it's the emulator, but in, in a sense that it's like a real system and then.}
+{\pard  \line \par}
+{Apply this quick check machinery. So that's what we will look at next for the example of our token sale contract. So the code for this is in module spec dot model, and here we see we import plutus contract tests that we saw before that provides basic support for testing plutus. And now to use this quick check approach, we also import plutus contract tests contract model, which has all the machinery to define a model and link it to the real contract further more we have test dot tasty and test dot tasty quick check, test dot tasty dot quick check provides a link between quick check and tasty so that you can use quick check properties in tasty test suites.}
+{\pard  \line \par}
+{So to define the model first, define a data type TS state for token sale state. So that's supposed to represent the state of one token sale instance, and it has three fields, the current price, the current supply of lovelace in the UTxO, in the contract and the current supply of tokens in the contract.}
+{\pard  \line \par}
+{And now I define my model. That is now the model I was talking about in the diagram earlier. And that is Just a map from wallet to token sale state. So the idea in this test is that I have several wallets, actually only two, and all the wallets run their own token sale. So we have left two wallets and each of the wallets will run a token sale contract and we will have two tokens and the two wallets will trade different tokens.}
+{\pard  \line \par}
+{And the idea to use a map is that in the beginning, before the contract has started, there won't be an entry for that wallet. And once the contract has started, there will be an entry for that wallet with the current state. And I am also implement lenses for that because we also need optics in order to interact with the library with this plutus contract test contract model library.}
+{\pard  \line \par}
+{And now that all the logic is in the instance of the type class contract model for this type. So here we provide how our model should behave and how it is linked to the actual contract. So the first we have and so-called associated data type, so that's quite an advance Haskell feature. So in type classes you can have, instead of just methods that we usually have also have data types.}
+{\pard  \line \par}
+{We have actually seen that before, when we. Define validators And we define this dummy type that provides a link between the datum type and the redeemer type. So there we also use these associated types. So the we need an associated action type, which represents the actions that quick check will generate.}
+{\pard  \line \par}
+{And in principle, I just have one constructor and this action type for each of the endpoints we said so earlier, I just have additional arguments because now there are different wallets at play. And I must keep track, which of the wallets performs an action. So start wallet means that this wallet starts a token sale contract.}
+{\pard  \line \par}
+{Then set price, wallet, wallet. Integer means that this wallet, the second one sets the prize for the token sale operated by the first one. And it sets the price to this integer. Of course we know from the contract logic that this should only work. If these two wallets are the same, because only the owner of the token sale can actually set the price, but to make it more interesting, I want to provide actions also, if somebody else tries to, and then we can see whether this is actually not working, because we expect that nobody else can set the price of token sale own by a different wallet. same for a token, So again add}
+{\pard  \line \par}
+{tokens, this wallet Wants to add tokens to that wallet's token sale. And this many tokens then withdraw. This wallet wants to withdraw so many tokens and so many ADA from the token sale run by this wallet that should again fail. If the two wallets are not the same and finally buy tokens. So this wallet wants to buy from that wallet's token sale, this amount of tokens.}
+{\pard  \line \par}
+{Okay. So this is the first ingredient that we need. This type actions. The second ingredient is, another associated data type it's called contract instance key. So the idea is for each instance of a contract that we are running, we want a key that identifies this instance, and this is actually a so-called general algebraic data type.}
+{\pard  \line \par}
+{So it's a little bit different format to an usual data declarations in Haskell that look like this. So the idea is that that instead of just providing the constructors, you write them this form basically with their type signature. So this means we have a constructor start key that takes a wallet as an argument, and then produces something of this type.}
+{\pard  \line \par}
+{And the reason we need these GADTs here, or the point of GADTs general algebraic data types, generalized algebraic data types is that with normal data types, the type parameters are always the same for all constructors. So if you have a parameterized type like list, for example, list of As, then all the constructors that we have will produce a list of the same type a and generalized algebraic data types, allow us to have different type parameters. And we need this in this case because our contracts potentially can have different type paramteters. So in this case, there are two types of instances recall. We had these, the start contract and the use contract, and they had different type signatures. And, so I provide one sort of key that are called start key for the first type, for the start contract.}
+{\pard  \line \par}
+{And it. just Basically as an argument has the wallet that does the starting and here we see, so the type parameters}
+{\pard  \line \par}
+{are, the first one is the model we are just defining, and then the ones that come from the contract itself. So the state type, which is last token sale, if you recall in this case, then the schema and takes us to error type.}
+{\pard  \line \par}
+{And then there's the second type of contracts, that use type. And so I provide the instance key for that as well that I call use key. And that takes two wallets as parameters. This is the one that owns the token sale}
+{\pard  \line \par}
+{we are interacting with, and that is the one that actually runs the contract. So similar to how it worked here.}
+{\pard  \line \par}
+{So same order of wallets and this, has different type parameters. Again, TS model, but there is no state. We don't use tell And the schema is different. The error type is the same next. We need to, some of provide this instance tag function, which given such a key that we just defined and the wallet as so-called instance, tag or contract instance tag. And because we already know the wallet that runs the instance, because that was one of the arguments to our contract instance keys. We can ignore this wallet argument and this, instance tag type or contract instance, tag}
+{\pard  \line \par}
+{type Doesn't have an accessible constructor, but it implements the is string class.}
+{\pard  \line \par}
+{And we haven't seen that class before explicitly, but we have used it all the time. when we use this GHC extension for overloaded strings. So when we can use string, literals to, for example, define a byte string or token name or currency symbol. All those types implement is string and they allow using string literals.}
+{\pard  \line \par}
+{And the way that is actually implemented is via type class called is string. And that in particular has a method from string. So given a string, it converts a string into that type and this constant instance, tag type implements, is string. Therefore, if we provide a string, we can construct something of that type.}
+{\pard  \line \par}
+{So the idea here is to simply use our key that we have here and show it because it implements show and then write instances tag for some arbitrary texts in front of that. I mean that wouldn't be necessary. I just copied that from some code from the libraries where they do it like that as well. So it is just important that this instance}
+{\pard  \line \par}
+{tag function results in a different tag for each instance, that we will ever run in our simulation or in our tests.}
+{\pard  \line \par}
+{And this is guaranteed here because the way these are set up, so we will have one start instance for each wallet. and then One use instance for each pair of wallets, but of course they are all different values of this contract instance, key TS model type. And then when we show them, they will still all be different.}
+{\pard  \line \par}
+{And that's the important part here. Actually, there's a default implementation for the instance tag method of the contract model class. So you normally don't have to implement it yourself, but that default only works at least right now, if you only have at most one contract instance per wallet, but this is not the case in our case, because you will have two, no, actually three per wallet, one start instance and two use instances using the own token sale and the other wallets token sale.}
+{\pard  \line \par}
+{So we have three contracts running per wallet, and therefore we are forced to implement that ourselves, this instance tag function. So the next one, arbitrary action as the name suggests is supposed to generate an arbitrary action. So action. We defined here and we must now tell the system how to generate a random action.}
+{\pard  \line \par}
+{And as argument it gets the model state. We come to that later, but I don't need that here and I can ignore it. One of, is one of the combinators provided by quick check And given a list of arbitrary actions, it picks, randomly picks one of those. So the idea is I basically just provide a list to create random actions of these types using these constructors, and then pick randomly one of those.}
+{\pard  \line \par}
+{And this is using something that we also haven't seen before. It's so-called applicative style so recall when we introduced monads, I mentioned that monad is a superclass has applicative, but we haven't used applicative yet. And applicative is often very useful to write monadic code more compact. So basically what this says is first run the monadic gen wallet action, which I should show first.}
+{\pard  \line \par}
+{This is here. So what this is supposed to do, it's in this quick check gen monad this random generation monad, generate a random wallet. And how do I do that? I use yet another Combinator provider for quick check elements that simply takes a list of values of the type I want to generate and then picks a random of those elements.}
+{\pard  \line \par}
+{So wallets is another helper I define somewhere here. Here. So wallets is just wallet one wallet two. So it's just this two element list. So gen wallet will just randomly either pick wallet one or wallet two. Okay. So what this means is we first use this gen wallet to generate random wallet and then return the action.}
+{\pard  \line \par}
+{Start that wallet that we just picked. And this is just a more compact way to write it. This, of course, this operator, we have seen this before this F map, which comes from the functor class. So gen wallet is of type gen capital gen wallet and start. As we see here, start takes a wallet and returns and action.}
+{\pard  \line \par}
+{So if we F map that we get something of type gen wallet to gen action. So the result is something of type gen action as we want. So it's a random action. And here for set price, we must pick three random arguments. So set price takes two wallets and an integer. So we use gen wallet twice to pick two random wallets for these two wallet arguments and then gen non neg, which is also defined, here, is a helper function, which randomly generates an integer, but a Non-negative one. And actually that is, there is something in the quick check libraries to support this. There's a non-negative type that implements an arbitrary instance. And, it's just a newtype wrap around integer and with get no}
+{\pard  \line \par}
+{negative I can extract the integer. So this arbitrary comes from the non}
+{\pard  \line \par}
+{negative type that would generate something of type non-negative, but that just wraps}
+{\pard  \line \par}
+{an integer and I extract that integer with this, get no negative anyway, so this generates a non-negative random integer. Okay. And, this is now where this applicative style really shines. So if I wrote that in a do block, for example, I would first, call gen wallet and bind the result against something, whatever W1, then I would call gen wallet again and bind the result against something like W2.}
+{\pard  \line \par}
+{Then I would call gen non neg,}
+{\pard  \line \par}
+{bind the result against P. And then finally I would return set price W1 W2. P and using this operator, which comes from the applicative class, you can write this nicely and compactly like this. So conceptually applicative is richer than monad and you can always use this applicative style if what you are doing, the actions in the monad you are invoking don't depend on the result of previous actions.}
+{\pard  \line \par}
+{So in a do block, I can have some monadic action and then inspect the result and depending on what the result is to the one thing or the other, and, that does not possibly implicative, but often monadic code doesn't make use of that power. And then we have this more compact way of writing it, but it's really just identical to using a do block.}
+{\pard  \line \par}
+{It's just more compact anyway, and I follow this same schema for the other constructors. So again, this one of, we randomly pick one of these lines and then so decide on one constructor for an action to pick. So if we randomly pick a start action, a set price action, and add tokens action,}
+{\pard  \line \par}
+{buy token action, a withdraw action, and then once it has picked one, it will generate random arguments for that constructor. Depending on what constructor is, might be different types or number of arguments. So withdraw takes two random wallets and then two integers, non negative integers for how many tokens I want to withdraw. And how many lovelace I want to withdraw. I can try this out in the repl. So using samples that we saw before, and then I sampled this arbitrary actions that I just defined.}
+{\pard  \line \par}
+{I don't have this model state, but I know I'm not looking at it so I can just use undefined and let's see, and I get a couple of randomly generated actions and we see that it indeed picks different constructors. And then for those constructors picks random arguments, for example, here is Withdraw wallet one wallet one, three}
+{\pard  \line \par}
+{five, and give another withdraw wallet one wallet two, one two And so on. Next is initial state as the name suggests it's the initial state of our model. Recall the model, was this map from wallets to tokens sale states. And in the beginning, there won't be any token sale yet. So it's just the empty map. So the initial state is the model that has the empty map, which means no token sale has started yet.}
+{\pard  \line \par}
+{Now comes the most complex function that we must implement to set this up and that's called next state. And if you recall the diagram, I said, you must know what effect performing action has on the model. And that's exactly what this next state function does. If you look at the type of next state we see it takes an action and return something in yet another monad, it's called the spec monad. And that basically allows us, that monad allows us to inspect our current state. So the current state of our model, and also to transfer funds in our model. So this is not new funds on the real blockchain or in the emulator, but the model among other things also knows how many funds each wallet currently holds.}
+{\pard  \line \par}
+{So let's look at an example. Let's first look at the effect of the start action. So one effect is that now the model state should change require the model is this new type wrapper around a map. And in the map, we have an entry for every wallet, which. In the map, if the corresponding token sale has started.}
+{\pard  \line \par}
+{So what we have to do is we have to create this entry and the map for wallet w and this is exactly what this line does. So this operator here comes from the spec monad and it takes a lens from the model to somewhere on the left-hand side, and then sets that focus of that lens to the entry on the right-hand side.}
+{\pard  \line \par}
+{So this here on the left-hand side is an optic and T TS model goes from our model to the map and this, it comes from the lens library, and that is something that works nicely with maps. And what it does is at key. So if you have a map from key two values, then eight key zooms in from the map to the entry at that key, however, the entry could not be there.}
+{\pard  \line \par}
+{So actually the target type of this lens is maybe value. So if it's there, it will be adjusted. If it's not there, it would be nothing. And this is a proper lens. So you can not only look up entries. You can also set entries. You was this lens, this ed lens to set to just then you create an entry at that key.}
+{\pard  \line \par}
+{And if you set to nothing, you would delete the entry at that key. So the combination of these two lenses now zooms in from our state to the entry at wallet w and we want to set it to this. So by starting the token set, now there should be an entry and that entry should be this TSS state required these, the price and the amount of tokens and the amount of lovelace. So in the beginning, when we just start the token sale or through various zero, so what this line does in this tech spec is it will change the model and set the entry in the map, add for the w two, this token sale with zero price and no tokens, and no lovelace included. The second client weight also comes from the spec, Mona to the spec.}
+{\pard  \line \par}
+{Monad also has a concept of the passing of time. So we basically wait for one step, one block or one slot. I mean, in reality, in the real blockchain, there's only one block, every 20 slots on average, but here wait, one basically means we wait one step. We wait until the next block. So the starting of the token sale.}
+{\pard  \line \par}
+{Sure. Basically be one transaction, which it is, if you recall how it was implemented, it just, since this UTxO or creates this UTxO at the state machine address. This wouldn't be true if you use a real thread token, because in that case, the thread token first has to be minted, which also takes at least one step, probably exactly one step.}
+{\pard  \line \par}
+{So in that case, it would take two steps, but we will not use this thread talk mechanism, as I mentioned earlier. So this starting really should take one step. So the white one is enough. So what this now says is that after the start action, the model should be changed. So that now in the map at the w the S this entry, and one time steps should have passed.}
+{\pard  \line \par}
+{Now, the second case set price. So, set price to the tokens here, run by wallet V and the price setter is valid w and the new price is P. So when comes Kong control night, and as the name suggests, so it takes a boolean. And if the bullying is true, then the second argument will be executed in the morning.}
+{\pard  \line \par}
+{And if it's false, this would simply be ignored and nothing happens. So. What we say is if somebody tries to set the price, that's not the owner of the token sale, nothing will happen. Only time will pass, but if the owner tries to set the price, then the model will be updated. And this is now a bit similar to this lens here, but instead of ed V was X.}
+{\pard  \line \par}
+{So at is a lens. And the target type is maybe the type of values in the map. I X is a traversal and, saw if the key is there, then it will focus on the value of the, with that key. But if the key is not there, then it simply won't focus on anything. And, then there's TSS price. Given the value will zoom into the price component.}
+{\pard  \line \par}
+{So that means if there's an entry for wallet V. So if we had started the token sale, then we will set the price to pay. And if volatility, he hasn't started the token sale yet, then nothing will happen. Let's play a bit with ed and I ex in the repl to see the difference and how they work. First. I need to come in port control lens.}
+{\pard  \line \par}
+{And because I want to play with maps. I also need a data map strict and that's qualified.}
+{\pard  \line \par}
+{Okay. And let's have a simple example map.}
+{\pard  \line \par}
+{So let's take a map with a string keys, let's say, and boolean values}
+{\pard  \line \par}
+{like this. Okay. And now for example, we can first play with it. So I can, for example, view the focus of the Atlanta at key, let's say Haskell and it gives me just true. So the, just because the key is present and then the value true. If I try this with a key, that's not present, then I will get nothing and I can also use it to set.}
+{\pard  \line \par}
+{So for example, I can}
+{\pard  \line \par}
+{try this.}
+{\pard  \line \par}
+{So by setting the airplanes at key pies into just faults, I am inserting this value into the map. If I instead use. Haskell too, just falls then now I've updated the key. It used to be Haskell true. Now it's Haskell faults. And finally, if I set to nothing, I'm removing the key Haskell from the map now for ILX, it's different.}
+{\pard  \line \par}
+{So if I try to set I X tool faults, that should work so I can update, but if I try this with Python,}
+{\pard  \line \par}
+{then simply nothing will happen. So this I X is a traversal and it will focus one by one on all keys given here, which of course can only happen zero or one. So either the key is there. Then it will focus on that. Or the key is not there. Then it will simply not focus on anything. So if I use an existing key, I can use this to update, but if I use a key that doesn't exist in simply nothing will happen.}
+{\pard  \line \par}
+{Okay. The next step is add tokens. So while the w tries to add tokens to the token, sales started by wallet V and the amount of tokens is N so first we check whether the token sale has started and for that, we use a helper function. So let's look at that first. It's actually these three hyper functions. So the first one get token sale, state prime takes a model state and a wallet and retrans, maybe the token sale state.}
+{\pard  \line \par}
+{And how does it do that? So it takes this model state, and then uses the operator, which takes a lens to zoom in and look up the values or contract state goes from a model state to the actual model. So this is now the type redefined. Then this TS model comes from us. So that takes the model and gives us the map.}
+{\pard  \line \par}
+{And finally again, the ed, which given the map and the key gives us maybe the value. So this is a simple application of optics. Now this get TS state does the same thing, but in the spec monads so only given the wallet. And how does it do that? We're in the spec, Mona Tessa, an operation called get model state, which allows us to get the model state.}
+{\pard  \line \par}
+{So we get the model state, and then we use our first hyper function to get maybe to the TS state for the given wallet. And then finally we can implement our has started. Taking a wallet and also in the spec monad, which are bool. And Debbie simply use this get TSS date that we just defined, but we don't care about the value of the TS state.}
+{\pard  \line \par}
+{We just care whether it's adjust or nothing. If it's adjust, then the entry is stay the map. And if it's a nothing, it's not. So there's a standard function from data that maybe is just which checks exactly that. And I have to F map it because this here it was in the spec Monat so I have to lift the is just into the spec mullet.}
+{\pard  \line \par}
+{So has started V in the spec mode I've given a wallet will tell me whether the entry in the map corresponding to V is in the model. And that means that the tokens sale has, okay, so this is the first line. Can we check whether the token sale has started? And if it hasn't, then we simply don't do anything and just white one step, but if it has started, and if we want to add a positive amount of tokens.}
+{\pard  \line \par}
+{So if this end is not zero negative, then we first ask for the balance change. We can look at this ask model state in the repl, ask one formation, and we see. That it takes function from model state to a, and then returns to a, so what it will do is it will look up the current model state in the spec monad then apply this given function to it and return the result and the model state itself.}
+{\pard  \line \par}
+{I asked for it information here and it looks a bit unwieldy that's because none of these things are exported. So they are all fully qualified here in the display. But nevertheless, we see model state is parameterized by one type Armita and debt incidentally will be our custom state that we defined. So in our case, it's this map from wallets to TS states.}
+{\pard  \line \par}
+{And one of the fields in the model state is indeed that that's why I could use the contract state lens earlier to zoom into that. But there is also more information. So occurrence look last lot balances, changes and mint it. So that's the information we have and they are all lenses available to, to get to these in particular, for this balance changes, we have an optic, it's not a lens is just to get us.}
+{\pard  \line \par}
+{So that means you can't set anything. You can just view it. And, so it's, it's a optic from model state. To a value. And this indicates how much the value, the balance of the it has changed during the course of the simulation during the course of the spec computation. Before we go back to the next state function, let's briefly look at some helper functions that are defined.}
+{\pard  \line \par}
+{So wallets are the wallets I'm using. So one wallet two, then the idea is that talk valid one will sell a different token then wallet two in its token sale. So I define two currency symbols, a and P B and two token names, a and P. So the idea is wallet run versus sell token AA a and for the two we'll sell token BB B.}
+{\pard  \line \par}
+{So with these other currency symbols, these are the token names. These are the asset classes.}
+{\pard  \line \par}
+{This is actually the token sale apart meter for the two wallets. So it has the volatile public key. And then I look up in this tokens map, the correct token that's on sale. And as I said before, I'm not using the thread token mechanism. So I provide nothing here. Finally, there's this constant token amount 1000.}
+{\pard  \line \par}
+{So when we set up the simulation, we specify an initial distribution and I give everyone 1,000 ADA and the thousand, that's this token amount of both tokens. So both wallets will have thousand ADA and 1,000 of the AA, a token, and the thousand of the BBB token. If we now go back to next state to the case where we were add tokens, so we already discussed this line and this one, now we were here.}
+{\pard  \line \par}
+{So what this does it ask for the model state and then view. It's just a function that you can use instead of this carrot dot operator. So to get the result of zooming into an optic. So what this line does, it tells us how much did the valence of wallet w change. Then I just expense this tokens map. So this is the token that wallet V is selling.}
+{\pard  \line \par}
+{And now we want to check that actually while the w has and tokens to it. So that's why we need all this information. So we just calculate whether it has enough tokens, so token amount, which is 1,000, is how many tokens it had in the beginning. Then we used this better change and add that to the initial amount.}
+{\pard  \line \par}
+{So maybe while w now has more or less token. So this is captured here in the BC and the balance change. So the sum is how many of those tokens wallet w has at this moment and whether it must be greater or equal than the amount of tokens with wants to add. Okay. So if all these conditions are satisfied, then what will happen is wallet w will add these tokens.}
+{\pard  \line \par}
+{So they will disappear out of the wallet. And for that, we have another function in the spec will not it's called withdraw. So the concept is simplified version of what's really going on. So in the spec monad every wallet has a certain balance of value and. It can withdraw from that balance or add to it deposit.}
+{\pard  \line \par}
+{So later you'll see the case of deposit, but other addresses are not modeled in the spec or not. So that's like a black box. So they are only the wallets and this black box. So it doesn't matter where the funds disappeared. They just disappear out of the wallet. So withdraw means after the step wallet w should have end tokens less because they have been added to the contract.}
+{\pard  \line \par}
+{And finally we update the model states. So again, we use an optics or TS model to get to home map. And I X V to get to the token set, run by V then TSS token to zoom into the field that tells us how many tokens are at the UTxO at the moment. And this is another operator coming from the spec Walnut. So instead of setting, assigning what we saw earlier, if you use the Stoller tilt operator, we can specify function, and then that function will be applied.}
+{\pard  \line \par}
+{So, plus end means we increase in the model. This value, how many tokens are in the token sale, run by V by end. So the end tokens disappear from all the w and they are now in the model accounted for, because we increased the number in the model by N and finally, we wait one step. The next case is by tokens.}
+{\pard  \line \par}
+{So from the token sale run by V w wants to buy in tokens. So first we check that and is positive. And if not, we just wait. If it is, we use the helper function V justice cust, to get maybe the token sale. So if that is nothing, then V hasn't started the token sale yet. So we also don't do anything, but if it is just tea, and if there are at least end tokens on sale, then we look up the price, calculate the total price.}
+{\pard  \line \par}
+{So the price per token times the number of tokens, then we use withdraw again to take this total price out of the wallet of w and then we use the posit that I mentioned earlier, which puts money back into a wallet to put the end port talk tokens into the wallet. And finally, we have to update the model.}
+{\pard  \line \par}
+{So we have to increase the amount of lovelace by L and decrease the amount of tokens by. Finally, we have the withdrawal case. So talk and say run by V while it w wants to withdraw and tokens and L lovelace. So first we check the w equals V because only the owner of the token Sarah can withdraw. If not, we don't do anything in trust.}
+{\pard  \line \par}
+{Wait. So if that condition is satisfied, we look up the state again. And if it's nothing, then we know that token sale hasn't started. So there's nothing to withdraw, but if it's just, we check that there are at least end tokens and at least a lovelace, otherwise we also don't do anything. And now we deposit the lovelace and the tokens back in the wallet and we update the state.}
+{\pard  \line \par}
+{So we remove the lovelace and we remove the tokens and that completes the next state function. So this is, as I said, the most complex one to set up this model to describe the effect the actions should have on the model. So right now the model is just some conception model that has nothing to do with the actual contracts we've wrote earlier.}
+{\pard  \line \par}
+{I mean, the names of course are suggestive. I gave the names, the same name says were used in the redeemer, but there is no link whatsoever until now between. This model here and the actual contracts and the actual endpoints we've wrote. And this link is provided by yet another methods in this class that we have to implement.}
+{\pard  \line \par}
+{And that's the perform function. If we check the type of perform in the repor is see, it takes something called fund state. I'd explain that in a moment. Then it takes the model state, and it takes the action we are performing, and I don't need the model state. In this example, the handle will give me access to the actual contract handles.}
+{\pard  \line \par}
+{So let's see, look at an example. So we have, we make a pattern metter on the case distinction on the command. So if it's start w so that means I, the action is starting the the start contract for wallet w and now this is now the link. So this is now actual emulator code. So how would this action manifest itself in the emulator?}
+{\pard  \line \par}
+{So in order to do this, I must call the start endpoint on w and recall the argument I need here is this instance, so in the emulator, I'll start a contract instance and I'll get a handle and now must provide this handle. And this is exactly what the first argument is for. so this H argument given a key, these are the keys, these contracts instance keys we defined earlier.}
+{\pard  \line \par}
+{So given a key, it will give me the handle that I need to give, to call endpoint in order to actually reach the right contract instance. And in this case, the key is start key. W that's exactly what we defined this key for, for the start contract on the w wallet. So giving that to the H we got, we get a handle that we can provide to the call endpoint function.}
+{\pard  \line \par}
+{And now we must provide the arguments to the stripper consisting of the currency symbol of the token. We are selling the token name of the token we are selling and then true or false, depending on whether we want to use the thread token mechanism. And as I said several times now, already, we don't want to use it in this test.}
+{\pard  \line \par}
+{So we provide faults. And additionally, I do a delay of one slot afterwards, and this delays just as, it's nothing new, just to have a function here, which uses our well-known weight and slots that we have used all the time already. So just the shorter work of that. Okay. And all the other side principle, very similar.}
+{\pard  \line \par}
+{For example, set price quotes to set price endpoint, but now the key is not start key. It's a use key. And because he wants to set price while w wants to set the price on the talk and say, provide by V . If I use key V w here, and the argument is P and the others are exactly the same are the endpoints finally, and this is now the last method I must provide, to, to implement it.}
+{\pard  \line \par}
+{All of this is precondition. So I have the option to say that certain actions are not supposed to be randomly generated at a certain point, so I can define preconditions and, which it is acceptable to provide this action. And, the preconditions I define here is that I say, okay, start the precondition for start.}
+{\pard  \line \par}
+{Is that the model that this token sale hasn't yet started? So the S the first argument of precondition is again, this model state. So precondition model state, It's a condition that I can put that says, okay, in this state, is this action possible? So this says a start is only possible. If I haven't yet started the token sale for w and for the others, I do the opposite.}
+{\pard  \line \par}
+{So I say, this is only possible if it has already started. Okay. And this now finally completes the definition of this contract model class for our TS model. And now they are stressed. I need eat and show instances for my contract instance, key, type. And I wanted to arrive them, but because it's a GDT, sometimes arriving doesn't work as nicely as it does with other Haskell data types, but there is something called standalone deriving.}
+{\pard  \line \par}
+{So instead of writing this deriving eco or deriving show directly behind the data type definition, I can have this standalone lions. And this index is like this deriving instance, eat and thriving instance show that needs actually a GHT extensions, the laundry arriving.}
+{\pard  \line \par}
+{Okay. And I think that is it. So now not quite. So this sets up everything. One more thing we need, we must provide the instant specs we actually want to run. So we define these keys, but now we must somehow link them to actual contracts that we haven't done yet. And this happens here. So this is a list of contract instances we want to run and such an contract instance, spec type takes three arguments.}
+{\pard  \line \par}
+{The first is the key. The second is the wallet. And the third is the actual contract that is supposed to be invoked with it. So we have two cases. We have these stock keys and the use keys. So for the start key, w so that's the key. The wallet is w and the associated contract is the start and part. And we do this for both wallets and the use keys.}
+{\pard  \line \par}
+{So the key is use key V w the wallet, it runs on this w and the contract is you was endpoints and require use endpoints, takes a parameter, namely the token sale. So we'll look up the token sale, belonging to vomit, and we do this for all pairs of wallets. So there would be four of these infix and two of those.}
+{\pard  \line \par}
+{Okay. And this, we have seen this way, I've seen. And now finally, we can define a quick check property. So this is now the link between all of this work in this model and quick check. And there's a function in Plutus dot contract dot test from prop run action with options. So if you check the type of prop run actions with options, you see first it takes the check options type that we have seen before.}
+{\pard  \line \par}
+{When we did the emulator trace based testing, then it takes this instance specs or the contract instances we want to run. Then it takes something from model state to trace predicate. So this would allow us to insert additional tests. And finally it produces a function from actions, which is basically just a list of actions to property.}
+{\pard  \line \par}
+{Property is like a beef. Well, you can think of that. It's a quick check thing. So it's a brilliant, that has some additional capabilities for it's mostly for logging and deep packing. So how do we use this here? So as options view is the same as before, which allows us to. Specify the initial coin distributions.}
+{\pard  \line \par}
+{And what we do is we get each wallet, 1,000 ADA and 1,000 of both tokens ANP. Okay. As second argument, we provide these instance specs that we define the buff and we don't add any additional checks. So this is just pure. True. True is just another word for return comes from applicative if you check again.}
+{\pard  \line \par}
+{So we provide the first three arguments. So the result of this is now functioned from action state to property and provided quick check can provide, compute random actions. It will be able to test it. So this is not something quick check can handle, so we can actually try this}
+{\pard  \line \par}
+{and we can use sample to generate us sample action sequences. So, and again, we see this pattern that we saw with Intellus before that it starts simple and gets more and more complex for the first one, here would just have one action. If we just started token sale for one to two second, and third would even be the empty list.}
+{\pard  \line \par}
+{So no actions whatsoever. And then we see more complex scenario, start the token sale for}
+{\pard  \line \par}
+{Then wallet two tries to add six tokens to its own token sale. Then wallet, it tries to set the price of wallet to stoking say and so on. And you see that we get quite complex scenarios and what will this property be? I mean, what will be tested, where it will be tested? What I tried to explain to the diagram that for all these randomly generated action sequences, the properties we specified in the model.}
+{\pard  \line \par}
+{So how the funds flow correspond to what actually happens in the emulator. And if there's a discrepancy, then the test will fail. We can actually try this with quick check properties. So, which is called test here and we see tests are run, but we also see that it takes quite a while. So now I test run 18 tests and it will run a hundred, probably it's more interesting to implement a back in the actual code and see whether these tests will find it.}
+{\pard  \line \par}
+{For example, here in the set price case, as a constraint, we had that that must be signed by the sellers. Only the seller can set the price, but let's say we forgot that. So we forgot this constraint. So if I run the test again with this wrong code, now}
+{\pard  \line \par}
+{then we'd see that quick trick indeed found a buck and we see it did 19 tests in this case in five shrinks. So it simplified the action sequence that it originally found, and that produced a buck. So let's look at this action sequence. So first wallet two starts at token sale. Then wallet one sets the price of wallet tools, token sale to 18.}
+{\pard  \line \par}
+{Now recall in the model, you specified that in this case, nothing should happen. Setting the price would only change anything. If the wallet that started the sale actually changes it. But now in the actual implementation, we remove this check. So if you forgot the check, so this will actually have an effect and indeed set the price to 18.}
+{\pard  \line \par}
+{So now followed two it's 14 tokens, and then it's another nine tokens. And finally buys from its own token C say 17. So according to the model, the prices zero. So these 17 should be for free. So, they are, what is it? 23 in the sale. And then 70 bought 17 bought back. So six should still be in the sale, 17 back in the wallet, but no ADA or should have been spent no, a have, should have been spent because the price should still be zero.}
+{\pard  \line \par}
+{So expected from the point of view of the model is that the, there are six total BS less. Now that's correct. 23 minus 17. And the, and the fees are ignored and no effect on the lovelace. But the actual code found that 306 lovelace was spent. So probably 18 times 17. Let's see. So 18 times 17. Yes, that's 306.}
+{\pard  \line \par}
+{So in the real implementation, now the price was set to 18. And so for this buying wallet, van had to pay 306 lovelace that are not missing from the voltage. So there's a discrepancy between the expectation from the model and the actual funds in the vault with the actual implementation and fake check has spotted that discrepancy and reported it.}
+{\pard  \line \par}
+{And so this is very nice. If we get the action sequence, we get the discrepancy and we also get the emulator lock of this run. Now, by default, this is all that the quick check tests do. So it only checks the flow of funds, whether that agrees at each point with what we specified in the model, but it is possible to to add additional checks and it is also possible to influence these action sequences.}
+{\pard  \line \par}
+{So right now they're just random actions, of course, checking the preconditions that we defined, but it's also possible to do some more unit tests, like scenarios, where we specify certain flows of, actions to steer the tests into certain directions. So that's called dynamic logic and it's yet another monad, but I think that would go too far to talk about this now.}
+{\pard  \line \par}
+{And, I should mention that, of course, this, even though it's very powerful also has its limitations. So one thing is that, of course it only tests. the Contracts that we provide it doesn't test all possible off-chain code. So of course it's possible that, with the provided off-chain code that we write everything is fine, but some party could write their own off-chain code that allows them to steal funds from our contract.}
+{\pard  \line \par}
+{And obviously this quick check model can't detect it because it has to use the contracts. We give it in the perform method. And the second problem is concurrency. I mean, we carefully edit this delay of one slot to each action to make sure that everything is nicely sequenced. So all the actions happen in sequence, but of course, in the real blockchain, also in the emulator, wallets can have concurrent submissions of transactions.}
+{\pard  \line \par}
+{And in principle, we could try to do that with this model as well, but then we somehow must in the model specify what should happen in this case. And that might really depend on in which order the transactions are processed and so on. So that might get very complicated. So there are limitations, but nevertheless, it's a powerful way to test plutus contracts.}
+{\pard  \line \par}
+{Finally, I should mention how all of this integrates with tasty and there's a function coming from the tasty library, called property that takes. a Description as string and then a quick check property. So we can use our prop underscore}
+{\pard  \line \par}
+{TS here and now we get the test tree that tasty can understand actually how this is now set up.}
+{\pard  \line \par}
+{If you look at the cabal file. So we have the library with the three modules We saw the token sale and the quick check and the lens examples. And I provided an additional stanza in the . cabal file. That's now not library and not executable what we have seen before, but a test suite. And, this means that the tests work by running executables. And if there's an exit code, that's not zero the test concept fail. So the rest is quite similar to how we specify an executable in a cabal file. So we provide a main, this spec HS. I haven't shown you that yet. And a folder other modules with these other two test models we have looked at. So this is the one with the emulator trace.}
+{\pard  \line \par}
+{This is the one we discussed just now. So let's find a look at this spec dot HS, and this simply imports the two models that modules contain the test and tasty and use this default main and set up a test. tree. I can again provide some name and then just use this dot tests we defined for the emulator trace and the test we now defined for the model and all of this can then from the command line, we run with cabal test.}
+{\pard  \line \par}
+{If we do that, then after compiling, it will run all the tests. So in our case two. the emulator trace test and the quick check test }
+{\pard  \line \par}
+{\b\fs36 [02:11:36] 0807 Homework\b0}
+{\pard  \line \par}
+{for homework, I want you to modify the token sale contract to accept an additional transition called close. That can be called by the seller, and only by the seller to actually close the contract close to UTXO, collect all the remaining tokens and lovelace in the contract and the NFT.}
+{\pard  \line \par}
+{And this time I don't provide an extra module for that. So you can either just modify this token sale module or copy it and create a new model with this separate logic. Of course, you will have to think about the datum type. So right now it was integer, but now we have this new state, this close state.}
+{\pard  \line \par}
+{So one option would be to use maybe integer instead, where just. some integer just prize means the contract is still active and nothing means it has been closed. And if you feel ambitious, you can also modify the trace and the model in order to accommodate for this additional operation. So for the model, you could add a new action close and for the trace for the emulator trace, as well as a last step, provide the close action.}
+}

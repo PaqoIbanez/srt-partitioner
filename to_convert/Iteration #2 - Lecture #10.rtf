@@ -1,0 +1,326 @@
+{\rtf1\ansi\deff0
+\margl1800\margr1800\margb1440\margt1440\deflang1033\lndscpsxn
+{\colortbl;
+}
+{\fonttbl;
+{\f0 Arial}
+}
+{\pard  \line \par}
+{\b\fs36 [00:00:00] 1001 Start\b0}
+{\pard  \line \par}
+{Welcome to the last lecture of the Plutus Pioneer Program. And in this lecture, I don't want to introduce any new topics or concepts, but instead demonstrate another walk through end to end through a demo I wrote some months ago that clones the very popular Uniswap contract from Ethereum. }
+{\pard  \line \par}
+{So I'll demonstrate that and then explain that.}
+{\pard  \line \par}
+{And the one new think I want to show following a very requests that some of you had. }
+{\pard  \line \par}
+{Is I want to show how you can query the endpoints created by the PAB with curl commands just from the console. }
+{\pard  \line \par}
+{So for those of you who haven't heard of uni swap. }
+{\pard  \line \par}
+{\b\fs36 [00:00:52] 1002 Uniswap in the EUTxO-model\b0}
+{\pard  \line \par}
+{What is uni swap? }
+{\pard  \line \par}
+{Uniswap. Uh, so-called defy for the centralized finance application that allows swapping of tokens in the case of if you're on with CSE 20 tokens on UVM, uh, without any central authority.}
+{\pard  \line \par}
+{So you don't need a centralized exchange, the traditional way to exchange tokens to other crypto assets, but everything is governed by smart contracts and works full automatically on the blockchain. }
+{\pard  \line \par}
+{And another interesting feature of uni swap is that it doesn't discover prices the usual way with a so-called book, but uses a different automatic price discoveries.}
+{\pard  \line \par}
+{And the idea is that people can create so-called liquidity pools. So if they want other users to be able to swap to different tokens, then somebody can create a liquidity pool and put a certain amount of those two tokens in this liquidity pool. And in return, the creator of the pool will receive so-called liquidity, talkings that are specific to this one pool, and then other users can use that pool to swap.}
+{\pard  \line \par}
+{So they take some amount of, one of the tokens out in exchange for putting an amount of the other. Back in additionally, people can also add liquidity to the pool and receive liquidity tokens as well. Or they can also burn liquidity tokens in exchange for tokens from the pool. And all these features are to implement it in the version of Unisport that works on Cardano that I'm going to demonstrate now.}
+{\pard  \line \par}
+{So let's look at the various operations that are available in town. It all starts by somebody setting up the whole system. So some organization or entity that wants to offer this uni swap service. So it starts with a transaction that creates a UTX or at a script address that is here called factory for Unisport factory.}
+{\pard  \line \par}
+{And it contains an NFT that identifies the factory, same trick that we have used a couple of times before. And as datum, it will contain the list of all liquidity pools. So in the beginning, when the factory is just being created, that list will be empty. Now let's assume that one user Ellis wants to create a liquidity pool for tokens and.}
+{\pard  \line \par}
+{A portal that allows others to swap a against POB, I can say. So she has to provide some initial liquidity for the pool. So she needs some amount of talking a and some amount of talking B let's say she has 1,008 and 2000 P. And it's important to note here that the ratio between a and B reflects Ellis' belief in the relative value of the tokens.}
+{\pard  \line \par}
+{So if she wants to set up a pool with 1,800, 2000 peak, then she believes that one a is S value as much as two BS in order to create the liquidity pool, she will create a transaction with two inputs and three outputs. The two inputs will be the liquidity she wants to provide. So the 1000 and the 2000 P and the Uniswap factory invoked with the create Redeemer and the three outputs will be the newly created.}
+{\pard  \line \par}
+{We call it pool a B here to indicate that it contains tokens and which will contain the liquidity that Ellis provided the 1000 and 2000 feet and a freshly minted token that identifies this pool and NFT, I call it a, B and F T here and the day to move the pool. The 1,415 will be the amount of liquidity tokens that Ellis receives in return for setting up this pool and providing the liquidity.}
+{\pard  \line \par}
+{And if you wonder about the number that is the square root of the product of 1000 and 2000, so that's how the initial amount of liquidity tokens is calculated. It doesn't really matter. You could scale it arbitrarily. But that's the way Eunice work does it. The second output is the Uniswap factory again, with the same NFTs before that identifies it.}
+{\pard  \line \par}
+{And now the datum has been updated. So in this list that was empty before the list of all liquidity pools. There's now an entry for the newly created AB pool. Finally, there's a third output for Ellis, where she receives the freshly minted liquidity tokens that are quite a bit here to indicate that they belong to the pool.}
+{\pard  \line \par}
+{AB now that the liquidity pool has been set up, other users can use it to swap. So let's assume that bop funds to swap 100 a against B. So what will Bob do? He will create a transaction that has two inputs and two outputs. The two inputs are the 108 he wants to, and the pulley with the swap. And the outputs are the BS he gets in return.}
+{\pard  \line \par}
+{In this example, that would be 181 piece and the PLU updated. So the poorer now has the one that a, that provided additionally. So now it's 1,108, and it has 181 B fewer than before it still, of course has the NFP that identifies the pool and the datum hasn't changed because the amount of liquidity tokens that have been minuted hasn't changed.}
+{\pard  \line \par}
+{So now of course, the question is, where does this 181 come from? And this is this ingenious idea, how price discovery, Vox, and uni swap. So the rule is roughly that the product of the amounts of the two tokens must never decrease. So initially we have 1000 A's and 2000 bees and the product is. Times 2 million, so 2 million.}
+{\pard  \line \par}
+{Okay. And if you do the calculation, then you will see that after the swap 1,100 times, 1,819 will be larger than 2 million. And if you would think about it and maybe try a couple of examples by yourself, then you will see that principal, you will always pay this ratio of the A's and B's in the pool piece, if you swap small amounts.}
+{\pard  \line \par}
+{So originally the ratio from a to B was one to two, 1000 to 2,100 is relatively small in comparison to the Panther wasn't liquidity. So Bob should roughly. 200 piece, but he does get less. So there are two reasons for that. One is that the amount of tokens in the liquidity pool is never allowed to go to zero.}
+{\pard  \line \par}
+{And, um, the more of one sort you take out the more expensive it gets, the less you get in return. So, um, 100 DPS to pull a bit of A's. So, um, he doesn't get the full factor two out. He gets a little bit less out that exactly how this product formula works. If you think about it, and this also makes it too ingenious because it automatically accounts for supply and demand.}
+{\pard  \line \par}
+{So if the next person, I would also want to swap 108, he would get even less out. So the idea is if a lot of people to put a in and to get be in return, that means the demand for B is high. And that means the price of B in relation to age race. And that is exactly what's happening. So the more people do a swap in this direction, put eight in and get beat out the less of the gap because the price of B rises.}
+{\pard  \line \par}
+{If they're versed swaps in the other direction, you would have the opposite effect. So if there's an equal amount of swaps from a to B and P to a, then this ratio between the two amounts, four roughly stays the same. And there's an additional reason why Bob doesn't get the full 200 that he might expect, and that is fees.}
+{\pard  \line \par}
+{So we've want to incentivize Ellis to set up the pool in the first place. She phoned just with it for fun. She wants to profit from that. So she wants to earn on swaps that people make. So this original product formula is modified a bit too. Insists that the product doesn't only not decrease, but that it increases by a certain amount, a certain percentage, depending on how much people swap.}
+{\pard  \line \par}
+{So that's, I think open 3% in this example, off the 108 that pop swaps, and it would be the same if you swap instead. So this is basically edit on top of this product. So anytime somebody swaps the product actually increases, not only does it not decrease, it actually increases. And the more people swap, the more it increases.}
+{\pard  \line \par}
+{And the idea is that if Ellis now would close the pool by burning her liquidity tokens, she gets all the remaining tokens in the pool. And that would be more, the product would be higher than what she originally put in. And that's her incentive to set up the pool in the first place. }
+{\pard  \line \par}
+{The next operation we look at is the ad operation where somebody. Supplies to put with additional liquidity. So let's say that Charlie also believes that the ratio from a to B should be one to two and he wants to contribute 400 and 800 P he could also have tokens in a different ratio. Basically the ratio reflects his belief in the true relative value of the tokens.}
+{\pard  \line \par}
+{So Charlie wants to add 400 ACE and 800 PS, and he creates a transaction with two inputs and two outputs. The inputs are deployed and his contribution, his additional liquidity and the out ports are the updated pool where now his A's and B's have been added to the pool tokens and note that now the data has changed.}
+{\pard  \line \par}
+{So we had 1,415 liquidity talking. Before, and now we have 1,982, and the difference the 567 go to Charlie. So that's the second output of this transaction. And that's the revert to Charlie for research for providing this liquidity, this addition to the liquidity. And they are, the formula is a bit complicated, but in principle, it also works with the product.}
+{\pard  \line \par}
+{So you check how much the product was before and after the tokens have been edited. And you take into account, how many have already been minted? And that also ensures that now basically, um, Ellis profits from the fees that Bob paid with the swap and Charlie doesn't, so there's is taking into account, but the specific formula doesn't matter.}
+{\pard  \line \par}
+{The idea is just that it's fair. So people should receive liquidity, tokens proportional to their contribution, but. If they only add liquidity after a couple of swaps have already happened, then they shouldn't profit from the fees that have accumulated. In the meantime, the next operation we look at is called remove, and it allows owners of liquidity tongs for a pool to burn some of them.}
+{\pard  \line \par}
+{So in this example, let's assume that Ellis wants to burn all her liquidity. She could also keep some, she doesn't have to burn on, but in this example, she wants to burn all her 1,415 liquidity tokens. So for that, she creates another transaction with twin puts in two outputs. The inputs are the liquidity tokens.}
+{\pard  \line \par}
+{She wants to burn. And of course the pool again with the remove Redeemer. Yeah. The outputs are the tokens from the pool that she receives in return. So in this case, she would get 1078 and 1,869 B. And the updated pool is the second output. So the 1078 and 1,869 bees have been removed from the plea and the data has been updated.}
+{\pard  \line \par}
+{So the 1,415 liquidity tokens that Ellis bond and are subtracted from the 1,982 we had before. And we see that 567 are remaining, which are exactly those that Charlie owns. And the formula for how many tokens Ellis gets for burning liquidity. Tokens is again, somewhat complicated, but it's basically just proportional.}
+{\pard  \line \par}
+{So we know how many liquidity talks there are in total 1,982 from the datum. And she basically just gets 1,415 over 1,982 of the pool. And she gets the tokens in the ratio that they are in now. So the 1072, 1,869 should be the same ratio as the 1,500 to 2,619. So by burning, you don't change the ratio of the pool.}
+{\pard  \line \par}
+{The last operation is close and it is for completely closing a pool and removing it. And this can only happen when the last remaining liquidity talkings are burnt. So in our example, Charlie holds all the remaining 567 liquidity talkings, and therefore he can close down the pool. And in order to do that, he creates a transaction with three inputs.}
+{\pard  \line \par}
+{One is the fact. And note that we only involved the factory when we created the pool. And now when we close it again, which also means that the contention on the factory is not very high. So the factory only gets involved when new pools are created, when pools are closed down, but once they exist and as long as they are not closed, the operations are independent of the factory.}
+{\pard  \line \par}
+{But if you just need the factory, when we want to update the list of existing pools, and by the way, this list is used to ensure that there won't be duplicate pools. So the create operation that we looked at in the beginning will fail. If somebody tries to create a pool that already exists for a pair of talkings that already exist.}
+{\pard  \line \par}
+{So they will always, for any given payoff tokens, be at most one pool that country against those two. Okay, so let's go back to the close operation. So the first input is the factory with the close Redeemer. Second, the input is the pool that we want to close. And third input, all the remaining liquidity talkings, and we get two outputs.}
+{\pard  \line \par}
+{One is the updated factory. So in this case we only had one pool. So the list only contains this one pool, and this is now removed from the list. And the second output contains of all the remaining tokens, all the tokens that were still in the pool by the time it gets closed down. So the remaining liquidity tokens are burned and Charlie gets all the remaining tokens from the pool. }
+{\pard  \line \par}
+{\b\fs36 [00:16:24] 1003 The Uniswap contract\b0}
+{\pard  \line \par}
+{The code for Uniswap is actually part of the Plutus repository. And it's contained in the Plutus use cases package. And it's in the Plutus dot contracts dot Uniswap module, which just re-exports these five modules here. On-chain, off-chain, types, pool, and trace. And as the name suggests on-chain contains the on-chain validation, off-chain the off-chain code, types contains common types that are used by the other modules. Pool contains the business logic. So the calculations, how many liquidity tokens does the create a pool get, how many liquidity tokens do I get if I add liquidity, how many tokens do I get back when I burned liquidity and under which conditions is a swap valid. Finally trace contains an example emulator trace.}
+{\pard  \line \par}
+{As I said, nothing here uses any Plutus techniques that we haven't seen before. So I don't want to spend too much time looking at the code, but let's at least have a brief look. }
+{\pard  \line \par}
+{So let's look at the types module. First, you represents the uni swap coin. The one that identifies the factory a and B are used for pool operations where we have these two sorts of tokens inside the pool pool state is the token that identifies a pool actually in the diagram earlier I said, it's an NFT. And by definition, NFT is something that only exists once actually here in the implementation for each pool, an identical coin is created that identifies that pool.}
+{\pard  \line \par}
+{So it's not strictly speaking in Ft. So all the liquidity pools have one coin of that sort. And liquidity is used for. The liquidity talks that the liquidity providers gets and all these types are then used in the coin types, who a is a type parameter. That's a so-called Phantom type. So that means it has no representation at run time.}
+{\pard  \line \par}
+{It's just used to not mix up the various coins to make it easier to see what goes, where, so in the data Aquinas simply an asset class, uh, that we have seen before. So as a classic call is a combination of currency, symbol, and token name}
+{\pard  \line \par}
+{Mount is just a wrapper around integer that also contains such a fondant Phantom type parameter so that we don't confuse a mounds for token a and token B for example, then we have some hypofunction functions. It's constructing a value from a coin and the Mount. And here, for example, if you'd see the use of this Phantom type, that's actually a common trick in Haskell because now if you have, for example, the pool operations that has two different coins and two different amounts for the different coins.}
+{\pard  \line \par}
+{And if the one is tech with this type capital a and the other with capital B, then normally one could easily confuse them. And some are do operations with the one coin, with the mound, for the other, and then make a mistake. And here the type system and forces that we don't do that. So we can only use this value of function.}
+{\pard  \line \par}
+{For example, if you have a coin and the Mount with the same tech type tech. So as I said, that's a common trick in Haskell that some lightweight type level programming that is doesn't need any fancy GHD extension. You wouldn't value creates one amount of the given coin and is unity checks. Whether this coin is contained in the value.}
+{\pard  \line \par}
+{Exactly. Once then a Mt. Checks, how often the coin is contained in the value, and finally made coin transit currency symbol, and to talking them into a coin, then we have the Uniswap type, which identifies the instance of the Uniswap system we are running. So of course, nobody can stop anybody from setting up a competing Uniswap system with the competing factory, but a value of this type identifies a specific system.}
+{\pard  \line \par}
+{And all the operations that are specific to a pool will be parameterized by a value of this, right. It's just a wrapper around the coin. You. And that is just the NFT that identifies the factory. Then we have a type for liquidity pools and that is basically just two coins coins in there. However, there is one slight complication, two types of tokens inside the perimeter, not the order.}
+{\pard  \line \par}
+{There is no first or second token that has coin a and coin. BP should be the same as one where a and B as swapped. And in order to achieve that, the EC instance has a special implementation. So it's not the standard. We don't just compare. If we want to compare two liquidity pools, we don't just compare the first field with the first few of the other and the second for the second, but we also try the other way round.}
+{\pard  \line \par}
+{So liquidity pool. Talks AB would be the same as liquidity pool with tokens PA. So that's the only slight complication here}
+{\pard  \line \par}
+{then and the actions that's basically the redeemers. So create with argument. Liquidity pool is for creating a new liquidity pool closes for closing. One swap is for swapping remove as for removing liquidity. And ed is for adding liquidity. Note that in the diagrams that I showed earlier for simplicity, I caught the Redeemer simply create.}
+{\pard  \line \par}
+{So I didn't mention this argument of type liquidity. The datum is a bit more complex than we have seen before. So it's not just a simple integer or similarly simple type it's a type Uniswap data. And there are two constructors, one for the factory and one for each pool. So the factory will use the factory constructor and the pulls will use to pull constructor.}
+{\pard  \line \par}
+{And as I explained before, the datum contains for the factory contains a list of, or liquidity pools that currently exist. And the date and for ploy contains the liquidity pool that I didn't mention in the diagram. And what I did mention to the diagram, it contains the amount of liquidity that has been minted for this pool.}
+{\pard  \line \par}
+{Remember that gets updated when somebody adds liquidity or removes liquidity. Next let's look at the pulley module, which as I explained before, contains the business logic, the calculations. So we have calculate initial liquidity. It gets the initial amount of talking amp that I put into the pool and returns to liquidity tokens that are returned in exchange for those then calculate additional liquidity for the case that the pool already exists in.}
+{\pard  \line \par}
+{Somebody provides additional liquidity. So the first two arguments are the amount of talking already in there. Then the third one is the liquidity that has already been minted for the pool, not the liquidity, the liquidity tokens that have, have already been minted. And the next two arguments are how many A's and B's are added to the pool.}
+{\pard  \line \par}
+{And the reside is how many liquidity tokens will be minted in exchange for this additional amount. This additional liquidity cake relate removal as for the opposite case. So given how many tokens are in the pool, how much liquidity tokens have been minted? How many liquidity talkings as to be removed?}
+{\pard  \line \par}
+{It gives how many talking's a and B remain in the pool check swap is arguably the central function of the whole Uniswap system calculates a swap. So this, and this is how many A's and B's are originally in the pool. And this, and this says how many isn't Baeza after swapping the pool. And it just returns whether that's okay or not.}
+{\pard  \line \par}
+{So in principle that just checks that the product of the last arguments is larger than the product of the first two. And as I explained before, it's a bit more complicated because the fees taking into account. So in this case, it's, um, 0.3%. So you can see this is taking into account here. It also makes sure that none of the mounds ever drops to zero.}
+{\pard  \line \par}
+{So it's not allowed to remove or coins of one sort of both from a pool. And that also makes sense because of this product, if one of the factors was zero, then of course it couldn't be larger than it was before. Finally, there's this epi ticker function. It's just a function that given a liquidity pool, computes a token name for the liquidity token.}
+{\pard  \line \par}
+{And the idea here is that this token name should only depend on the liquidity pool and should be unique. So each payer of tokens should reside in a unique token name. And in principle that just takes the currency symbols and the token names of the two tokens or coins. Concatenates all of them. Hashes that, and then uses the hash of the concatenation just to get something unique and a slight, complete cation is here.}
+{\pard  \line \par}
+{That again, must make sure that the order of coins in the pool doesn't matter. So this way there's a condition here. So it's checked that they are sorted and if they are not sorted, then you swap them around. So the, this factor should return the same token name for liquidity pool with talking NPN for liquidity pool, with talking P and a, which also corresponds to what I said earlier about equality for liquidity pools.}
+{\pard  \line \par}
+{Now let's look at the on-chain part. Only two functions are exported to make the validator for the units for both factory and pools, because they share the same script address. They address distinguished by the datum and by the coins that identify them. And validate liquidity forging. So that's the monetary policies script for the liquidity tokens, but there is a lot of code in this module.}
+{\pard  \line \par}
+{And as I said, I don't want to go through it in detail. Let's rather look at the structure. So this is the make units for data function. And this function contains all the cases for factories and puts into various redeemers. And we have the function validate liquidity forging, which is the monetary policy for liquidity talkings.}
+{\pard  \line \par}
+{And the idea here is that it doesn't contain any logic and simply delegates the logic to the Unisport valid data. And the way it does is it checks the inputs of the forging transaction and checks that it's either contains a factory or contains a pool, because if it does, then, um, this valid data will run.}
+{\pard  \line \par}
+{We know that this Villa data will run and then the validator can check that the forging is okay. And the way it does check with, uh, either the factory or pool is an input, is why are the coins that identify a factory or pool? So it checks whether this Uniswap factory coin is in the input or whether one of the coins is in the input.}
+{\pard  \line \par}
+{And then we just have hyper functions for all the various cases and they look quite long. Um, but it's all straightforward. And it's basically what I explained in the diagram. Just spelled out in detail that all these conditions are satisfied for all the different cases. One thing I should mention is I didn't use state machines and I'm not sure it's possible.}
+{\pard  \line \par}
+{I was thinking about that and it wasn't obvious to me, the problem is, I mean, one should think that both the factory and the individual pools behave like state machines. I mean, they identified by their tokens and they are these legal transitions and then the data gets updated and so on. But the problem some are is that sometimes we have both of them invoice the factory and one of the pools, and it's not obvious to me, but as it's possible with the current state machine machinery.}
+{\pard  \line \par}
+{So I physically did it by hand and I wrote this finally, let's look at the off-chain code. Also no surprises here. It's the usual point of plate be defined two different schemas. The idea is that one is for the entity that creates the unit's work factory that only has one end point start and no parameters.}
+{\pard  \line \par}
+{And then once that is created a second schema for people that make use of this Uniswap system, and all the contracts in here will be parameterized by the units for instance, that this first action creates we make use of the state mechanism. So of there's more knife writer mechanism that is accessible via 10.}
+{\pard  \line \par}
+{And basically for all the user operations, we have our own state, we call it user contract state. So there will be a helper contract that queries for all existing points. So then the state. Using this pollutes constructor and to return a list of poets in a simplified form, it's just a nested payor of pairs of coin and amount in each pool.}
+{\pard  \line \par}
+{Now they have a function to query the existing funds of a wallet that will just return a value and then construct us for all the other operations. So if they have happened, then one of those will be the state. So for example, if we did a swap, then afterwards, the status will be updated to swapped. If we removed liquidity, it will be updated to removed and so on and some names for the various tokens.}
+{\pard  \line \par}
+{So you need to swap that with the token name of the NFC in the units. What factory will state will be the token name for the coins that identify the liquidity points in our usual boiler play to actually get a script instance. And the policy for the liquidity tokens,}
+{\pard  \line \par}
+{this, um, phase HIPAA functions. Yeah. Then all the parameters for the end points. So for example, if we want to create a pool of, we need to know the tokens and the mounts. If we want to swap it must know the tokens and how much to swap and the ideas here that one of these two last fields should be zero.}
+{\pard  \line \par}
+{So if you want to put in a and get out B, we would specify the SPM amount. How many A's we want to put in, but we would leave the B at zero and the other way round. If we want to swap the against, A's close. If you want to close the pool, we just have to specify which pool. So we give the two tokens that are in.}
+{\pard  \line \par}
+{Remove, you have to specify the pool and how much liquidity we want to burn and add again, identify the pool and how many AEs and how many bees people want to add. Now, here we have the implementation. So start, as I said, sets up the world system and did again, makes use of this other use case we have used before the currency forge contract to mint, this NFT, the factory NFT that's then used to identify the units were factory create as the contract that creates a liquidity pool.}
+{\pard  \line \par}
+{And we see all of these will be, as I mentioned before, identified by the units VOC value, which is the reside of this start contract here. So if you have create VF have close again, parameterized by Eunice remove. Add and swap and all these functions, all to make use of the functions from the pulls module, these contain the business logic.}
+{\pard  \line \par}
+{So that will be used both in the valid data on the on-chain side, as well as on the off-chain side in these contracts. Yeah.}
+{\pard  \line \par}
+{Swap poets. As I said, just curious, the existing pools. So it looks for the factory. You takes all and checks the data of that. And as we know, the datum of the factory contains the list of our pools. And finally funds just checks our own funds to funds in the wallet and retrans them. So these are return values or funds, for example, trans failure pools for transfer list of this.}
+{\pard  \line \par}
+{But I mentioned earlier, we want to write that in the state. And this is now done in, in these endpoint definitions. So first we have the order end point for setting up the word system, which just uses the stop contract. And then we have the user end points, which combined all these operations that a user can do.}
+{\pard  \line \par}
+{And now there is no return value anymore. And instead we make use of the state. So we use the last monitor again. So only the last total state will be kept. And we also allow for error. So if there was an error in one of these contracts, then we will catch that error, but you was a left to right it in the state.}
+{\pard  \line \par}
+{And if there was an error, right, the appropriate user contract, state value in the state with the right constructor for either. So this is done here. Finally also have a stop end point. That simply stops it doesn't weigh anything. Just, if you look at the definition here at any time you can invoke stop or one of the others, and if it was one of the other stand recursively user end points is quite again, but in the case of stop, not.}
+{\pard  \line \par}
+{So if stop and point is ever caught, then the contract stops. }
+{\pard  \line \par}
+{\b\fs36 [00:36:14] 1004 Uniswap in the PAB\b0}
+{\pard  \line \par}
+{There are also tests for uni swap contained in this Pluto's use cases library, but I don't want to look at them. Now let's rather look at the Pluto's PPAP pot and how you can fry to front-end for uni swap. There is actually one also contains the Plutus report.}
+{\pard  \line \par}
+{It's in the Plutus PAB library and they're in the examples foldr so there's a unit support for. That contains the simulation more, not part of, of an example, how to do that. And I took this and copied it into our Plutus pioneer program report and slightly modified it to make it more suitable for what I wanted to show you.}
+{\pard  \line \par}
+{When we look at the for this week's coat, there are two executable it's fun unit minus P a B, which will run the PAB, Memphis Sava, and then one units for minus client, which is a simple console based front end for the units for replication. And, um, you see, in the other modules feared the SM module Uniswap and that's listed in both.}
+{\pard  \line \par}
+{So that will contain some common definitions that are used by both parts. So let's first look at that. First of all. As I explained, when I presented the Oracle demo, we need some data type that captures the various instances we can run for the wallets. And in this case I have three in it. Hasn't been, shouldn't be for that has nothing specifically to do with Uniswap.}
+{\pard  \line \par}
+{This is just used to create some example, talkings and distribute them in the beginning. Then you want to swap start cause points too. You when you spoke start or unit owner schema that I showed you just now for setting up the world system and you need to abuser corresponds to the other part, to the various end points to interact with the system.}
+{\pard  \line \par}
+{And this task construct is parameterized by the value of type Uniswap, which is the reside of starting. So after having started the system, the reside would be of type units pop, and this is then needed to parameterize the client. This is just boiler plate. This is this INET contract that distributes the initial funds.}
+{\pard  \line \par}
+{So it again makes use of the forge contract that we have seen before. And now producers talkings with talking them's ABB, C, D, and 1 million of each, and actually. Automated play state by the number of wallets. So in this case, I want to use four wallets. Well, it's one to four. It's actually 4 million of each of the tokens will be forged.}
+{\pard  \line \par}
+{And once they have been forged, I sent from the forging wallet to all the other wallets, 1 billion of the tokens. So one wallet forges, 4 million of each, and then loops over the other wallets and sends them 1 million each. So this is just needed to set up example talkings and distribute them amongst the wallets.}
+{\pard  \line \par}
+{This is just a HIPAA function because in order to communicate the various contract instance, ideas and other things, I need adjust you as HIPAA files. And this is the file name for a given point. }
+{\pard  \line \par}
+{Finally this instance here has of class has definitions. This has changed from the last time I did a walk through and show the PAB with the Oracle example.}
+{\pard  \line \par}
+{This is the link between this type here, this Uniswap contract type, which basically defines the API. Reifies the contracts I want to be able to run and the actual contracts. So now this link happens with this type class has definitions. And here we... the important parts are the get schema and the get contract.}
+{\pard  \line \par}
+{So the get schema links this type, the three constructors with the corresponding schemas. So for Uniswap user it's our Uniswap user schema. For Uniswap start it's our Uniswap owner schema. And for init it's the empty schema we don't need any endpoints there. And this get contract links this type against the actual contracts. So Uniswap user parameterized by value of type Uniswap, will call this user endpoints with that parameter. Uniswap start calls the owner endpoint. And init calls this init contract here. So now let's look at the PAB part. }
+{\pard  \line \par}
+{So in the simulator monad we execute that. So set up the whole system, we start the server and get the handle to shut it down again.}
+{\pard  \line \par}
+{And then in the end, um, Just wait until the user types of key and then we shut it down again. Okay. So first thing we do is wallet one activates this in its contract. So we know from looking at the code, what that will do, it will mint all these example, tokens, ABCD, 4 million of each, and then distribute them.}
+{\pard  \line \par}
+{So that while it's 1, 2, 4, and up with 1 million of each of the four different tones and we wait. So I mean this, um, pretty concurrently start this contract, but then immediately continue at one block. So we use this wait for state that I explained when we talked about orchids to wait under in it returns and what it will do is it right?}
+{\pard  \line \par}
+{The currency symbol of the forge example, tokens into the state. So we wait until we see that. And then we remember it. And we wait until this INET contract has finished. And then we've write the currency symbol into a file that acquired symbol that Jason and V just use encode code that comes from data that S on the Jason standard, Jason library for Haskell.}
+{\pard  \line \par}
+{So we take this currency symbol and, and called it to Jason and write it in this fire and provide a lock message. Then again, for volume one, we start the Uniswap system. So we use the Uniswap staff constructor, and we again use, wait for state, wait until we get the reside. And the result of the Uniswap start.}
+{\pard  \line \par}
+{I explained it earlier will be value of type swap, and we need that value in order to parameterize the user contracts. So it will be wait until we get this. I call it UN. And we lock and now Uniswap, the system is running and now we can start the, the user instances for all the wallets. So I loop or wallets and activate the Unisphere user contract, which is now parameterized by the U S value I got in the previous step}
+{\pard  \line \par}
+{here. Okay. Now I half these handles and in order to interact to communicate from the front end, with the server, I need these handles. So I write them into a fight. And this is where you says hypofunction CID fire that I showed you earlier. So I will end up with four files, w one dot CID and the w four that CID contains these contract.}
+{\pard  \line \par}
+{Instance IDs for the four contracts lock a lock message and then not just wait until the user types of key. And I can shut down the server. Let's try this out with Kibei run Uniswap minus PAB, and now a lot of stuff is happening. Remember, first we forged these example, tokens, ABCD, and then we need to distribute them to the other wallets.}
+{\pard  \line \par}
+{Then we have to start the Uniswap system. And for that, we again have to first forge the Uniswap NFT that identifies the factory and then create the initial UTX or for the factory that contains an empty list of pools. And now we see that. Well, the for user contracts have started for wallets. 1, 2, 3, 4.}
+{\pard  \line \par}
+{If we look, we see the various fights that I wrote, so we can look at those. So simmer dot Jason is the currency symbol of the example tokens I created. So I need that to refer to them. And then we have these w two w four. So if you look at one of those, that's the contract instance IDs for the contract instances for the four wallets.}
+{\pard  \line \par}
+{And in order to find the correct HTTP end points to communicate with them, I need these }
+{\pard  \line \par}
+{\b\fs36 [00:46:03] 1005 A Haskell Frontend\b0}
+{\pard  \line \par}
+{let's look at the client next. So as for the Oracle, I also wrote it in Heska using the same library for doing HTTP requests and in the main program. First of all, I expect one command line parameter, just a number from one to four, so that the main program knows for which wallet it's running.}
+{\pard  \line \par}
+{Then I read the corresponding CID fire to get the contract instance ID for that followed. And I read this symbol dot Jason fire to get the currency symbol of the example. Talkings. I read that with something, read fire coming from the byte string library and decode comes from the ACE and library to decode the Jason back to a Husker data type.}
+{\pard  \line \par}
+{I just check whether there was an error and if not, I invoke this goal function where I give as parameters, the CID, the concert insurance ID and the currency symbol. And here it's just a loop. I read a command from the console. We get to the command center second. And then depending on the command, I involve various HEPA functions and the commands exactly.}
+{\pard  \line \par}
+{Cause point to the end points we have, except for stop. I didn't implement stop so we can carry our funds. We can look for existing pools. We can create a pool where we can ethnic fluidity to a poor, he can remove liquidity from a poor, he can close a poor and he can swap, which is the whole point of the commands is just this.}
+{\pard  \line \par}
+{So for each of those, we have a command and, um, in order to enter a mounds and currency, talkings currency, symbols, and talk names because the currency symbol will always be the CS. We are only using our example tongs. I don't need that. And for the talk name, because to talk names for ABCD, I just use a character for that and it's easier to type.}
+{\pard  \line \par}
+{So for example, create interject character enters a character. So that means create a liquidity pool with that amount of the talking with that talking name and that amount of the talking with token name and so on this read command, it's just straightforward, um, treats from the keyboard and then tries to pass it as a command that if it fails, it will just recursively read command again.}
+{\pard  \line \par}
+{And if it succeeds, it returns to this command. Then there are just various HIPAA functions to convert. Something off type command into the corresponding parameter types, like create parents or add parents from the unit module that I showed you earlier this year, show coin, head angel coins, just to make it look a bit prettier when we clear the funds or the pullets, and then we have the various end points and that all makes it was a FERPA function.}
+{\pard  \line \par}
+{Last time, I think for the Oracle, I spelled it out now extracted it. So I have these error functions get status, which we need in order to get something back from the contracts and call end point. So I'm just using this library. This IQ library has last and I'm here. The interesting part is the request.}
+{\pard  \line \par}
+{So it will be post Festus is the URL. And I must give the instance ID. This is here. So this is off type, um, U U I D. So I just converted into a string and then pick it to a text because this HTTP library expects text here and, uh, the name of the end point and the request body. That depends, of course, what parameters.}
+{\pard  \line \par}
+{So there's a stress, a parameter here. That's the third argument in the function. The response will always be unit and I've just checked whether I get a 200 status code or not, and they get status is a get-rich Fest that invokes this HTTP end point called status again with the CID. And it doesn't take a request button.}
+{\pard  \line \par}
+{And I have to tell it what I'm dealing with. So that's why I need this units for contract type. Yeah. And that's also why this unit support client executable also needs access to this unit spoke module. And then I just check if the state is empty, which happens right in the beginning, requires before in anything as call it anything to the state.}
+{\pard  \line \par}
+{Then I wait a second and Recurse and if there's a state, so it's, uh, just E then I know that this is off type. Either takes a user contract state recall this user contracts data was one constructor for each of the end points. But if there's an error during contract execution, I get the error message as a text.}
+{\pard  \line \par}
+{And if something went wrong, then I ended this third case. And with these tools, it's easy to write all the cases for the end points. So let's maybe look at one it to get funds. So I used this quite endpoint type of function that I address short. So for the endpoint name funds, and in this case, the argument, the request body is just unit.}
+{\pard  \line \par}
+{And I wait for two seconds and then I use this get status HIPAA function. And if I get a right, then I show the funds that I got and otherwise I request. So I wait until I get the right, because in this case, there's funds should never fail. There's no way that can fail. Therefore I can safely wait forever.}
+{\pard  \line \par}
+{Get pollutes is similar. So it's more or less the same, except that instead of funds, I have pools now. And let's look at one more example, for example, for creating a pool. So again, I call the end point. I wait for two seconds. Now that could actually go something wrong. For example, if I try to create a pool of where both coins are the same, or if I specify a larger liquidity than I have in my wallet, then I would get an error.}
+{\pard  \line \par}
+{So in this case, I, if I get an error, I just lock it to the console and the others are very similar. }
+{\pard  \line \par}
+{\b\fs36 [00:52:58] 1006 Demo\b0}
+{\pard  \line \par}
+{Now let's try it out. Let's start three instances for, well it's 1, 2, 3, and try to recreate the scenario from the diagrams in the beginning. So I can start it simply by a Kabyle run Uniswap minus client.}
+{\pard  \line \par}
+{And then as time parameter, I give one for one at one, and they do the same for the two and for the three. And I see here that, uh, these lock messages that the country of instance ID and the symbol for the token that I can use the ABCD, uh, read correctly. So now what can I do? I can, for example, clearing my funds and I see I have a, B, C, D 1 million each, and a lot of Loveless, let's see 3, 6, 9, 100,000 data.}
+{\pard  \line \par}
+{And I can also look for pools, but right now, There shouldn't be any, and indeed Nana listed. So let's switch to wallet one, let's say this is Ellis. Papa's two and Charlie's three. And in the diagrams, we started with Ellis setting up a liquidity pool for tokens a and P 1,002 thousand. So to do this here, you can type, create thousand a remember that force of type character.}
+{\pard  \line \par}
+{So I have to use single quotes and 2000 P}
+{\pard  \line \par}
+{and I get the creative status spec. So it seems to have worked. I can queue for pools again, and indeed there is one now. So I see it as a N P and with the correct amounts, 1,002 thousand. The next step was that pops swaps 184 BS. So it's to swap 100, a four BS. Okay. Let's check how many funds Pocono has and in DTS, 100 less ACE N 181 more piece.}
+{\pard  \line \par}
+{Next Charlie edit liquidity. I think it was 400 and 800, so we can use eight, 400, a 800 P now track the pools. Let me see. It's one thousand five hundred and two thousand six hundred ninety two. Is that correct? Soviet a thousand at the beginning, then 100 for edit by Bob and now for Charlie. So I think that's correct.}
+{\pard  \line \par}
+{Now, if we go back to Ellis, she wants to remove her liquidity. So let's first fear her funds. So she has less a, and P's now because she provided them as liquidity for the poor, but she has this, um, liquidity token 1,415. So for example, she can burn them and get tokens in exchange. She doesn't have to burn all, but in the diagram she did.}
+{\pard  \line \par}
+{So let's do this. We'll remove 1004, 15, a P}
+{\pard  \line \par}
+{So now she doesn't have liquidity token anymore, but she got a S and P spec. So if we compare, so what's 8,000 years. So now it's 9,869. So she got 1,869 B's and 1070 eights. And I think the last step was that Charlie closes the pool. So let's switch to Charlie and let's say, close a B.}
+{\pard  \line \par}
+{And if now we look for poets, then again, we don't get any. So it all seems to work. }
+{\pard  \line \par}
+{\b\fs36 [00:57:28] 1007 Using curl\b0}
+{\pard  \line \par}
+{Finally, I want to show how to do this with our Tesco, the front end, and just use something like, because somebody in the Q and a asked for that. So let's see, I have. For example, status dot S H you will also find it in the code foldr and I expect one argument, it's the wallet.}
+{\pard  \line \par}
+{And then I just co tool this you are, and I interpret, relate the content of that file, the correct folate fire given by the first parameter here and status. And because that's very unwieldy, I pass it on at Piper through to JQ. And then I only interested in the current state and taught observable state of the corresponding Jason after resulting Jason.}
+{\pard  \line \par}
+{So if I try this right now for wallet, one, for example. We get the pool state. So the last request that wallet one did the last endpoint that wallet one called was the pools endpoint. And here we see the result in json format. So we see right now there's one pool with tokens A and B. We did close this pool afterwards.}
+{\pard  \line \par}
+{So that means that the pools endpoint was called while the pool still existed. And we see the result of the last endpoint call in the status. Now let's look at the funds script, which calls the funds endpoint. So again, it just takes one parameter, just the wallet. And again, here, the file name that contains the contract instance id is interpolated here into the URL. And this time recall the funds endpoint it's a post request. So we provide request body, which in this case is empty. So let's call this for wallet one.}
+{\pard  \line \par}
+{Okay, and now if we do status again, it has changed and now contains the result of calling the funds endpoint. So now we see the funds in wallet one. A bit more interesting is what to do with the post requested to have interesting arguments. For example, if now wallet one wants to create a pool again with 1,000 A and 2000 B. So, we need a request body for the correct parameters for the create params.}
+{\pard  \line \par}
+{So, in principle the curl is simple, so now again, contract instance id. And now it's endpoint create. But the question is what to write in this body. So I have it here, so I use similar arguments to in the Haskell implementation. So first the wallet and then the A amount, A token, B amount B token.}
+{\pard  \line \par}
+{So maybe we should first check whether works. So I can do create wallet... Was it one? It doesn't matter. Let's say wallet one, 1,000 A, 2000 B. Okay. And now if I query the status we see as expected that now we get the created status. Now I also have a pools script that calls the pools endpoint. So if we do that and now ask what the status again, we do get this pool that we just created.}
+{\pard  \line \par}
+{So remains the question, how I got this, um, this body, because that's complicated. It's hard to do this by hand, but if we look back at, um, the Haskell output, what I did was here, for example, for create, I always write the URL, where do the request to end also the request body. And we can actually check the court for this.}
+{\pard  \line \par}
+{This is in the, in this HIPAA function called endpoint. I brushed over that earlier when I show to the court. So this is this line here we have, right. The request body. So I get the a, that's just a Heska value that can be encoded to Jason. And I, he ended up in this line where lock, I just use end quote from the Jason from sorry, from the ASN library.}
+{\pard  \line \par}
+{So this is. The bite string. And in order to, um, write that through the concert, I need the strings who I use something from the byte string library, it's called a bite string, not lazy dog character, eight, four character, eight, and coding. And, um, so I had to unpack this bite string to a string and then I lock it.}
+{\pard  \line \par}
+{And, um, that's the way I would recommend in order to figure out what requests bodies to use. I mean, you don't of course have to write a whole program. You can also do that in the wrapper. So you just need a value of the correct type. And then, um, he was asked on to incorporate it and look at the reside and then you see the shape of the Jason that is expected, and then it can use that.}
+{\pard  \line \par}
+{And then it's straightforward to do the code request. So we don't need it has good back end you, I mean, once you have co you can use anything like JavaScript, for example, Front end. Okay. That concludes the lecture. And I think because it's the last lecture, I also don't want to give you homework. Of course you can.}
+{\pard  \line \par}
+{If you like play around with this demo and set up your own liquidity pools and, and to some swaps, and of course, whatever you want, I mean, you will, for example, you can try to write a JavaScript front end, a nice graphical UI, or you could also, uh, as a challenge, think about whether it is possible to use the state machine mechanism instead of doing it by hand, as I did.}
+{\pard  \line \par}
+{So this, as I said was the last regular lecture of this course. I thank you very much again, for all your hard work and your attention and your enthusiasm. And I hope you will learn a lot and are eager to try it out. Once Brutus is available on the Testnet and then later on the main net. And I hope to see you again soon in, in a future course about some other technologies like, uh, Tyler prison or Marlow. I also briefly want to announce that other institutions are picking up Plutus.}
+{\pard  \line \par}
+{So for example, we are collaborating with the EBU, the European Business University in Luxembourg. And that's a university that does remote classes all over the world, mostly in Africa and Latin America. And we share our Haskell and Plutus content with them and they will probably start teaching end of September. If you're interested, there will be a blog post coming out next week with more details about that. }
+{\pard  \line \par}
+{Thank you very much again, it was a great pleasure teaching this course.}
+}

@@ -1,0 +1,268 @@
+{\rtf1\ansi\deff0
+\margl1800\margr1800\margb1440\margt1440\deflang1033\lndscpsxn
+{\colortbl;
+}
+{\fonttbl;
+{\f0 Arial}
+}
+{\pard  \line \par}
+{\b\fs36 [00:00:00] 0101 Welcome and Introduction\b0}
+{\pard  \line \par}
+{Welcome to the Plutus Pioneer Program. We are very excited to have you all here. So, let me first talk about the schedule. So the idea is that there will be lectures on every Thursday and Q & A sessions on every Tuesday. And in some weeks we might have additional lectures, for example, guest lectures or some topics that are not so relevant for the main curriculum.}
+{\pard  \line \par}
+{And because there are so many of you, it's unfortunately not possible to be as interactive as I like it to be. So it would be great if all of you could use the discord server to help each other, answer questions and solve problems. I mean, we will do what we can, my colleagues and myself to answer questions and help.}
+{\pard  \line \par}
+{But with the sheer number of participants, it's just not possible to pay as much attention to every individual as we would like. So thank you for helping out.}
+{\pard  \line \par}
+{As for the content, so the idea is to really give a thorough introduction to Plutus, explain the underlying concepts, look at various types of contracts. Look at how we can test contracts in the playground or also offline, locally. Talk about native tokens, how to control minting and burning of naked tokens in Plutus.}
+{\pard  \line \par}
+{And we also look at how to deploy a Plutus contract and write a back-end for Plutus contract. Plutus learning is not easy unfortunately. So, you have to be aware that the cost probably won't be easy and there are a variety of reasons for that. So one is that Plutus uses the so-called UTxO model.}
+{\pard  \line \par}
+{I'll explain in much more detail what that means later in this lecture, and that is different and less intuitive than the Ethereum method for doing smart contracts. It has a lot of advantages the UTxO model, but it also requires a new way of thinking about smart contracts. So that's one thing, and that's before we even start with the language itself. Then of course Plutus has brand new and still under rapid development.}
+{\pard  \line \par}
+{So probably during the time of the course there will be significant changes. So we often have to update the dependencies on the main Plutus repository. And it might be that contracts that compile at the beginning of the course won't compile any longer at the end of towards the end of the course, because there have been some syntax changes. In addition to that tooling is not ideal yet.}
+{\pard  \line \par}
+{So those of you who have experienced with Haskell and know about the Haskell tooling, we noticed that in the presence of Plutus, some of the tooling is not as pleasant as you maybe use to being from doing Haskell. So, sometimes it's a bit painful, so it's not as easy to get access to a syntax of functions or to documentation from the repl, for example.}
+{\pard  \line \par}
+{And it's not even very easy to build Plutus in the first place. So your best bet is probably using nix. You can also try cabal and Stack or Docker, actually the Plutus team will provide a nice Docker image at some point. So maybe that will then be the easiest option, but yeah, it's not totally trivial to get Plutus to compile in the first place. }
+{\pard  \line \par}
+{Then, of course, Plutus is Haskell more or less. So on top of the other problems, you first have to have a firm grip on a Haskell in order to do Plutus and obviously in the eight weeks, of course time, I won't have time to first do a proper thorough Haskell course. The Haskell course that I did in Greece on Barbados in Ethiopia.}
+{\pard  \line \par}
+{And then last year, virtually in Mongolia were full-time courses, 10 week full-time courses, 40 hours a week. And even in those courses, we didn't cover everything that you will need to fully understand Plutus, of course we also covered things that are irrelevant for Plutus. So it's not as bad as it sounds, but nevertheless, there is a quite some Haskell that you need.}
+{\pard  \line \par}
+{And I won't have time to thoroughly explain everything. I'll try to explain the special concepts that you need for Plutus obviously, and whenever there is a especially need, when I see that a lot of you are struggling with something, then obviously I'll take the time to explain that topic in more detail.}
+{\pard  \line \par}
+{So, unfortunately I won't be able to spend as much time teaching Haskell as I'd like to, because obviously I mostly want to do Plutus, but we did recoat our Mongolia Haskell course. And we have started editing the videos and making them nicer and more concise. And what we have, we'll publish here for you on the discord server, so that, if you are struggling with Haskell and would like an introduction, that's much slower, much slower pace, then you can give those videos a try, and maybe they help with the Haskell problems you might have. }
+{\pard  \line \par}
+{Another problem is that Plutus is brand new, which of course is also very exciting, but it also means that you and I and the Plutus team are the first people ever in the history of humanity that write Plutus code. So if you learn another programming language and you get stuck or have a problem, then normally you can just go to stack overflow or Google, and often you will be lucky and find an answer.}
+{\pard  \line \par}
+{So, because we are the first you won't have that option. So we have to figure it out while we go along.}
+{\pard  \line \par}
+{\b\fs36 [00:06:44] 0102 The (E)UTxO Model\b0}
+{\pard  \line \par}
+{One of the most important things you need to understand in order to write Plutus smart contracts is the counting model that Cardano uses. And that is the so-called (E)UTxO model, which is an abbreviation for extended unspent transaction output model. The UTxO model without being extended is the one that has been introduced by Bitcoin.}
+{\pard  \line \par}
+{But there are other models. Ethereum, for example, uses a so-called account-based model, which is what you're used do from a normal bank, where everybody has an account and each account has a balance. And if you transfer money from one account to another, then the balances get updated accordingly, but that does not how the UTxO model works.}
+{\pard  \line \par}
+{Unspent transaction outputs are exactly what the name says. They are transaction outputs that is outputs from previous transactions that happened on the blockchain that have not yet been spent. So let's look at an example where we have two such UTxOs, one belonging to Alice, 100 ADA and another one belonging to Bob, 50 ADA.}
+{\pard  \line \par}
+{And as an example, let's assume that Alice wants to send 10 ADA to Bob. So she creates a transaction and the transaction is something that has inputs and outputs, can be an arbitrary number of inputs and an arbitrary number of outputs. And an important thing is that you can always only use complete UTxOs as input.}
+{\pard  \line \par}
+{So, if she wants to send 10 ADA to Bob, she can't simply split her existing 100 ADA into a 90 to 10 piece. She has to use the full 100 ADA as input. So by using the UTxO 100 ADA as input to a transaction. Alice has no spent that UTxO, so it's no longer an UTxO. It's no longer unspent it's been spent. }
+{\pard  \line \par}
+{And now she can create outputs for a transaction. So she wants to pay 10 ADA to Bob. So one output will be 10 ADA to Bob, and then she wants her change back. So she creates a second output of 90 ADA to herself. And so this is how, even though you always have to consume complete UTxOs, you can get your change back.}
+{\pard  \line \par}
+{So you consume the complete UTxO, but then you create an output for the change and note that in a transaction, the sum of the input values must equal the sum of the output values. So in this case, 100 ADA go in and 10 plus 90 ADA go out. This is strictly speaking, not true. There are two exceptions, the first exception is transaction fees.}
+{\pard  \line \par}
+{So in the real blockchain for each transaction, you have to pay fees. So that means that the, some of input values have to, has to be slightly higher than the sum of output values to accommodate for the fees. And the second exception is the native tokens that we have on Cardano. So it's possible for transactions to create new tokens.}
+{\pard  \line \par}
+{In which case the outputs will be higher than the inputs or to burn tokens, in which case the inputs will be higher than the outputs. But that is a somewhat advanced topic, how to handle minting and burning of native tokens in Plutus. And we'll come back to that later in the course. So for now we only look at transactions where there's some of the input values equals the sum of the output values.}
+{\pard  \line \par}
+{So this is a first example of a simple transaction, and we see that the effect of a transaction is to consume and spend transaction output and to produce new ones. So in this example, one UTxO has been consumed, Alice original 100 ADA UTxO, and two new ones have been created. One 90 ADA UTxO belong to Alice and another 10 ADA UTxO belonging to Bob. It's important to note that this is the only thing that happens on an UTxO blockchain. The only thing that happens when a new transaction is added to the blockchain is that some form a UTxOs becomes spent and UTxOs appear. So in particular, nothing is ever changed, no value or any other data associated with the transaction output is ever changed.}
+{\pard  \line \par}
+{The only thing that changes by a new transaction is that some of the formerly unspent transaction outputs disappear and others are created, but the outputs themselves never change. The only thing that changes is whether they are unspent or not. Let's do one other example, a slightly more complicated one where Alice and Bob together want to pay 55 ADA each to Charlie.}
+{\pard  \line \par}
+{So they create a transaction together. And as inputs, Alice has no choice, she only has one UTxO, so she uses that one. And Bob also doesn't have a choice because neither of his two UTxOs is a large enough to cover 55 ADA. So Bob has to use both his UTxO as input.}
+{\pard  \line \par}
+{This time we need three outputs, one the 55 plus 55 equals 110 ADA for Charlie, and then two change outputs, one for Alice's change and one for Bob's change. So Alice paid 90, so she should get 35 change and Bob paid 60. So he should get five change.}
+{\pard  \line \par}
+{One thing, I haven't yet explained is under which conditions a transaction can spend a given UTxO. Obviously it wouldn't be a good idea if any transaction could spend arbitrary UTxOs, if that was the case, then Bob could spend Alice's money without her consent. So the way it works is by adding signatures to transactions, so for our first example, our transaction one, because that consumes an UTxO belong to Allice as input.}
+{\pard  \line \par}
+{Alice's signature has to be added to the transaction. And in the second example, because there are inputs belonging to both Alice and Bob, both Alice and Bob have to sign that transaction, which incidentally is something you can't do in Daedalus. So you would have to use the Cardano CLI for complex transactions like that.}
+{\pard  \line \par}
+{Everything I've explained so far is just about the UTxO model, not the extended UTxO model. So this is all just a simple UTxO model. And the extended part comes in when we talk about smart contracts. So in order to understand that, let's just concentrate on one consumption offer a UTxO buy an input. And as I just explained, the validation that decides whether the transaction.}
+{\pard  \line \par}
+{This input belongs to is allowed to consume that you take so in the simple UTxO model relies on digital signatures. So in this case, Alice has to sign the transaction for this consumption of the UTxO to be valid. And now the idea of the extended UTxO model is to make this more general. So instead of just having one condition, namely that the appropriate signatures is present in the transaction.}
+{\pard  \line \par}
+{We replace this by arbitrary logic, and this is where Plutus comes in. So instead of just having an address that corresponds to a public key, and that can be verified by a signature that is added to the transaction, instead we have more general addresses that are not based on public keys or the hashes of public keys, but instead contain arbitrary logic that can decide under which condition this specific UTxO can be spent by a transaction.}
+{\pard  \line \par}
+{So instead of an address going to a public key, like Alice's public key in this example, there will be an arbitrary script, a script containing arbitrary logic. And instead of the signature in the transaction, the input will justify that it is allowed to consume this output with some arbitrary piece of data that we call the redeemer.}
+{\pard  \line \par}
+{So we replace the public key address, Alice in our example by a script, and we replace a digital signature by a redeemer which is an arbitrary piece of data. Now, the next question is, what exactly does that mean? What do we mean by arbitrary logic? And in particular it's important to consider what information? What context this script has?}
+{\pard  \line \par}
+{So there are several options. And the one indicated in this diagram is that all the script sees is the redeemer. So all the information the script has in order to decide whether it's okay for the transaction to consume this UTxO or not is looking at the redeemer. And that is the thing that Bitcoin incidentally does.}
+{\pard  \line \par}
+{So, in Bitcoin, there are smart contracts, they are just not very smart. They are called Bitcoin script and Bitcoin script works exactly like this. So there's a script on the UTxO site and to redeemer on the input side and the script gets the redeemer and can use the redeemer to decide whether it's okay to consume the UTxO or not.}
+{\pard  \line \par}
+{But that's not the only option, we can decide to give more information to the script. So, Ethereum uses a different concept. In Ethereum the script basically can see everything, the whole blockchain, the whole state of the blockchain. So that's like the opposite extreme of Bitcoin. Bitcoin the script has very little context, all it can see is the redeemer in Ethereum the script, the solidity scripts in Ethereum can see the complete state of the blockchain. So that enables Ethereum's scripts to be much more powerful so they can do basically everything, but it also comes with problems because the scripts are so powerful, it's also very difficult to predict what a given script will do and that opens the door to all sorts of security issues and dangerous, because it's very hard to predict for the developers of an Ethereum smart contract what can possibly happen because there are so many possibilities. }
+{\pard  \line \par}
+{So what Cardano does is something in the middle, so it doesn't offer such a restricted view as Bitcoin, but also not such a, not such a global view as Etherebut, but instead chooses a middle way. So the script can see the whole blockchain, can see the state of the word blockchain, but it can't see the whole transaction that is being validated. }
+{\pard  \line \par}
+{So, in contrast to Bitcoin it can just see this one input, the redeem of this one input, but it can see that and all the other inputs of the transaction and also all the outputs of the transaction and the transaction itself, and the Plutus script can use that information to decide whether it's okay to consume this output.}
+{\pard  \line \par}
+{Now, in this example, there's only one input, but if this transaction had more than one input, then the script would be able to see those as well. There's one last ingredient that Plutus scripts need in order to be as powerful as expressive as Ethereum scripts. And that is a so-called datum which is a piece of data that can be associated with a UTxO an addition to the value.}
+{\pard  \line \par}
+{So at a script address, like in this example, in addition to this 100 ADA value, that can be an arbitrary piece of data attached, which we call datum. And with this, we can actually mathematically prove that Plutus is at least as powerful as Ethereum, so everything, every logic you can express in Ethereum you can also express in this extended UTxO model that Cardano uses, but it has a lot of important advantages in comparison to the Ethereum model.}
+{\pard  \line \par}
+{So for example, in Plutus, it is possible to check whether a transaction will validate in your wallet before you ever sent it to the chain. So something can still go wrong, so for example, your transaction can consume an output and then when it gets to the chain, somebody else has already consumed that output.}
+{\pard  \line \par}
+{This output has already been consumed by another transaction. You can't prevent that, but in that case, your transaction will simply fail without you having to pay any fees. But if all the inputs are still there, that your transaction expects. Then you can be sure that the transaction will be validate and that it will have the effect that you predicted when you ran it in your wallet.}
+{\pard  \line \par}
+{And this is definitely not the case in Ethereum, in Ethereum in the time between you constructing the transaction and it being incorporated into the blockchain, a lot of stuff can happen concurrently and that's unpredictable, and that can have unpredictable effects on what will happen when your script eventually executes.}
+{\pard  \line \par}
+{So that means in Ethereum it's always possible that you have to pay guest fees for a transaction, although the transaction eventually fails with an error, and that is guaranteed not to happen in Cardano. In addition to that, it's also easier to analyze a Plutus script and to check or even proof that it is secure because you don't have to consider the whole state of the blockchain, which is unknowable.}
+{\pard  \line \par}
+{You can concentrate on this context that just consists of the spending transaction. So you have a much more limited scope and that makes it much easier to understand what a script is actually doing and what can possibly happen or what could possibly go wrong. So this is it, that's the extended UTxO model that Plutus uses.}
+{\pard  \line \par}
+{So to recapitulate in extending the normal UTxO model, we replace public key addresses from the normal UTxO model with scripts, Plutus scripts, and instead of legitimizing the consumption of new UTxO by digital signatures, as in the simple UTxO model, arbitrary data it's called redeemer is used on the input side.}
+{\pard  \line \par}
+{And we also add arbitrary custom data on the output side. And the script as context when it runs, sees the spending transaction, the transaction one, in this example. So given the redeemer and the datum and the transaction with its other inputs and outputs, the script can run arbitrary logic to decide whether it's okay for this transaction to consume the output or not.}
+{\pard  \line \par}
+{And that is how Plutus works. One thing I haven't mentioned yet is who is responsible for providing datum, redeemer and the validator, the script that validates whether a transaction can consume an input. And the rule in Plutus is that the spending transaction has to do that whereas the producing transaction only has to provide hashes.}
+{\pard  \line \par}
+{So that means if I produce an output that sits at a script address, then this producing transaction only has to include the hash of the script and the hash of the datum that belongs to this output. But optionally, it can include the datum and the script as well, fully, but that's only optional. And if a transaction wants to consume such a script output, then that transaction, the spending transaction has to include the datum and the redeemer and the script.}
+{\pard  \line \par}
+{So that's the rule, how it works in Plutus, which of course means that in order to be able to spend a given input, you need to know the datum because only the hash is publicly visible on the blockchain. Which is sometimes a problem and not what you want and that's where this optional possibility comes into to also include it in the producing transaction.}
+{\pard  \line \par}
+{Otherwise only people that know the datum by some other means not by looking at the blockchain would be able to ever spend such an output. So this is the UTxO model, the extended unspent transaction output model. And that is of course not tied to a specific programming language. I mean, what we have is Plutus, which is based on Haskell, but in principle, you could use the same concept, the same UTxO model with a completely different programming language.}
+{\pard  \line \par}
+{And we also plan to write compilers from other programming languages to Plutus script which is sort of the assembly language and aligned Plutus. So there's an extended UTxO model is different from the specific programming language we use. In this course, we will use Plutus obviously, but the understanding the UTxO model is independently valid from understanding Plutus or learning the Plutus, Plutus syntax.}
+{\pard  \line \par}
+{\b\fs36 [00:25:48] 0103 Building the example code.\b0}
+{\pard  \line \par}
+{And I planned this lecture and the course, I first thought I, I should do it the traditional way of starting very simple and maybe give a crash introduction into a Haskell, then do some simple Plutus contracts and slowly add more complicated stuff. But then I decided it would be more interesting, especially for the first lecture to showcase a more interesting contract and just demonstrate what Plutus can do.}
+{\pard  \line \par}
+{And then use that to look at certain concepts in more detail and explain them in more detail. So the code for this course we'll be in this GitHub repository it's at input-outpu-hk, and then plutus-pioneer-program. So I have a local clone of this repository. And the code for week one is in the sub folder code slash week one.}
+{\pard  \line \par}
+{And in order to build this, the most reliable way is to use nix. And for that, we need the right dependency of the Plutus repository. And that one is mentioned in the cabal project file. So we see here in this folder, there's this cabal project file and if we look at that, then here, this is the reference to the Plutus repository, here you also can see the address on GitHub. So it's input-output-hk/plutus. And this is the tag we're using for the code this week. So this will change during the duration of the course because Plutus is still under development. So, stuffs has permanently changed and I'll try to keep the lectures as up to date as possible.}
+{\pard  \line \par}
+{So probably every week I will change this dependency. So once we have this, we can go to the Plutus folder so I also have that locally, clone of the Plutus repository and there we must make sure that we have the right hash so we can, for example, do a git log and then this commit hash here must be the one that's mentioned in the cabal project file.}
+{\pard  \line \par}
+{If not, we have to use, git checkout with that hash from the cabal project file. And then we start the nix shell, I already did this, so I won't execute this now. So I'm already in a nix shell, but in this Plutus repository folder we have to start a nix shell. And when you do that for the first time, it can take, take quite a while, and you should also consult the readme of the Plutus repository, how to configure nix, because you have to use the appropriate caches so that you don't have to build everything by yourself, but can reuse the cache content then it's much faster, otherwise it might take hours. }
+{\pard  \line \par}
+{So once you have this nix shell, you can then go back to the Plutus Pioneer Program repo for the appropriate week, and then build the code with cabal build. And this will also take a while the first time you do it, I did it before, so in that case it's instantaneous, but the first time will take quite some time.}
+{\pard  \line \par}
+{So you need some patients, but that's the most reliable way to do it and to build the code that's accompanying this course. }
+{\pard  \line \par}
+{\b\fs36 [00:29:35] 0104 An auction contract in the EUTxO-model.\b0}
+{\pard  \line \par}
+{As my introductory example, I pick the example of an auction. So the idea is somebody wants to auction an NFT, a non fungible token. That is a native token on Cardano that only exists exactly once and NFT itself can represent some digital art or maybe also some real world asset. }
+{\pard  \line \par}
+{And the owner of the token wants to auction it away. And the idea is that this auction is parameterized by the owner of the token and the token itself, then a minimal bid. So no bid below that minimum will be accepted and the deadline. So all the bids have to arrive before the deadline. So let's say that Alice has an NFT and wants to auction it.}
+{\pard  \line \par}
+{So she creates a UTxO at the script output where the script is the auction script. We will look at the code later, but first I just want to explain the idea in the UTxO model. And the value of that UTxO is just the NFT, and the datum at the moment is nothing, later it will be the highest bidder and the highest bid.}
+{\pard  \line \par}
+{But right now there hasn't been a bid, so it's nothing. In the real blockchain you can't have a UTxO that just contains native tokens. They always have to be accompanied by some ADA, but I'm ignoring this for simplicity here. Now let's say that Bob wants to bid 100 ADA, maybe that's the minimal bit.}
+{\pard  \line \par}
+{So in order to do this, Bob creates a transaction with two inputs and one output. And the first input is the auction UTxO. The second input is Bob's bid, 100 ADA, and the output is again at the auction script, but now the value and the datum has changed. So before the datum was just nothing, because there hadn't been a bid yet.}
+{\pard  \line \par}
+{Now it's just Bob and a hundred. So it requires the highest bidder, Bob and how high the bid was, 100. The value has changed because now there's not only the NFT contained in this UTxO, but also the 100 ADA bid. And as a redeemer in order to unlock the original auction UTxO, we use something called bid.}
+{\pard  \line \par}
+{So that's just an algebraic data type, there would be other values as well but one of those is bid and the script, the auction script will check that all the conditions are satisfied. So in this case, the script has to check that the bid happens before the deadline, that the bid is high enough higher than the minimal bid and that the correct inputs and outputs are there.}
+{\pard  \line \par}
+{So the auction is an input and also an output that again contains the NFT and contains the correct highest bid in addition to that, and that the datum is updated correctly. Next let's assume that Charlie wants to outbid Bob and bid 200 ADA. So Charlie will create another transaction. This time one with two inputs and two outputs.}
+{\pard  \line \par}
+{So, as in the first case, the two inputs are Charlie's bid, the 200 ADA and the auction UTxO and one of the outputs is the updated auction UTxO. So when I say updated, recall that I earlier said nothing ever changes. So the old auction UTxO is consumed is spent and the new one is created, but it has this feel of updating the state of the auction UTxO.}
+{\pard  \line \par}
+{Anyway, so that gets updated. So instead of NFT and 100 ADA will now contain NFT and 200 ADA, then use higgest bid and also the datum will reflect that now the highest bidder is Charlie and the highest bid is 200. And that will be an additional output namely Bob will get his bid back. And that's also the reason, one of the reasons we have to recall the highest bidder and the highest bid so that we know who will get the old highest bid back. And in this case we again use the bid redeemer, but now the script has to check as before that the deadline has not been reached test to check that the new highest bid is actually higher than the old highest bid.}
+{\pard  \line \par}
+{It has to check that the new auction UTxO is correctly updated. And it also has to make sure that the original highest bidder, Bob in this case gets his bid back. Finally, let's assume that there won't be another bid, so once the deadline has been reached, the auction can be closed. In order to do that, somebody has to create yet another transaction, that could be Alice who wants her bid or it could also be Charlie who wants the NFT, it doesn't matter, it can be anybody, but those two actually have an incentive to create this transaction. So this transaction will have one input, just the auction UTxO with redeemer close, not bid in this case and two outputs. }
+{\pard  \line \par}
+{And one of the outputs is the highest bidder, Charlie, and he gets the NFT, he won the auction. So he gets what was auctioned away and Alice, the owner of the auction, the original owner of the NFT. She gets the highest bid and that closes the auction and finished this scenario. And the script in the close case has to check that the deadline has been reached and that the highest bidder gets the NFT and that the auction owner gets the highest bid.}
+{\pard  \line \par}
+{There's one more scenario for us to consider namely that nobody made any bid. So, Alice starts the auction, but then nobody creates a bid. And in this case, there must be a mechanism for Alice to retrieve her NFT. So for that, she creates a transaction again with the close redeemer. But now, because there is no bidder, the NFT doesn't go to the highest bidder because there is no highest bidder, but simply goes back to herself.}
+{\pard  \line \par}
+{So the logic in this case, if there's no highest bidder is likely different for the close redeemer, it must check that the NFT goes back to Alice. Actually, it doesn't have to check anything because I mean, this will be triggered by Alice. Alice will create this transaction. And of course she could send the NFT wherever she wants.}
+{\pard  \line \par}
+{Let's have a brief look at the code, but don't worry, I don't expect you to understand it at this point. It's an important thing to realize about Plutus is that there's on-chain and off-chain code. On-chain code is this script we were discussing in the script from the UTxO model. So in addition to public key addresses, we have script addresses and outputs can sit at such a script address.}
+{\pard  \line \par}
+{And if a transaction tries to consume such an output, the script is executed and only if it succeeds, the transaction is valid. So how it works is if a node receives a new transaction, it validates it before accepting it into its mempool and eventually into a block. And for each input of the transaction, if that input happens to be a script address, the corresponding script is executed and must succeed. And if it doesn't succeed, then the transaction is invalid. }
+{\pard  \line \par}
+{So that's the so-called on-chain aspect of Plutus and the programming language this script is expressed in as written in is called Plutus core, but you never write plutus core by hand, instead you write Haskell and then that gets compiled down to Plutus core. And eventually there may also very well be other higher level programming languages, like maybe solidity or C or Python that can compile it down to Plutus core. So that's the one thing that's the script and the task of a script is to say yes or no can this transaction consume the output I'm locking, yes or no? But in order to actually use such an output that is locked at the script address. So in order to create a transaction that will unlock section output and use that input, you of course must be able to construct a transaction that will then pass validation.}
+{\pard  \line \par}
+{And that is the responsibility of the off-chain part of Plutus. So there is a part that runs in the wallet, not on the blockchain, and that will construct suitable transactions that are then able to unlock a given script output. So that's like a dual role of on-chain and off-chain, on chain checks and validates, it doesn't do anything, it just says yes or no. }
+{\pard  \line \par}
+{And the off-chain part constructs actively creates a transaction that will then pass validation. And the nice thing, or one of the nice things about Plutus is that both the on-chain and the off-chain parts are written in Haskell. So one obvious advantage of that is that you don't have to learn two programming languages, just one Haskell.}
+{\pard  \line \par}
+{And the other advantage is that you can share code between on-chain and off-chain part. Later in this course we will talk about state machines, then this aspect is even more direct, there you can really use the same, literally the same code, both for checking and for construction. But even if you don't use state machines there's still a lot of possibility to share code. }
+{\pard  \line \par}
+{So if we briefly look at the code, so here, for example, it's just a Haskell data type that defines an auction. So it's the seller, the deadline, the minimal bid and then the last two define the NFT and various other data types .And here, this is the heart of the on-chain code.}
+{\pard  \line \par}
+{So this defines the script, the logic of the script, that validates where the transaction is allowed to spend a given output sitting at this auction contract. So there are various helper functions here to do that. And so this is that. And then here, this is where the compilation happens. So the, this functionary address shorter it's just Haskell, but then here you have something called template Haskell to activate the GHC plug in that then compiles, this Haskell code to Plutus core. }
+{\pard  \line \par}
+{And here the off-chain part starts, which defines various parameters for endpoints that can be then invoked. So we have three endpoints for this example, start will be used by the seller to start the auction, to log the NFT into the auction contract and then bid and close.}
+{\pard  \line \par}
+{So bid obviously will be used by bidders to make a bid and close will be used either by the winner of the auction or by the seller. And so here, these operations are defined, so this is the start logic. Then we have the bid logic here.}
+{\pard  \line \par}
+{Okay. That's a bit further and then finally here, the close logic. And then some helper functions and this just basically packages everything up. It says, okay, we will have these three endpoints start, bid and close. And they are called start, bid and close. And the last lines are just for demo purposes or for trying it out in the playground to create an sample NFT that we can use to auction away.}
+{\pard  \line \par}
+{So that has nothing to do with the actual contract. And what I said about code reuse, for example, if you look here at the bid off-chain part that uses a function min bid here. Basically determines giving on the current datum on the state of the contract, whether there was already a bid or not, determines the minimal bid.}
+{\pard  \line \par}
+{And if we look for that, we see that this is defined here. And it's also used here we are in the on-chain part. So obviously this script must check if a new bid comes in, whether it's high enough. So it's useful to have function that computes this minimal bid but also in the off-chain part where I'm back to now, it's also useful if the wallet before even bother us constructing a transaction that makes a bid, checks whether the bid is high enough. }
+{\pard  \line \par}
+{That's not strictly speaking necessary, the wallet could just construct the transaction anyway, but then it would be doomed to fail. So it would be stupid to actually construct it in the first place. That's why I have this check in here that checks whether the bid is actually high enough.}
+{\pard  \line \par}
+{But the point I want to make is that this min bid helper function can be shared between on-chain and off-chain code because it's just a plane Haskell function and can be used in both parts of the Plutus contract. So that's a very nice aspect of Plutus that you don't have code duplication between the on-chain part that lives on the blockchain and this responsible for validation and the off-chain part that runs in the user's wallet on the user's local machine, or later in the user's web browser.}
+{\pard  \line \par}
+{And it's used to construct transactions that will then pass a validation. So it's important to keep these two uses apart and then to realize what they are. And sometimes it's confusing when people talk about smart contracts or contracts, what do they mean? do they mean the script, the on-chain script? Or do they mean the off-chain part that lives in the wallet and run some wallet?}
+{\pard  \line \par}
+{And it's even more confusing because the Haskell data type used for the off-chain part is also called contract. So if you talk about contract, do you mean this capital C contract, the off-chain contract that's executed in, on the user's machine? Or do we talk about something else? So it's important to be precise about what we actually mean when we discuss something.}
+{\pard  \line \par}
+{Yes. But just to summarize, so we have on-chain and off-chain, on-chain gets compiled down to Plutus core and is living on the blockchain and is executed by nodes that validate transactions. And if you have the off-chain code that lives on the user's machine and is responsible for constructing transactions and submitting transactions, that will then unlog certain script outputs and both are written in Haskell.}
+{\pard  \line \par}
+{And that allows us to share code between them, which avoids code duplication. So we have a shorter code and basically guaranteed that the parts fit together or these it's easier to make the parts fit together. }
+{\pard  \line \par}
+{\b\fs36 [00:46:17] 0105 Running an auction contract on a local Playground server\b0}
+{\pard  \line \par}
+{Now, we want to try this in the playground and we won't use the publicly available playground because that's outdated, that's from February I believe. We want to use one that is in sync with the version of Plutus we are using right now. So we go back to the Plutus repository in a nix shell to the sub folder plutus-playground-client. And we start plutus-playground-server there.}
+{\pard  \line \par}
+{Then we go to a different console, but the same folder again in the nix shell and we do npm start to start the playground client.}
+{\pard  \line \par}
+{And then we can open this address in a browser and find our playground there. So first we would see the editor window and we can just take the code we just looked at and paste it in here. And press compile to compile it and if all goes well, that should compile without error message.}
+{\pard  \line \par}
+{It does, now we can go to simulate and here we have simulated wallets and can invoke endpoints. So by default, there are only two wallets, but if you want to replay the scenario I showed in the UTxO diagram, you should create a third wallet. And we see that by default, the opening balances are just 10 lovelace and 10 of this token, but I want this token to be an NFT.}
+{\pard  \line \par}
+{So that doesn't make any sense anyway. So let's say wallet one is Alice, wallet two is Bob and wallet three is Charlie. So Alice has the one T and that's the only one we have, so for the other say zero and 10 lovelace, is of course, ridiculously low. So make that, I don't know, a thousand ADA, so one ADA is a million lovelace.}
+{\pard  \line \par}
+{So 1, 2, 3, 1, 2, 3. Let's give everybody the same.}
+{\pard  \line \par}
+{Okay, so now we can invoke endpoints. So Alice starts the auction. We have to provide parameters, the first one is the deadline. Let's say the deadline is slot 10, but time is measured in posix time. So in seconds from 1st of January 1970 I believe, something like that. So it's not so clear what value makes sense there.}
+{\pard  \line \par}
+{Luckily in the plutus-ledger package in module Ledger.TimeSlot. There's a convenient function slot to posix time. So if we import that in the repl.}
+{\pard  \line \par}
+{Now we have this slot to posix time and if we need to slot 10, you get this value here. Probably I think the simulation always start at the beginning of the Shelley era. So probably if you convert it, it will be sometime, some of 2020, but in any case, we can use this value. So let's use the value here. Now the minimum bid, let's say 100 ADA, and now we must specify the NFT that's being auctioned.}
+{\pard  \line \par}
+{And because of how I set it up, this is six, six and T. So don't worry about the 66. That's just how this T was defined. Okay. Now let's wait one block. Now let's Bob make his bit. So this is again, specify the NFT so it's 66 T. Now the bid, 100 ADA, we wait for another block. Now, Charlie outbids Bob, again the 66 and the T. And now 200 ADA.}
+{\pard  \line \par}
+{We wait until the deadline has been reached, let's wait until just for good measure until slot 11. I'm not sure whether 10 would suffice. It depends how exactly before and after the deadline is defined. And then Alice or Bob or Charlie, anybody can invoke close, but Bob has no reason to, so it would be Alice or Charlie, let's say Alice.}
+{\pard  \line \par}
+{So she invokes the close endpoint, again 66 T and let's wait for one more block and let's evaluate.}
+{\pard  \line \par}
+{Okay, and now we see the transactions that were simulated. We see there were 1, 2, 3, 4, 5, which at first glance is a bit weird because we only have start, two bids and the close, so it should be four. But the first one in slot zero is always there, that's the so-called genesis transaction. It's a transaction without input that provides the initial funds to the wallets.}
+{\pard  \line \par}
+{So we have these three outputs for our three wallets and we get what we specified so, Alice gets 1,000 ADA and the token and two and three Bob and Charlie only get 1,000 ADA but nothing of the token. So this is the Genesis transaction that always happens to kick things off and provide initial funds.}
+{\pard  \line \par}
+{So now in slot one, this should be the start transaction. So input we see is the only UTxO that Alice owns the her 1,000 ADA. And the, it contains 1,000 ADA and the NFT. So this is the start transaction. We see that fees are taken into account here in the playground, but not properly. I think there's always at the moment a flat rate of 10 lovelace, which is not realistic.}
+{\pard  \line \par}
+{So in, in the real blockchain, in the real system, the fee will of course depend on the transaction, how big it is and how long the scripts run, how many resources they consume and so on. But for now the fees always 10 lovelace. Then the second output here is Alice's change. So she gets her 1,000 ADA back minus the 10 lovelace fee.}
+{\pard  \line \par}
+{And the third output is the interesting one that goes to the auction script. So now the NFT is logged in the auction script. So now if we go to the next transaction, that should be Bob's bid. So we have two inputs as in the diagram we looked at earlier. So one is the auction script with the NFT and one is Bob's original UTxO.}
+{\pard  \line \par}
+{And as outputs, so we're gonna have the fees or which in this case are not just 10 lovelace. So now we have like a higher fee. So it seems that changed since last time we looked at it. So now it's not a flat rate of 10 lovelace there is some more sophistication going on. The second output is Bob's change.}
+{\pard  \line \par}
+{So it's basically a 1,000 ADA minus the 130 bids, but then also minus the fee. The third output is the updated script. So the updated script now contains the token and Bob's bid. Now let's look at the next transaction, the Charlie's bid. So it's similar here on the input side. So the script UTxO goes in, that at the moment contains the NFT and Bob's bid.}
+{\pard  \line \par}
+{Then Charlie's UTxO is the second input. Now we have one output more because Bob gets his bid back. So we have the fees, we have the change for Charlie. So he gets roughly 800 ADA change because he, his bid was 200. Then we have the script output, so the NFT is still there, but now there are 200 ADA in it Charlie's bid.}
+{\pard  \line \par}
+{And finally for wallet two for Bob, Bob gets his 100 bid back and the last one will be the close, invoked by Alice. So input is just Alice's wallet, this is in order to pay for the fees and then the script output. And so we have the fees, we have changed for Alice. So it's virtually the same that went in minus these fees.}
+{\pard  \line \par}
+{Then Alice gets the highest bid the 200 ADA and Bob gets the token. So the auction has finished. We could check what happens if something goes wrong. Or for example, if Charlie's bid is too low, is not higher than, than Bob's bid. So where is it? That was here, the bid was 200, so let's say Charlie makes a mistake and only bids instead of 200, only 20 ADA. So if we now evaluate.}
+{\pard  \line \par}
+{Okay, then we see we have one transaction less. So, this is still Bob's bid with the 100, but now Charlie's transaction was invalid. So that's rejected and the close now looks different because now Bob is the highest bidder. So Alice only gets 100 and Bob gets the NFT. Finally, we can try what happens if there is no valid bids So, for example, we can just remove the bids all together, let's remove Bob's bid and Charlie's bid.}
+{\pard  \line \par}
+{And we must just wait until the deadline has been reached, so wait until slots 11 let's say and see what happens now.}
+{\pard  \line \par}
+{Okay. So we have the genesis transaction and the opening of the auction and no bids. And now the closing of the auction will just return the NFT here to Alice, so in this case, there are two outputs to Alice's address, but in any case, she ends up with the NFT back in her hands. So you can see that this is a relatively complex contract and one that might actually be useful in practice, and it seems to work and we can play with it in the playground.}
+{\pard  \line \par}
+{So I hope you enjoyed this walk through through the auction contract. And I excited to learn how to do things like that, or even more interesting things like that yourself during this course. And that's the end of today's lecture. So all that remains is homework.}
+{\pard  \line \par}
+{\b\fs36 [00:58:13] 0106 Homework\b0}
+{\pard  \line \par}
+{ So I've planned to give you a little bit of homework every week so that you can practice because in learning a programming language, it's always very important that you try it yourself.}
+{\pard  \line \par}
+{Because often, if you listen to a lecture, even if you think you understand everything then if you sit down and try it yourself, you actually realize if there are certain things you didn't really understand, as well as you thought you did when you listened to it. But of course we haven't really learned anything yet.}
+{\pard  \line \par}
+{So I can't ask you to write a simple Plutus contract. So for the first week, I would just like to ask you to basically do what I did in this walk through. So clone the Plutus Pioneer Program repository, get it to build with cabal build, clone the Plutus repository, check out the right commit, get the nix shell working, start the Plutus playground server, start the Plutus playground client, then copy paste the code from the Plutus Pioneer Program repo into the playground. And make it compile and then simulate some auctions scenarios. So it would be great if, if all of you could manage to get that working, because then it means that your environments are properly set up and we're ready to take on more interesting things. So that was it for the first week.}
+{\pard  \line \par}
+{Thank you very much again, for attending the course and talk to you next week. Thank you.}
+}
