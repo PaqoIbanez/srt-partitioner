@@ -2,7 +2,8 @@ image:
   file: .gitpod.Dockerfile
 tasks:
   - init: |
-      sudo apt-get install npm
+      sudo apt update
+      sudo apt install nodejs npm
       npm install
       npm install -g nodemon
       nodemon app.js
