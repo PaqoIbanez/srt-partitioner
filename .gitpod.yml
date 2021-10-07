@@ -5,5 +5,5 @@ tasks:
       sudo apt update
       sudo apt install -y nodejs npm
       npm install
-      npm install -g nodemon
+      sudo npm install -g nodemon
       nodemon app.js
